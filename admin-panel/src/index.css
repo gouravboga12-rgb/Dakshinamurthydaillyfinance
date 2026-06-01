@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-primary font-sans antialiased;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+/* Custom Scrollbar — warm gold accent */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D4A017;
+  border-radius: 99px;
+  opacity: 0.5;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B8860B;
+}
+
+/* Glassmorphism Panels */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(212, 160, 23, 0.15);
+}
+
+/* Micro-animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-24px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 160, 23, 0.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(212, 160, 23, 0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-left {
+  animation: slideInLeft 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 2s infinite;
+}
+
+/* Status Badge helpers */
+.badge {
+  @apply px-2.5 py-1 text-xs font-semibold rounded-full inline-flex items-center gap-1;
+}
+
+.badge-active {
+  background-color: #DCFCE7;
+  color: #15803D;
+  border: 1px solid rgba(22, 163, 74, 0.2);
+}
+
+.badge-pending {
+  background-color: #FEF3C7;
+  color: #B45309;
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+.badge-completed {
+  background-color: #DBEAFE;
+  color: #1D4ED8;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.badge-rejected {
+  background-color: #FEE2E2;
+  color: #B91C1C;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+/* Gold gradient button */
+.btn-gold {
+  @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-primary-dark
+    transition-all duration-200 active:scale-95;
+  background: linear-gradient(135deg, #F0C040 0%, #D4A017 100%);
+  box-shadow: 0 4px 16px rgba(212, 160, 23, 0.25);
+}
+
+.btn-gold:hover {
+  box-shadow: 0 6px 24px rgba(212, 160, 23, 0.40);
+  transform: translateY(-1px);
+}
+
+/* Navy card */
+.card-navy {
+  @apply rounded-2xl p-6 text-white relative overflow-hidden;
+  background: linear-gradient(135deg, #0D1B2A 0%, #1A2E45 100%);
+  box-shadow: 0 8px 32px rgba(13, 27, 42, 0.20);
+}
+
+/* Soft warm card */
+.card-surface {
+  @apply bg-surface rounded-2xl border border-border shadow-card;
+}

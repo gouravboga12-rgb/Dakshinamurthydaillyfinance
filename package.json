@@ -1,0 +1,12 @@
+{
+  "name": "dakshinamurthy-daily-finance-unified",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Unified launcher and runner for backend, admin-panel, and customer-mobile",
+  "scripts": {
+    "dev": "node start-all.js --dev",
+    "build": "node start-all.js --build",
+    "start": "node start-all.js",
+    "web": "node start-all.js"
+  }
+}
