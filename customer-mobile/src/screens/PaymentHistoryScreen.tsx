@@ -106,7 +106,7 @@ export default function PaymentHistoryScreen({ navigation }: any) {
     );
   }
 
-  const nextDue = installments.find(i => i.status === 'Unpaid')?.due_date || '—';
+  const nextDue = (installments || []).find(i => i?.status === 'Unpaid')?.due_date || '—';
 
   return (
     <ScrollView style={COMMON_STYLES.container} contentContainerStyle={styles.content}>
@@ -121,10 +121,10 @@ export default function PaymentHistoryScreen({ navigation }: any) {
             <View>
               <Text style={styles.amountLabel}>Outstanding Balance</Text>
               <Text style={styles.loanAmount}>
-                ₹{selectedLoan.remaining_balance.toLocaleString('en-IN')}
+                ₹{Number(selectedLoan?.remaining_balance || 0).toLocaleString('en-IN')}
               </Text>
               <Text style={styles.loanIdText}>
-                ID: KB{selectedLoan.id.slice(0, 10).toUpperCase()}
+                ID: KB{(selectedLoan?.id || '').slice(0, 10).toUpperCase()}
               </Text>
             </View>
           </View>
@@ -176,13 +176,13 @@ export default function PaymentHistoryScreen({ navigation }: any) {
             <Text style={styles.viewAllLink}>View All ›</Text>
           </TouchableOpacity>
         </View>
-        {installments.map((inst, idx) => {
+        {(installments || []).map((inst, idx) => {
           const isOverdue =
-            inst.status === 'Unpaid' &&
-            inst.due_date < new Date().toISOString().split('T')[0];
-          const isPaid = inst.status === 'Paid';
+            inst?.status === 'Unpaid' &&
+            inst?.due_date < new Date().toISOString().split('T')[0];
+          const isPaid = inst?.status === 'Paid';
           return (
-            <View key={inst.id} style={styles.installmentCard}>
+            <View key={inst?.id || idx} style={styles.installmentCard}>
               <View style={styles.rowLeft}>
                 <View style={[
                   styles.calcIconBox,
@@ -195,10 +195,10 @@ export default function PaymentHistoryScreen({ navigation }: any) {
                 </View>
                 <View>
                   <Text style={styles.installAmount}>
-                    ₹{selectedLoan.daily_installment.toLocaleString('en-IN')}
+                    ₹{Number(selectedLoan?.daily_installment || 0).toLocaleString('en-IN')}
                   </Text>
                   <Text style={styles.installDate}>
-                    Day {idx + 1} — {inst.due_date}
+                    Day {idx + 1} — {inst?.due_date || '—'}
                   </Text>
                 </View>
               </View>
