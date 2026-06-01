@@ -52,6 +52,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
   const [newShopName, setNewShopName] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [newAadhaarFile, setNewAadhaarFile] = useState<File | null>(null);
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
 
@@ -106,16 +107,23 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
     setFormError('');
 
     try {
-      await axios.post('/api/admin/customers', {
-        full_name: newName,
-        mobile_number: newMobile,
-        email: newEmail,
-        occupation: newOccupation,
-        shop_name: newShopName,
-        address: newAddress,
-        password: newPassword
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
+      const formData = new FormData();
+      formData.append('full_name', newName);
+      formData.append('mobile_number', newMobile);
+      if (newEmail) formData.append('email', newEmail);
+      if (newOccupation) formData.append('occupation', newOccupation);
+      if (newShopName) formData.append('shop_name', newShopName);
+      if (newAddress) formData.append('address', newAddress);
+      formData.append('password', newPassword);
+      if (newAadhaarFile) {
+        formData.append('aadhaar', newAadhaarFile);
+      }
+
+      await axios.post('/api/admin/customers', formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
       // Reset Form
@@ -126,6 +134,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
       setNewShopName('');
       setNewAddress('');
       setNewPassword('');
+      setNewAadhaarFile(null);
       setShowCreateModal(false);
       fetchCustomers();
     } catch (err: any) {
@@ -483,6 +492,21 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                     onChange={(e) => setNewAddress(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                     placeholder="Enter complete customer address details"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Aadhaar Card (PDF, PNG, JPG)</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setNewAadhaarFile(file);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
                 </div>
 

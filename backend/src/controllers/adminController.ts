@@ -3,6 +3,8 @@ import { db } from '../config/db';
 import { AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import fs from 'fs';
+import { uploadToCloudinary } from '../config/cloudinary';
 
 // --- CUSTOMER MANAGEMENT ---
 
@@ -43,6 +45,22 @@ export const createCustomer = async (req: AuthRequest, res: Response) => {
     }
 
     const password_hash = await bcrypt.hash(password, 10);
+
+    // Upload Aadhaar to Cloudinary if provided
+    let aadhaar_url = null;
+    if (req.file) {
+      try {
+        aadhaar_url = await uploadToCloudinary(req.file.path);
+        // Delete local temp file
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+      } catch (err) {
+        console.error('Error uploading to Cloudinary, falling back to local storage:', err);
+        aadhaar_url = `/uploads/aadhaar/${req.file.filename}`;
+      }
+    }
+
     const newUser = await db.createUser({
       full_name,
       mobile_number,
@@ -52,7 +70,8 @@ export const createCustomer = async (req: AuthRequest, res: Response) => {
       address,
       password_hash,
       role: 'customer',
-      status: 'approved' // Created directly by Admin, auto-approved
+      status: 'approved', // Created directly by Admin, auto-approved
+      aadhaar_url
     });
 
     await db.createNotification(newUser.id, 'Welcome!', 'Your account has been created by the administrator.', 'system');
