@@ -17,9 +17,31 @@ interface AuthState {
   error: string | null;
 }
 
+// Initial state reading from localStorage if on web
+const getInitialToken = () => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    return localStorage.getItem('customer-token');
+  }
+  return null;
+};
+
+const getInitialUser = () => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const u = localStorage.getItem('customer-user');
+    if (u) {
+      try {
+        return JSON.parse(u);
+      } catch (e) {
+        return null;
+      }
+    }
+  }
+  return null;
+};
+
 const initialState: AuthState = {
-  token: null,
-  user: null,
+  token: getInitialToken(),
+  user: getInitialUser(),
   loading: false,
   error: null,
 };
@@ -36,6 +58,10 @@ const authSlice = createSlice({
       state.loading = false;
       state.token = action.payload.token;
       state.user = action.payload.user;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('customer-token', action.payload.token);
+        localStorage.setItem('customer-user', JSON.stringify(action.payload.user));
+      }
     },
     loginFailure(state, action: PayloadAction<string>) {
       state.loading = false;
@@ -45,10 +71,17 @@ const authSlice = createSlice({
       state.token = null;
       state.user = null;
       state.error = null;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem('customer-token');
+        localStorage.removeItem('customer-user');
+      }
     },
     updateProfile(state, action: PayloadAction<any>) {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem('customer-user', JSON.stringify(state.user));
+        }
       }
     }
   }
