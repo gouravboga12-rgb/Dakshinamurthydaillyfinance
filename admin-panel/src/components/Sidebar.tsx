@@ -55,7 +55,7 @@ export default function Sidebar({ currentPage, setCurrentPage, adminName, onLogo
         <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl overflow-hidden border-2 border-brand/40 shrink-0 shadow-brand">
-              <img src="/admin/logo.png" alt="Logo" className="w-full h-full object-cover" />
+              <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-white font-extrabold text-[11px] leading-tight tracking-widest">

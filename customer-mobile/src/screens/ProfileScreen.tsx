@@ -19,27 +19,33 @@ export default function ProfileScreen() {
   const dispatch = useDispatch();
 
   const handleLogout = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out of your account?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: () => {
-            dispatch(logout());
-            // On web, React Navigation doesn't fully remount on Redux state change,
-            // so we force a page reload to get back to the Login screen cleanly.
-            if (Platform.OS === 'web') {
-              setTimeout(() => {
-                (window as any).location.href = '/';
-              }, 100);
-            }
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to sign out of your account?');
+      if (confirmed) {
+        dispatch(logout());
+        // On web, React Navigation doesn't fully remount on Redux state change,
+        // so we force a page reload to get back to the Login screen cleanly.
+        setTimeout(() => {
+          window.location.href = '/';
+          window.location.reload();
+        }, 100);
+      }
+    } else {
+      Alert.alert(
+        'Sign Out',
+        'Are you sure you want to sign out of your account?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign Out',
+            style: 'destructive',
+            onPress: () => {
+              dispatch(logout());
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const avatarUri = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=256&h=256&q=80';

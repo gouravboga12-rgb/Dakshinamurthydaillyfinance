@@ -59,7 +59,7 @@ export default function Login({ onLoginSuccess, onBypass }: LoginProps) {
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center">
           <div className="bg-slate-900 p-2 rounded-2xl border border-slate-800 shadow-xl shadow-blue-900/20">
-            <img src="/admin/logo.png" alt="Dakshinamurthy Logo" className="w-16 h-16 object-contain rounded-xl" />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Dakshinamurthy Logo" className="w-16 h-16 object-contain rounded-xl" />
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-white tracking-tight">

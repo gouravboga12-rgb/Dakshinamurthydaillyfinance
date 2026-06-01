@@ -142,7 +142,10 @@ export const login = async (req: Request, res: Response) => {
         mobile_number: user.mobile_number,
         email: user.email,
         role: user.role,
-        status: user.status
+        status: user.status,
+        occupation: user.occupation,
+        shop_name: user.shop_name,
+        address: user.address
       }
     });
   } catch (error: any) {

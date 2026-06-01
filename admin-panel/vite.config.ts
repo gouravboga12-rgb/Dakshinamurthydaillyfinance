@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // Base path must match what the backend serves it under
-  base: '/admin/',
+  // Base path must match what the backend serves it under, except on Vercel
+  base: process.env.VERCEL ? '/' : '/admin/',
   server: {
     port: 3000,
     proxy: {
