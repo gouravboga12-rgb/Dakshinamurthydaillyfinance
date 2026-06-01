@@ -377,7 +377,7 @@ export default function DashboardScreen({ navigation }: any) {
                       styles.amountPillText,
                       isCustomAmount && styles.activeAmountPillText
                     ]}>
-                      Custom
+                      More
                     </Text>
                   </TouchableOpacity>
                 </View>

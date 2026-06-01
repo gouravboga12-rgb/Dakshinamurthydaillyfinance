@@ -16,7 +16,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import PaymentHistoryDetailScreen from '../screens/PaymentHistoryDetailScreen';
 
 // Custom tab icons mock since we don't install expo-vector-icons specifically, we can use simple Text or Styles!
-import { Text, View, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, Linking, Platform, Alert } from 'react-native';
 import { COLORS } from '../utils/theme';
 
 const Stack = createNativeStackNavigator();
@@ -84,6 +84,21 @@ function TabNavigator() {
         headerTitleStyle: {
           fontWeight: 'bold',
         },
+        headerRight: () => (
+          <TouchableOpacity 
+            onPress={() => {
+              if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                window.location.reload();
+              } else {
+                Alert.alert('Info', 'Pull down the screen to refresh data.');
+              }
+            }}
+            style={{ marginRight: 16 }}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 16 }}>🔄</Text>
+          </TouchableOpacity>
+        ),
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '700',
@@ -133,7 +148,24 @@ export default function AppNavigator() {
   return (
     <View style={styles.rootContainer}>
       <View style={styles.appContainer}>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator screenOptions={{ 
+          headerShown: false,
+          headerRight: () => (
+            <TouchableOpacity 
+              onPress={() => {
+                if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                  window.location.reload();
+                } else {
+                  Alert.alert('Info', 'Pull down to refresh or go back to main screen.');
+                }
+              }}
+              style={{ marginRight: 16 }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 16 }}>🔄</Text>
+            </TouchableOpacity>
+          )
+        }}>
           {token === null ? (
             // Auth Stack
             <>

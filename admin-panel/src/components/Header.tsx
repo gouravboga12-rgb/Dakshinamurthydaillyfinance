@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Menu } from 'lucide-react';
+import { Calendar, Menu, RefreshCw } from 'lucide-react';
 
 interface HeaderProps {
   title: string;
@@ -47,6 +47,15 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
 
       {/* Right Section */}
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* Refresh Button */}
+        <button
+          onClick={() => window.location.reload()}
+          title="Refresh Data"
+          className="p-2 rounded-xl border border-border bg-background hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition-colors flex items-center justify-center shadow-sm"
+        >
+          <RefreshCw size={14} />
+        </button>
+
         {/* Full Date for desktop */}
         <div className="hidden md:flex items-center gap-2 bg-brand-pale border border-brand/20 text-primary px-3.5 py-2 rounded-xl text-xs font-semibold">
           <Calendar size={13} className="text-brand" />
