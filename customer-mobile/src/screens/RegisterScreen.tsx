@@ -93,14 +93,23 @@ export default function RegisterScreen({ navigation }: any) {
         },
       });
 
-      Alert.alert(
-        'Registration Successful! 🎉',
-        'Your account has been created successfully. You can now login with your mobile number and password.',
-        [{ text: 'Login Now', onPress: () => navigation.navigate('Login') }]
-      );
+      if (Platform.OS === 'web') {
+        alert('Registration Successful! 🎉\n\nYour account has been created successfully. You can now login.');
+        navigation.navigate('Login');
+      } else {
+        Alert.alert(
+          'Registration Successful! 🎉',
+          'Your account has been created successfully. You can now login with your mobile number and password.',
+          [{ text: 'Login Now', onPress: () => navigation.navigate('Login') }]
+        );
+      }
     } catch (err: any) {
       const message = err.response?.data?.error || 'Registration failed. Please try again.';
-      Alert.alert('Registration Failed', message);
+      if (Platform.OS === 'web') {
+        alert(`Registration Failed: ${message}`);
+      } else {
+        Alert.alert('Registration Failed', message);
+      }
     } finally {
       setLoading(false);
     }

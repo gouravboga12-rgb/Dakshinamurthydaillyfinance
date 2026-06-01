@@ -5,7 +5,10 @@ import { store } from '../store';
 const getBaseUrl = () => {
   if (Platform.OS === 'web') {
     // When served from the unified backend, use relative URL (same origin)
-    // Falls back to explicit port for dev server usage
+    // If opened on the Expo dev server (port 8082), route API calls to Express backend (port 8081)
+    if (typeof window !== 'undefined' && window.location.port === '8082') {
+      return 'http://localhost:8081/api';
+    }
     return '/api';
   }
   if (Platform.OS === 'android') {

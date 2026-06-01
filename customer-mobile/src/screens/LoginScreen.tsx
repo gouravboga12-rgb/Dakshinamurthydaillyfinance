@@ -44,7 +44,11 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleLogin = async () => {
     if (!mobile.trim() || !password.trim()) {
-      Alert.alert('Missing Fields', 'Please enter your mobile number and password.');
+      if (Platform.OS === 'web') {
+        alert('Missing Fields: Please enter your mobile number and password.');
+      } else {
+        Alert.alert('Missing Fields', 'Please enter your mobile number and password.');
+      }
       return;
     }
 
@@ -59,7 +63,11 @@ export default function LoginScreen({ navigation }: any) {
 
       if (user.role === 'admin') {
         dispatch(loginFailure('Admin users must use the Admin Panel web interface.'));
-        Alert.alert('Admin Access Denied', 'Please use the admin dashboard at localhost:3000');
+        if (Platform.OS === 'web') {
+          alert('Admin Access Denied: Please use the admin dashboard at localhost:3000');
+        } else {
+          Alert.alert('Admin Access Denied', 'Please use the admin dashboard at localhost:3000');
+        }
         return;
       }
 
@@ -67,7 +75,11 @@ export default function LoginScreen({ navigation }: any) {
     } catch (err: any) {
       const message = err.response?.data?.error || 'Login failed. Please check your credentials.';
       dispatch(loginFailure(message));
-      Alert.alert('Login Failed', message);
+      if (Platform.OS === 'web') {
+        alert(`Login Failed: ${message}`);
+      } else {
+        Alert.alert('Login Failed', message);
+      }
     }
   };
 

@@ -82,14 +82,23 @@ export default function DashboardScreen({ navigation }: any) {
     setPaying(true);
     try {
       await api.post('/customer/pay');
-      Alert.alert(
-        'Repayment Successful! 🎉',
-        `Successfully paid daily installment of ₹${summary.loan.daily_installment}.\nYour outstanding loan balance has been updated.`,
-        [{ text: 'Great', onPress: fetchDashboard }]
-      );
+      if (Platform.OS === 'web') {
+        alert(`Repayment Successful! 🎉\n\nSuccessfully paid daily installment of ₹${summary.loan.daily_installment}.\nYour outstanding loan balance has been updated.`);
+        fetchDashboard();
+      } else {
+        Alert.alert(
+          'Repayment Successful! 🎉',
+          `Successfully paid daily installment of ₹${summary.loan.daily_installment}.\nYour outstanding loan balance has been updated.`,
+          [{ text: 'Great', onPress: fetchDashboard }]
+        );
+      }
     } catch (err) {
       console.error(err);
-      Alert.alert('Payment Error', 'Failed to complete repayment simulator.');
+      if (Platform.OS === 'web') {
+        alert('Payment Error: Failed to complete repayment simulator.');
+      } else {
+        Alert.alert('Payment Error', 'Failed to complete repayment simulator.');
+      }
     } finally {
       setPaying(false);
     }
@@ -109,11 +118,19 @@ export default function DashboardScreen({ navigation }: any) {
     const dur = parseInt(requestDuration);
     
     if (isNaN(amt) || amt <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid loan amount.');
+      if (Platform.OS === 'web') {
+        alert('Invalid Amount: Please enter a valid loan amount.');
+      } else {
+        Alert.alert('Invalid Amount', 'Please enter a valid loan amount.');
+      }
       return;
     }
     if (isNaN(dur) || dur <= 0) {
-      Alert.alert('Invalid Duration', 'Please enter a valid duration in days.');
+      if (Platform.OS === 'web') {
+        alert('Invalid Duration: Please enter a valid duration in days.');
+      } else {
+        Alert.alert('Invalid Duration', 'Please enter a valid duration in days.');
+      }
       return;
     }
 
@@ -126,14 +143,23 @@ export default function DashboardScreen({ navigation }: any) {
       });
 
       setApplyModalVisible(false);
-      Alert.alert(
-        'Application Received',
-        'We received your application. Thank you for applying! We will get back to you soon.',
-        [{ text: 'Great', onPress: fetchDashboard }]
-      );
+      if (Platform.OS === 'web') {
+        alert('Application Received\n\nWe received your application. Thank you for applying! We will get back to you soon.');
+        fetchDashboard();
+      } else {
+        Alert.alert(
+          'Application Received',
+          'We received your application. Thank you for applying! We will get back to you soon.',
+          [{ text: 'Great', onPress: fetchDashboard }]
+        );
+      }
     } catch (err) {
       console.error(err);
-      Alert.alert('Error', 'Failed to submit loan request.');
+      if (Platform.OS === 'web') {
+        alert('Error: Failed to submit loan request.');
+      } else {
+        Alert.alert('Error', 'Failed to submit loan request.');
+      }
     } finally {
       setRequestLoading(false);
     }

@@ -30,6 +30,7 @@ export async function uploadToCloudinary(filePath: string): Promise<string> {
   const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
     method: 'POST',
     body: formData,
+    signal: AbortSignal.timeout(4000), // Abort and fallback if upload takes > 4s
   });
 
   if (!response.ok) {
