@@ -161,6 +161,19 @@ if (DEV_MODE) {
   run('npx expo export --platform web', MOBILE, 'Customer App');
 
   if (BUILD_ONLY) {
+    const publicDir = path.join(ROOT, 'public');
+    log(GOLD, '📂', 'Copying admin-panel/dist to root "public" directory for Vercel...');
+    try {
+      if (fs.existsSync(publicDir)) {
+        fs.rmSync(publicDir, { recursive: true, force: true });
+      }
+      fs.mkdirSync(publicDir, { recursive: true });
+      fs.cpSync(path.join(ADMIN, 'dist'), publicDir, { recursive: true });
+      log(GREEN, '✓', 'Successfully copied build to public/');
+    } catch (e) {
+      log(RED, '✗', `Failed to copy build to public/: ${e.message}`);
+    }
+
     log(GREEN, '✅', 'All builds complete!');
     log(CYAN, '📌', 'To start the server run:  cd backend && npm run dev');
     process.exit(0);
