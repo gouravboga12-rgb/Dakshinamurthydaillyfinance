@@ -17,6 +17,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import api from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
+import { Ionicons } from '@expo/vector-icons';
 
 interface DashboardSummary {
   hasActiveLoan: boolean;
@@ -32,10 +33,12 @@ interface DashboardSummary {
   } | null;
   installmentsCount: number;
   paidInstallmentsCount: number;
+  pendingInstallmentsCount?: number;
   remainingInstallmentsCount: number;
   progressPercentage: number;
   paidAmount: number;
   nextDue: string | null;
+  nextDueInstallmentId?: string | null;
   dueTodayAmount: number;
   unreadNotificationsCount: number;
 }
@@ -199,17 +202,33 @@ export default function DashboardScreen({ navigation }: any) {
         <View style={styles.headerLeft}>
           <Image 
             source={require('../../assets/logo.png')} 
-            style={styles.logoImageHeader} 
+            style={styles.logoImageHeader as any} 
             resizeMode="contain"
           />
-          <Text style={styles.logoText}>DAKSHINAMURTHY DAILY FINANCE</Text>
+          <View style={styles.logoTextContainer}>
+            <Text style={styles.logoTextBrand}>DAKSHINAMURTHY</Text>
+            <Text style={styles.logoTextSub}>DAILY FINANCE</Text>
+          </View>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity 
-            style={styles.circleIconBtn}
+            style={styles.headerActionBtn}
+            onPress={() => {
+              if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                window.location.reload();
+              } else {
+                onRefresh();
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh-outline" size={20} color={COLORS.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.headerActionBtn}
             onPress={() => navigation.navigate('Notifications')}
           >
-            <Text style={styles.btnEmoji}>🔔</Text>
+            <Ionicons name="notifications-outline" size={20} color={COLORS.primary} />
             {(summary?.unreadNotificationsCount || 0) > 0 && (
               <View style={styles.headerBadge} />
             )}
@@ -243,20 +262,44 @@ export default function DashboardScreen({ navigation }: any) {
                 <Text style={styles.repaymentDetailText}>
                   {summary.paidInstallmentsCount} of {summary.installmentsCount} installments paid
                 </Text>
+                {(summary.pendingInstallmentsCount || 0) > 0 && (
+                  <Text style={styles.verificationNoticeText}>
+                    ⏳ Your installment repayment is pending verification by the administrator. Please wait.
+                  </Text>
+                )}
               </View>
 
-              <TouchableOpacity
-                style={styles.payYellowButton}
-                onPress={handlePayInstallment}
-                disabled={paying}
-                activeOpacity={0.9}
-              >
-                {paying ? (
-                  <ActivityIndicator color={COLORS.primary} />
-                ) : (
-                  <Text style={styles.payButtonText}>Pay Installment: ₹{loan.daily_installment}</Text>
-                )}
-              </TouchableOpacity>
+              {(summary.pendingInstallmentsCount || 0) > 0 ? (
+                <TouchableOpacity
+                  style={[styles.payYellowButton, styles.pendingVerificationButton]}
+                  disabled={true}
+                  activeOpacity={1}
+                >
+                  <Text style={styles.pendingVerificationButtonText}>Verification Pending ⏳</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.payYellowButton}
+                  onPress={() => {
+                    if (summary.nextDueInstallmentId) {
+                      navigation.navigate('Payment', {
+                        installmentId: summary.nextDueInstallmentId,
+                        amount: loan.daily_installment
+                      });
+                    } else {
+                      Alert.alert('Info', 'No unpaid installment due at the moment.');
+                    }
+                  }}
+                  disabled={paying}
+                  activeOpacity={0.9}
+                >
+                  {paying ? (
+                    <ActivityIndicator color={COLORS.primary} />
+                  ) : (
+                    <Text style={styles.payButtonText}>Pay Installment: ₹{loan.daily_installment}</Text>
+                  )}
+                </TouchableOpacity>
+              )}
               <View style={styles.repaymentFooter}>
                 <Text style={styles.activeLoanCountText}>Active Loans: 1</Text>
                 <View style={styles.footerCalendarRow}>
@@ -447,41 +490,62 @@ const styles = StyleSheet.create({
   headerBar: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logoImageHeader: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
   },
-  logoText: {
-    color: COLORS.heading,
-    fontSize: 12,
+  logoTextContainer: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
+  logoTextBrand: {
+    color: COLORS.primary,
+    fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 0.5,
-    flexShrink: 1,
+    letterSpacing: 0.8,
   },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  circleIconBtn: {
+  logoTextSub: {
+    color: COLORS.secondary,
+    fontSize: 8.5,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    marginTop: 1,
+  },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerActionBtn: {
     width: 38,
     height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      },
+      default: {
+        elevation: 1,
+      }
+    }),
   },
-  btnEmoji: { fontSize: 16 },
   headerBadge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
+    top: 1,
+    right: 1,
     width: 8,
     height: 8,
     borderRadius: 4,
@@ -490,8 +554,10 @@ const styles = StyleSheet.create({
   avatarBtn: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: 10,
     backgroundColor: COLORS.secondary,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -532,46 +598,59 @@ const styles = StyleSheet.create({
   yellowArrow: { color: COLORS.secondary, fontSize: 14, fontWeight: '900' },
 
   repaymentDueCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0F172A',
     marginHorizontal: 24,
-    marginTop: 16,
+    marginTop: 20,
     borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.02,
-    shadowRadius: 10,
-    elevation: 2,
+    padding: 24,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 5,
     alignItems: 'center',
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+      },
+    }),
   },
-  repaymentHeader: { color: COLORS.body, fontSize: 14, fontWeight: '700', marginBottom: 12 },
+  repaymentHeader: { 
+    color: 'rgba(255, 255, 255, 0.45)', 
+    fontSize: 10, 
+    fontWeight: '900', 
+    letterSpacing: 1.2, 
+    textTransform: 'uppercase', 
+    marginBottom: 16 
+  },
   payYellowButton: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: '#FFC800',
     width: '100%',
     paddingVertical: 14,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: COLORS.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 3,
+    marginTop: 18,
+    shadowColor: '#FFC800',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  payButtonText: { color: COLORS.primary, fontSize: 16, fontWeight: '900' },
+  payButtonText: { color: '#0F172A', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
   repaymentFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    marginTop: 14,
-    paddingHorizontal: 4,
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
-  activeLoanCountText: { color: COLORS.muted, fontSize: 12, fontWeight: '700' },
+  activeLoanCountText: { color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '700' },
   footerCalendarRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   calendarEmoji: { fontSize: 12 },
-  dueDateText: { color: COLORS.heading, fontSize: 12, fontWeight: '800' },
+  dueDateText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
 
   pendingContainer: {
     alignItems: 'center',
@@ -749,12 +828,12 @@ const styles = StyleSheet.create({
   balanceLabel: {
     color: COLORS.muted,
     fontSize: 12,
-    fontWeight: '850',
+    fontWeight: '900',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   balanceAmount: {
-    color: COLORS.primary,
+    color: '#FFFFFF',
     fontSize: 32,
     fontWeight: '900',
     marginTop: 4,
@@ -764,5 +843,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginTop: 4,
+  },
+  pendingVerificationButton: {
+    backgroundColor: '#374151',
+    shadowColor: 'transparent',
+    elevation: 0,
+  },
+  pendingVerificationButtonText: {
+    color: '#9CA3AF',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  verificationNoticeText: {
+    color: '#F59E0B',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 6,
+    paddingHorizontal: 8,
   },
 });

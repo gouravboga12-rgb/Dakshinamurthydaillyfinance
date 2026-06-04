@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { 
   Users, 
   Wallet, 
@@ -39,7 +39,7 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await axios.get('/api/admin/dashboard-stats', {
+        const response = await api.get('/api/admin/dashboard-stats', {
           headers: { Authorization: `Bearer ${token}` }
         });
         setStats(response.data);

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { register, login, getProfile, forgotPassword } from '../controllers/authController';
+import { register, login, getProfile, forgotPassword, updateProfile } from '../controllers/authController';
 import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
@@ -24,6 +24,23 @@ const storage = multer.diskStorage({
   }
 });
 
+// Multer storage setup for Profile Avatar uploads
+const avatarUploadDir = path.resolve(__dirname, '../../uploads/avatar');
+if (!fs.existsSync(avatarUploadDir)) {
+  fs.mkdirSync(avatarUploadDir, { recursive: true });
+}
+
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, avatarUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `avatar-${uniqueSuffix}${ext}`);
+  }
+});
+
 const fileFilter = (req: any, file: any, cb: any) => {
   const allowedExtensions = ['.png', '.jpg', '.jpeg', '.pdf'];
   const ext = path.extname(file.originalname).toLowerCase();
@@ -40,11 +57,18 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
+const avatarUpload = multer({
+  storage: avatarStorage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
 import { db } from '../config/db';
 
 router.post('/register', upload.single('aadhaar'), register);
 router.post('/login', login);
 router.get('/profile', authenticateToken, getProfile);
+router.put('/profile', authenticateToken, avatarUpload.single('avatar'), updateProfile);
 router.post('/forgot-password', forgotPassword);
 
 router.get('/test-supabase', async (req, res) => {

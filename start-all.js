@@ -55,6 +55,32 @@ if (DEV_MODE) {
   log(GOLD, '⚡', 'Starting dev servers concurrently on a unified port (8081)...');
   console.log('');
 
+  let adminProcess, mobileProcess, backendProcess;
+
+  function killProcess(child) {
+    if (!child) return;
+    try {
+      if (process.platform === 'win32') {
+        execSync(`taskkill /pid ${child.pid} /T /F`, { stdio: 'ignore' });
+      } else {
+        child.kill('SIGTERM');
+      }
+    } catch (e) {
+      // Process is already dead or couldn't be killed
+    }
+  }
+
+  let cleaningUp = false;
+  const cleanup = () => {
+    if (cleaningUp) return;
+    cleaningUp = true;
+    console.log(`\n${GOLD}Stopping all dev services...${RESET}`);
+    killProcess(adminProcess);
+    killProcess(mobileProcess);
+    killProcess(backendProcess);
+    process.exit(0);
+  };
+
   function spawnService(cmd, args, cwd, label, color) {
     const child = spawn(cmd, args, {
       cwd,
@@ -82,18 +108,21 @@ if (DEV_MODE) {
     });
 
     child.on('exit', (code) => {
-      if (code !== null && code !== 0 && code !== 1) {
+      if (code === 0 || code === null) {
+        log(GOLD, 'ℹ', `${label} service stopped.`);
+      } else {
         log(RED, '✗', `${label} service exited with code ${code}`);
       }
+      cleanup();
     });
 
     return child;
   }
 
   // Start frontends & backend dev servers
-  const adminProcess = spawnService('npm', ['run', 'dev'], ADMIN, 'Admin', GOLD);
-  const mobileProcess = spawnService('npm', ['run', 'web'], MOBILE, 'Customer', CYAN);
-  const backendProcess = spawnService('npm', ['run', 'dev'], BACKEND, 'Backend', GREEN);
+  adminProcess = spawnService('npm', ['run', 'dev'], ADMIN, 'Admin', GOLD);
+  mobileProcess = spawnService('npm', ['run', 'web'], MOBILE, 'Customer', CYAN);
+  backendProcess = spawnService('npm', ['run', 'dev'], BACKEND, 'Backend', GREEN);
 
   // Print helpful welcome guide
   setTimeout(() => {
@@ -107,15 +136,6 @@ if (DEV_MODE) {
     console.log(`${GOLD}${BOLD}╚══════════════════════════════════════════════════════╝${RESET}`);
     console.log('');
   }, 5000);
-
-  // Handle Ctrl+C gracefully to kill child processes
-  const cleanup = () => {
-    console.log(`\n${GOLD}Stopping all dev services...${RESET}`);
-    try { adminProcess.kill(); } catch(e) {}
-    try { mobileProcess.kill(); } catch(e) {}
-    try { backendProcess.kill(); } catch(e) {}
-    process.exit(0);
-  };
 
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);

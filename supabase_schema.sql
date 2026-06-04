@@ -23,6 +23,7 @@ CREATE TABLE users (
     role TEXT NOT NULL, -- 'admin' or 'customer'
     status TEXT NOT NULL, -- 'pending', 'approved', 'rejected', 'deactivated'
     aadhaar_url TEXT,
+    avatar_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -48,9 +49,17 @@ CREATE TABLE installments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     loan_id UUID NOT NULL REFERENCES loans(id) ON DELETE CASCADE,
     due_date TEXT NOT NULL, -- YYYY-MM-DD
-    status TEXT NOT NULL, -- 'Unpaid', 'Paid'
+    status TEXT NOT NULL, -- 'Unpaid', 'Paid', 'Pending'
     payment_date TIMESTAMPTZ,
+    transaction_id TEXT,   -- UTR/UPI reference from customer
+    proof_url TEXT,        -- URL of payment screenshot proof
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 6. Create Settings Table (for admin configurations like UPI QR code)
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
 );
 
 -- 6. Create Notifications Table
@@ -69,6 +78,12 @@ ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE loans DISABLE ROW LEVEL SECURITY;
 ALTER TABLE installments DISABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
+ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
+
+-- 8. Seed default UPI QR setting
+INSERT INTO settings (key, value)
+VALUES ('upi_qr_url', 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=dakshinamurthy@ybl%26pn=Dakshinamurthy%20Daily%20Finance')
+ON CONFLICT (key) DO NOTHING;
 
 -- 8. Seed Admin Users
 -- Owner Account: Email=Dakshinamurthydialyfinance@gmail.com, Password=Yeshu@2414

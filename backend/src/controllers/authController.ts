@@ -193,3 +193,49 @@ export const forgotPassword = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Failed to reset password.' });
   }
 };
+
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+
+    const userId = req.user.id;
+    const { occupation, shop_name, address } = req.body;
+
+    const updateFields: any = {};
+    if (occupation !== undefined) updateFields.occupation = occupation;
+    if (shop_name !== undefined) updateFields.shop_name = shop_name;
+    if (address !== undefined) updateFields.address = address;
+
+    // Handle avatar upload if present
+    if (req.file) {
+      try {
+        const avatar_url = await uploadToCloudinary(req.file.path);
+        updateFields.avatar_url = avatar_url;
+        // Delete local temp file
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+      } catch (err) {
+        console.error('Error uploading avatar to Cloudinary, falling back to local storage:', err);
+        updateFields.avatar_url = `/uploads/avatar/${req.file.filename}`;
+      }
+    }
+
+    // Update user in DB
+    const updatedUser = await db.updateUser(userId, updateFields);
+
+    // Remove password hash from response
+    const { password_hash, ...profile } = updatedUser;
+
+    return res.status(200).json({
+      message: 'Profile updated successfully.',
+      user: profile
+    });
+  } catch (error: any) {
+    console.error('Update profile error:', error);
+    return res.status(500).json({ error: 'Failed to update profile.' });
+  }
+};
+

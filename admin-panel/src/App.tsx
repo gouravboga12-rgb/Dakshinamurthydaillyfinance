@@ -11,7 +11,7 @@ import Login from './pages/Login';
 
 export default function App() {
   // Initial state check from localStorage
-  const [token, setToken] = useState<string | null>(localStorage.getItem('admin-token') || 'admin-bypass-token');
+  const [token, setToken] = useState<string | null>(localStorage.getItem('admin-token'));
   const [adminName, setAdminName] = useState<string>(localStorage.getItem('admin-name') || 'Dakshinamurthy');
   const [currentPage, setCurrentPage] = useState<string>('dashboard');
 
@@ -54,7 +54,7 @@ export default function App() {
       case 'reports':
         return <Reports token={token} />;
       case 'settings':
-        return <Settings />;
+        return <Settings token={token} />;
       default:
         return <Dashboard token={token} setCurrentPage={setCurrentPage} />;
     }

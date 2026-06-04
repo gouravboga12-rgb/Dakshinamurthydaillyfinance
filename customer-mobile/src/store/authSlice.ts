@@ -12,6 +12,7 @@ interface AuthState {
     occupation?: string;
     shop_name?: string;
     address?: string;
+    avatar_url?: string;
   } | null;
   loading: boolean;
   error: string | null;

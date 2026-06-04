@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,23 +8,35 @@ import {
   Alert,
   Platform,
   Image,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
-import { logout } from '../store/authSlice';
+import { logout, updateProfile } from '../store/authSlice';
+import api, { getBaseUrl } from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
 
 export default function ProfileScreen() {
   const user = useSelector((state: RootState) => state.auth.user);
   const dispatch = useDispatch();
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [occupation, setOccupation] = useState(user?.occupation || '');
+  const [shopName, setShopName] = useState(user?.shop_name || '');
+  const [address, setAddress] = useState(user?.address || '');
+
+  const [avatarFile, setAvatarFile] = useState<any>(null);
+  const [avatarPreviewUri, setAvatarPreviewUri] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const fileInputRef = useRef<any>(null);
+
   const handleLogout = () => {
     if (Platform.OS === 'web') {
       const confirmed = window.confirm('Are you sure you want to sign out of your account?');
       if (confirmed) {
         dispatch(logout());
-        // On web, React Navigation doesn't fully remount on Redux state change,
-        // so we force a page reload to get back to the Login screen cleanly.
         setTimeout(() => {
           window.location.href = '/';
           window.location.reload();
@@ -48,7 +60,92 @@ export default function ProfileScreen() {
     }
   };
 
-  const avatarUri = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=256&h=256&q=80';
+  const startEditing = () => {
+    setOccupation(user?.occupation || '');
+    setShopName(user?.shop_name || '');
+    setAddress(user?.address || '');
+    setAvatarFile(null);
+    setAvatarPreviewUri(null);
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setAvatarFile(null);
+    setAvatarPreviewUri(null);
+  };
+
+  const handleSelectAvatar = () => {
+    if (Platform.OS === 'web') {
+      fileInputRef.current?.click();
+    } else {
+      Alert.alert('Upload Photo', 'Photo uploads are supported on the web platform.');
+    }
+  };
+
+  const getAvatarSource = () => {
+    if (avatarPreviewUri) {
+      return { uri: avatarPreviewUri };
+    }
+    if (user?.avatar_url) {
+      if (user.avatar_url.startsWith('http://') || user.avatar_url.startsWith('https://')) {
+        return { uri: user.avatar_url };
+      }
+      // Resolve relative path from Express backend
+      const apiBaseUrl = getBaseUrl();
+      const origin = apiBaseUrl.endsWith('/api') ? apiBaseUrl.slice(0, -4) : apiBaseUrl;
+      return { uri: `${origin}${user.avatar_url}` };
+    }
+    return { uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=256&h=256&q=80' };
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append('occupation', occupation.trim());
+      formData.append('shop_name', shopName.trim());
+      formData.append('address', address.trim());
+
+      if (avatarFile) {
+        if (Platform.OS === 'web') {
+          formData.append('avatar', avatarFile);
+        } else {
+          formData.append('avatar', {
+            uri: avatarPreviewUri,
+            name: 'avatar.jpg',
+            type: 'image/jpeg',
+          } as any);
+        }
+      }
+
+      const response = await api.put('/auth/profile', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const updatedUser = response.data.user;
+      dispatch(updateProfile(updatedUser));
+
+      if (Platform.OS === 'web') {
+        alert('Profile updated successfully! 🎉');
+      } else {
+        Alert.alert('Success', 'Profile updated successfully! 🎉');
+      }
+      setIsEditing(false);
+    } catch (err: any) {
+      console.error(err);
+      const message = err.response?.data?.error || 'Failed to update profile. Please try again.';
+      if (Platform.OS === 'web') {
+        alert(`Error: ${message}`);
+      } else {
+        Alert.alert('Update Failed', message);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const personalFields = [
     { label: 'Full Name', value: user?.full_name || 'Customer', icon: '👤' },
@@ -72,15 +169,41 @@ export default function ProfileScreen() {
     <ScrollView style={COMMON_STYLES.container} contentContainerStyle={styles.content}>
       {/* Premium Dark Profile Banner */}
       <View style={styles.header}>
-        <View style={styles.avatarWrapper}>
-          <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-        </View>
+        <TouchableOpacity
+          style={[styles.avatarWrapper, isEditing && styles.avatarWrapperEditing]}
+          onPress={isEditing ? handleSelectAvatar : undefined}
+          activeOpacity={isEditing ? 0.7 : 1}
+        >
+          <Image source={getAvatarSource()} style={styles.avatarImage} />
+          {isEditing && (
+            <View style={styles.avatarEditOverlay}>
+              <Text style={styles.avatarEditOverlayText}>📷 CHANGE</Text>
+            </View>
+          )}
+        </TouchableOpacity>
         <Text style={styles.headerName}>{user?.full_name || 'Customer'}</Text>
         <Text style={styles.headerMobile}>{user?.mobile_number || ''}</Text>
         <View style={styles.verifiedBadge}>
           <Text style={styles.verifiedText}>✓ Verified Customer</Text>
         </View>
       </View>
+
+      {/* Hidden file input for web */}
+      {Platform.OS === 'web' && (
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept=".png,.jpg,.jpeg"
+          onChange={(e: any) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              setAvatarFile(file);
+              setAvatarPreviewUri(URL.createObjectURL(file));
+            }
+          }}
+        />
+      )}
 
       {/* Personal Info Card */}
       <View style={[COMMON_STYLES.card, styles.infoCard, { marginTop: -16 }]}>
@@ -118,28 +241,102 @@ export default function ProfileScreen() {
       <View style={[COMMON_STYLES.card, styles.infoCard, { marginTop: 16 }]}>
         <Text style={styles.sectionTitle}>🏢 Business & Address Details</Text>
 
-        {businessFields.map((field, idx) => (
-          <View
-            key={idx}
-            style={[
-              styles.fieldRow,
-              idx < businessFields.length - 1 && styles.fieldBorder,
-            ]}
-          >
-            <View style={styles.fieldLeft}>
-              <View style={styles.fieldIconCircle}>
-                <Text style={styles.fieldIcon}>{field.icon}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>{field.label}</Text>
-                <Text style={styles.fieldValue} numberOfLines={field.label === 'Registered Address' ? undefined : 1}>
-                  {field.value}
-                </Text>
-              </View>
+        {isEditing ? (
+          <View style={{ marginTop: 10 }}>
+            <View style={styles.editInputGroup}>
+              <Text style={styles.editInputLabel}>💼 Occupation</Text>
+              <TextInput
+                style={styles.editTextInput}
+                value={occupation}
+                onChangeText={setOccupation}
+                placeholder="e.g. Merchant, Trader"
+                placeholderTextColor={COLORS.placeholder}
+              />
+            </View>
+
+            <View style={styles.editInputGroup}>
+              <Text style={styles.editInputLabel}>🏢 Shop / Company Name</Text>
+              <TextInput
+                style={styles.editTextInput}
+                value={shopName}
+                onChangeText={setShopName}
+                placeholder="Shop or company name"
+                placeholderTextColor={COLORS.placeholder}
+              />
+            </View>
+
+            <View style={styles.editInputGroup}>
+              <Text style={styles.editInputLabel}>📍 Registered Address</Text>
+              <TextInput
+                style={[styles.editTextInput, styles.editAddressInput]}
+                value={address}
+                onChangeText={setAddress}
+                placeholder="Full address"
+                placeholderTextColor={COLORS.placeholder}
+                multiline
+                numberOfLines={3}
+              />
             </View>
           </View>
-        ))}
+        ) : (
+          businessFields.map((field, idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.fieldRow,
+                idx < businessFields.length - 1 && styles.fieldBorder,
+              ]}
+            >
+              <View style={styles.fieldLeft}>
+                <View style={styles.fieldIconCircle}>
+                  <Text style={styles.fieldIcon}>{field.icon}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>{field.label}</Text>
+                  <Text style={styles.fieldValue} numberOfLines={field.label === 'Registered Address' ? undefined : 1}>
+                    {field.value}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ))
+        )}
       </View>
+
+      {/* Action Buttons (Save/Cancel or Edit Profile Details) */}
+      {isEditing ? (
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity
+            style={[styles.saveButton, saving && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.8}
+          >
+            {saving ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={styles.saveButtonText}>Save Changes ✓</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={cancelEditing}
+            disabled={saving}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={startEditing}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.editButtonText}>✏️ Edit Profile Details</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Premium Security Information */}
       <View style={styles.securityCard}>
@@ -193,10 +390,31 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
     backgroundColor: '#FFFFFF',
+    position: 'relative',
+  },
+  avatarWrapperEditing: {
+    borderColor: '#10B981',
+    borderStyle: 'dashed',
   },
   avatarImage: {
     width: '100%',
     height: '100%',
+  },
+  avatarEditOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 28,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarEditOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   headerName: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', marginBottom: 4 },
   headerMobile: { color: 'rgba(255,255,255,0.45)', fontSize: 13, marginBottom: 14, fontWeight: '500' },
@@ -226,7 +444,7 @@ const styles = StyleSheet.create({
 
   fieldRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14 },
   fieldBorder: { borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
-  fieldLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  fieldLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
   fieldIconCircle: {
     width: 38,
     height: 38,
@@ -245,6 +463,79 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   fieldValue: { color: COLORS.heading, fontSize: 14, fontWeight: '800' },
+
+  editInputGroup: {
+    marginBottom: 16,
+  },
+  editInputLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  editTextInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.heading,
+  },
+  editAddressInput: {
+    height: 80,
+    textAlignVertical: 'top',
+    paddingTop: 12,
+  },
+
+  editButton: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 18,
+    padding: 16,
+    marginHorizontal: 24,
+    marginTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editButtonText: { color: COLORS.secondary, fontWeight: '800', fontSize: 14, letterSpacing: 0.5 },
+
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginHorizontal: 24,
+    marginTop: 20,
+  },
+  saveButton: {
+    flex: 2,
+    backgroundColor: '#10B981',
+    borderRadius: 18,
+    padding: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  saveButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14, letterSpacing: 0.5 },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 18,
+    padding: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: { color: '#64748B', fontWeight: '800', fontSize: 14 },
 
   securityCard: {
     backgroundColor: '#EFF6FF',

@@ -1,6 +1,8 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { db } from '../config/db';
 import { AuthRequest } from '../middleware/auth';
+import fs from 'fs';
+import { uploadToCloudinary } from '../config/cloudinary';
 
 export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
   try {
@@ -27,6 +29,7 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
     if (activeLoan) {
       const installments = await db.getInstallmentsByLoanId(activeLoan.id);
       const paid = installments.filter((i: any) => i.status === 'Paid');
+      const pending = installments.filter((i: any) => i.status === 'Pending');
       const unpaid = installments.filter((i: any) => i.status === 'Unpaid');
 
       // Find next due date
@@ -41,10 +44,12 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
         loan: activeLoan,
         installmentsCount: installments.length,
         paidInstallmentsCount: paid.length,
+        pendingInstallmentsCount: pending.length,
         remainingInstallmentsCount: unpaid.length,
         progressPercentage,
         paidAmount,
         nextDue: nextDueInstallment ? nextDueInstallment.due_date : null,
+        nextDueInstallmentId: nextDueInstallment ? nextDueInstallment.id : null,
         dueTodayAmount: activeLoan.status === 'Active' ? activeLoan.daily_installment : 0
       };
     }
@@ -254,5 +259,79 @@ export const payInstallment = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Customer payment error:', error);
     return res.status(500).json({ error: 'Failed to process payment.' });
+  }
+};
+
+export const getSettings = async (req: Request, res: Response) => {
+  try {
+    const upiQrUrl = await db.getSetting('upi_qr_url', 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=dakshinamurthy@ybl%26pn=Dakshinamurthy%20Daily%20Finance');
+    return res.status(200).json({ settings: { upi_qr_url: upiQrUrl } });
+  } catch (error: any) {
+    console.error('Failed to get settings:', error);
+    return res.status(500).json({ error: 'Failed to fetch settings.' });
+  }
+};
+
+export const submitPaymentProof = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    const customerId = req.user.id;
+    const { installmentId, transaction_id } = req.body;
+
+    if (!installmentId || !transaction_id) {
+      return res.status(400).json({ error: 'Installment ID and UTR/Transaction ID are required.' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Please upload a payment screenshot proof.' });
+    }
+
+    // Get installment to verify it exists and belongs to user
+    const installment = await db.getInstallmentById(installmentId);
+    if (!installment) {
+      return res.status(404).json({ error: 'Installment record not found.' });
+    }
+
+    const loan = await db.getLoanById(installment.loan_id);
+    if (!loan || loan.customer_id !== customerId) {
+      return res.status(403).json({ error: 'Unauthorized access to this loan installment.' });
+    }
+
+    if (installment.status === 'Paid') {
+      return res.status(400).json({ error: 'Installment is already paid.' });
+    }
+
+    // Upload screenshot to Cloudinary
+    let proof_url = '';
+    try {
+      proof_url = await uploadToCloudinary(req.file.path);
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+    } catch (err) {
+      console.error('Cloudinary upload error, using local fallback:', err);
+      proof_url = `/uploads/proof/${req.file.filename}`;
+    }
+
+    // Submit payment proof (sets status to 'Pending')
+    const updatedInstallment = await db.submitInstallmentProof(installmentId, transaction_id, proof_url);
+
+    // Notify customer
+    await db.createNotification(
+      customerId,
+      'Payment Proof Submitted',
+      `Your payment proof for UTR: ${transaction_id} is submitted and is pending verification.`,
+      'payment'
+    );
+
+    return res.status(200).json({
+      message: 'Payment proof submitted successfully and is pending verification.',
+      installment: updatedInstallment
+    });
+  } catch (error: any) {
+    console.error('Submit payment proof error:', error);
+    return res.status(500).json({ error: 'Failed to submit payment proof.' });
   }
 };

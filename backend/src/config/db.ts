@@ -156,9 +156,16 @@ async function setupSQLiteTables() {
       role TEXT NOT NULL,
       status TEXT NOT NULL,
       aadhaar_url TEXT,
+      avatar_url TEXT,
       created_at TEXT NOT NULL
     )
   `);
+
+  try {
+    await runSqlAsync('ALTER TABLE users ADD COLUMN avatar_url TEXT');
+  } catch (err) {
+    // Ignore error if column already exists
+  }
 
   // Loans Table
   await runSqlAsync(`
@@ -188,10 +195,39 @@ async function setupSQLiteTables() {
       due_date TEXT NOT NULL,
       status TEXT NOT NULL,
       payment_date TEXT,
+      transaction_id TEXT,
+      proof_url TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY(loan_id) REFERENCES loans(id)
     )
   `);
+
+  try {
+    await runSqlAsync('ALTER TABLE installments ADD COLUMN transaction_id TEXT');
+  } catch (err) {}
+  try {
+    await runSqlAsync('ALTER TABLE installments ADD COLUMN proof_url TEXT');
+  } catch (err) {}
+
+  // Settings Table
+  await runSqlAsync(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    )
+  `);
+
+  // Seed default QR code setting if not exists
+  const defaultQrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=dakshinamurthy@ybl%26pn=Dakshinamurthy%20Daily%20Finance';
+  try {
+    const existingQr = await getSqlAsync("SELECT value FROM settings WHERE key = 'upi_qr_url'");
+    if (!existingQr) {
+      await runSqlAsync("INSERT INTO settings (key, value) VALUES ('upi_qr_url', ?)", [defaultQrUrl]);
+      console.log('Seeded default UPI QR Code URL.');
+    }
+  } catch (err) {
+    console.error('Error seeding settings:', err);
+  }
 
   // Notifications Table
   await runSqlAsync(`
@@ -288,9 +324,9 @@ export const db = {
       return data;
     } else {
       await runSqlAsync(`
-        INSERT INTO users (id, full_name, mobile_number, email, occupation, shop_name, address, password_hash, role, status, aadhaar_url, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [id, userData.full_name, userData.mobile_number, userData.email || null, userData.occupation || null, userData.shop_name || null, userData.address || null, userData.password_hash, userData.role, userData.status, userData.aadhaar_url || null, createdAt]);
+        INSERT INTO users (id, full_name, mobile_number, email, occupation, shop_name, address, password_hash, role, status, aadhaar_url, avatar_url, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [id, userData.full_name, userData.mobile_number, userData.email || null, userData.occupation || null, userData.shop_name || null, userData.address || null, userData.password_hash, userData.role, userData.status, userData.aadhaar_url || null, userData.avatar_url || null, createdAt]);
       return userToInsert;
     }
   },
@@ -332,9 +368,21 @@ export const db = {
 
   async updateUser(id: string, updateFields: any) {
     if (useSupabase) {
-      const { data, error } = await supabaseClient.from('users').update(updateFields).eq('id', id).select().single();
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabaseClient.from('users').update(updateFields).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+      } catch (err: any) {
+        // If column avatar_url is missing (Postgres error 42703 or message contains avatar_url)
+        if ((err.code === '42703' || String(err.message || '').includes('avatar_url')) && 'avatar_url' in updateFields) {
+          console.warn('Supabase users table does not have avatar_url column. Retrying update without avatar_url...');
+          const { avatar_url, ...restFields } = updateFields;
+          const { data, error } = await supabaseClient.from('users').update(restFields).eq('id', id).select().single();
+          if (error) throw error;
+          return { ...data, avatar_url }; // Return avatar_url to the client anyway for in-memory session display
+        }
+        throw err;
+      }
     } else {
       const keys = Object.keys(updateFields);
       if (keys.length === 0) return this.getUserById(id);
@@ -538,6 +586,81 @@ export const db = {
     } else {
       await runSqlAsync("UPDATE installments SET status = 'Paid', payment_date = ? WHERE id = ?", [paymentDate, id]);
       return await this.getInstallmentById(id);
+    }
+  },
+
+  async submitInstallmentProof(id: string, transactionId: string, proofUrl: string) {
+    const updateFields = {
+      status: 'Pending',
+      transaction_id: transactionId,
+      proof_url: proofUrl
+    };
+    if (useSupabase) {
+      try {
+        const { data, error } = await supabaseClient.from('installments')
+          .update(updateFields)
+          .eq('id', id)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      } catch (err: any) {
+        if (err.code === '42703' || String(err.message || '').includes('proof_url')) {
+          console.warn('Supabase installments table does not have transaction_id or proof_url columns. Retrying update with only status...');
+          const { data, error } = await supabaseClient.from('installments')
+            .update({ status: 'Pending' })
+            .eq('id', id)
+            .select()
+            .single();
+          if (error) throw error;
+          return { ...data, transaction_id: transactionId, proof_url: proofUrl };
+        }
+        throw err;
+      }
+    } else {
+      await runSqlAsync("UPDATE installments SET status = 'Pending', transaction_id = ?, proof_url = ? WHERE id = ?", [transactionId, proofUrl, id]);
+      return await this.getInstallmentById(id);
+    }
+  },
+
+  async getSetting(key: string, defaultValue: string = '') {
+    if (useSupabase) {
+      try {
+        const { data, error } = await supabaseClient.from('settings').select('value').eq('key', key).maybeSingle();
+        if (error) throw error;
+        return data?.value || defaultValue;
+      } catch (err: any) {
+        console.warn(`Failed to fetch setting ${key} from Supabase. Using default:`, err.message || err);
+        return defaultValue;
+      }
+    } else {
+      try {
+        const row = await getSqlAsync('SELECT value FROM settings WHERE key = ?', [key]);
+        return row ? row.value : defaultValue;
+      } catch (err) {
+        return defaultValue;
+      }
+    }
+  },
+
+  async updateSetting(key: string, value: string) {
+    if (useSupabase) {
+      try {
+        const { data, error } = await supabaseClient.from('settings').upsert({ key, value }).select().single();
+        if (error) throw error;
+        return data;
+      } catch (err: any) {
+        console.error(`Failed to upsert setting ${key} in Supabase:`, err.message || err);
+        throw err;
+      }
+    } else {
+      const existing = await getSqlAsync('SELECT value FROM settings WHERE key = ?', [key]);
+      if (existing) {
+        await runSqlAsync('UPDATE settings SET value = ? WHERE key = ?', [value, key]);
+      } else {
+        await runSqlAsync('INSERT INTO settings (key, value) VALUES (?, ?)', [key, value]);
+      }
+      return { key, value };
     }
   },
 

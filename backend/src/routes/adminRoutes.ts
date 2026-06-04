@@ -9,6 +9,7 @@ import {
   updateCustomerStatus,
   editCustomerDetails,
   getCustomerDetails,
+  uploadCustomerAadhaar,
   getLoans,
   createLoan,
   approveLoan,
@@ -17,7 +18,9 @@ import {
   getLoanDetails,
   markInstallmentPaid,
   getDashboardStats,
-  getReports
+  getReports,
+  getSettings,
+  updateUpiQr
 } from '../controllers/adminController';
 
 const uploadDir = path.resolve(__dirname, '../../uploads/aadhaar');
@@ -64,6 +67,7 @@ router.post('/customers', upload.single('aadhaar'), createCustomer);
 router.get('/customers/:id', getCustomerDetails);
 router.patch('/customers/:id/status', updateCustomerStatus);
 router.put('/customers/:id', editCustomerDetails);
+router.post('/customers/:id/aadhaar', upload.single('aadhaar'), uploadCustomerAadhaar);
 
 // Loan Management
 router.get('/loans', getLoans);
@@ -75,6 +79,32 @@ router.post('/loans/:id/close', closeLoan);
 
 // Payment Tracking
 router.post('/payments/mark-paid', markInstallmentPaid);
+
+// Settings Configuration
+const qrUploadDir = path.resolve(__dirname, '../../uploads/qr');
+if (!fs.existsSync(qrUploadDir)) {
+  fs.mkdirSync(qrUploadDir, { recursive: true });
+}
+
+const qrStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, qrUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `qr-${uniqueSuffix}${ext}`);
+  }
+});
+
+const uploadQr = multer({ 
+  storage: qrStorage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
+
+router.get('/settings', getSettings);
+router.post('/settings/upi-qr', uploadQr.single('qr'), updateUpiQr);
 
 // Reports & Statistics
 router.get('/dashboard-stats', getDashboardStats);

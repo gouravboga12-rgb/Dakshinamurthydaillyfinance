@@ -63,27 +63,11 @@ export default function PaymentHistoryScreen({ navigation }: any) {
   };
 
   const handleHowToRepay = () => {
-    Alert.alert(
-      'How to Repay?',
-      `repayment instructions:\n\n` +
-      `1. Hand over cash directly to our collection agent during daily field visits.\n` +
-      `2. Daily cutoff time is 5:00 PM.\n` +
-      `3. Always check the active status dot on your dashboard immediately after payment is collected.\n` +
-      `4. For digital support or questions, click the WhatsApp button on the bottom right of the screen.`,
-      [{ text: 'Got it' }]
-    );
+    navigation.navigate('HowToRepay');
   };
 
   const handleLenderDetails = () => {
-    Alert.alert(
-      'Lender Details',
-      `Office Name: Dakshinamurthy Finance\n` +
-      `Registration: Reg No. 1290/DF/HYD\n` +
-      `Address: Main Street, Corporate Plaza, Hyderabad - 500001\n` +
-      `Timings: Mon - Sat, 9:00 AM - 6:00 PM\n` +
-      `Email: support@dailyfinance.com`,
-      [{ text: 'Close' }]
-    );
+    navigation.navigate('Support');
   };
 
   if (loading) {

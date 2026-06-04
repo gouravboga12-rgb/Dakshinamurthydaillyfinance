@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { 
   Search, 
@@ -13,7 +13,10 @@ import {
   MapPin, 
   Briefcase, 
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  Upload,
+  CreditCard
 } from 'lucide-react';
 
 interface Customer {
@@ -42,6 +45,30 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
   
   // Selected Customer Modal View
   const [selectedCust, setSelectedCust] = useState<Customer | null>(null);
+  
+  // Aadhaar upload within modal
+  const [aadhaarUploading, setAadhaarUploading] = useState(false);
+  const aadhaarInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAadhaarUpload = async (file: File) => {
+    if (!selectedCust) return;
+    setAadhaarUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('aadhaar', file);
+      const response = await axios.post(`/api/admin/customers/${selectedCust.id}/aadhaar`, formData, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+      });
+      const updatedUrl = response.data.aadhaar_url;
+      setSelectedCust(prev => prev ? { ...prev, aadhaar_url: updatedUrl } : null);
+      setCustomers(prev => prev.map(c => c.id === selectedCust.id ? { ...c, aadhaar_url: updatedUrl } : c));
+      alert('Aadhaar card uploaded successfully!');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to upload Aadhaar card.');
+    } finally {
+      setAadhaarUploading(false);
+    }
+  };
   
   // Create Customer Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -263,8 +290,22 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                       {new Date(c.created_at).toLocaleDateString('en-IN')}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="inline-flex gap-1.5">
-                        {c.status === 'pending' && (
+                      <div className="inline-flex gap-1.5 items-center">
+                          {/* View Profile button - always visible */}
+                          <button
+                            onClick={() => setSelectedCust(c)}
+                            title="View Customer Profile & Aadhaar"
+                            className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          {/* Aadhaar badge */}
+                          {c.aadhaar_url && (
+                            <span title="Aadhaar uploaded" className="p-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
+                              <CreditCard size={14} />
+                            </span>
+                          )}
+                          {c.status === 'pending' && (
                           <>
                             <button
                               onClick={() => handleUpdateStatus(c.id, 'approved')}
@@ -365,25 +406,69 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
 
               {/* Aadhaar Attachment Viewer */}
               <div className="space-y-2">
-                <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Aadhaar Card Attachment</h5>
-                {selectedCust.aadhaar_url ? (
-                  <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5 text-slate-600 text-xs font-semibold">
-                      <FileText size={16} className="text-slate-400" />
-                      <span>{selectedCust.aadhaar_url.split('/').pop()}</span>
+                <div className="flex items-center justify-between">
+                  <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <CreditCard size={13} /> Aadhaar Card
+                  </h5>
+                  {/* Upload button */}
+                  <button
+                    onClick={() => aadhaarInputRef.current?.click()}
+                    disabled={aadhaarUploading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {aadhaarUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                    {aadhaarUploading ? 'Uploading...' : selectedCust.aadhaar_url ? 'Replace' : 'Upload Aadhaar'}
+                  </button>
+                  <input
+                    ref={aadhaarInputRef}
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAadhaarUpload(f); e.target.value = ''; }}
+                  />
+                </div>
+
+                {selectedCust.aadhaar_url ? (() => {
+                  const rawUrl = selectedCust.aadhaar_url!;
+                  const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
+                  const filename = rawUrl.split('/').pop() || 'aadhaar';
+                  const isImage = /\.(png|jpg|jpeg|webp|gif)$/i.test(filename);
+                  return (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+                      {isImage ? (
+                        <div className="relative">
+                          <img
+                            src={fullUrl}
+                            alt="Aadhaar Card"
+                            className="w-full max-h-64 object-contain bg-white"
+                            onError={(e: any) => { e.target.style.display = 'none'; (e.target.nextSibling as HTMLElement).style.display = 'flex'; }}
+                          />
+                          <div style={{display:'none'}} className="p-4 items-center justify-center text-xs text-rose-500 font-semibold">
+                            ⚠️ Could not load image. <a href={fullUrl} target="_blank" rel="noreferrer" className="underline ml-1">Open directly</a>
+                          </div>
+                        </div>
+                      ) : null}
+                      <div className="p-3 flex items-center justify-between border-t border-slate-100">
+                        <div className="flex items-center gap-2.5 text-slate-600 text-xs font-semibold">
+                          <FileText size={16} className="text-slate-400" />
+                          <span className="truncate max-w-[200px]">{filename}</span>
+                        </div>
+                        <a
+                          href={fullUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-shrink-0 px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
+                        >
+                          {isImage ? '🔍 View Full' : '📄 Open PDF'}
+                        </a>
+                      </div>
                     </div>
-                    <a
-                      href={selectedCust.aadhaar_url.startsWith('http') ? selectedCust.aadhaar_url : `${window.location.origin}${selectedCust.aadhaar_url}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors"
-                    >
-                      View File
-                    </a>
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center text-xs text-slate-400">
-                    No Aadhaar document uploaded for this user profile.
+                  );
+                })() : (
+                  <div className="p-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center">
+                    <CreditCard size={28} className="text-slate-300 mx-auto mb-2" />
+                    <p className="text-xs text-slate-400 font-semibold">No Aadhaar document uploaded yet.</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Click "Upload Aadhaar" above to add it.</p>
                   </div>
                 )}
               </div>

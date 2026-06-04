@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { db } from '../config/db';
 import { AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
@@ -145,6 +145,34 @@ export const getCustomerDetails = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Get customer details error:', error);
     return res.status(500).json({ error: 'Failed to fetch customer profile.' });
+  }
+};
+
+export const uploadCustomerAadhaar = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await db.getUserById(id);
+    if (!user) {
+      return res.status(404).json({ error: 'Customer not found.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded.' });
+    }
+
+    let aadhaar_url: string;
+    try {
+      aadhaar_url = await uploadToCloudinary(req.file.path);
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    } catch (err) {
+      console.error('Cloudinary upload failed, using local storage:', err);
+      aadhaar_url = `/uploads/aadhaar/${req.file.filename}`;
+    }
+
+    const updated = await db.updateUser(id, { aadhaar_url });
+    return res.status(200).json({ message: 'Aadhaar uploaded successfully.', aadhaar_url: updated?.aadhaar_url || aadhaar_url });
+  } catch (error: any) {
+    console.error('Upload Aadhaar error:', error);
+    return res.status(500).json({ error: 'Failed to upload Aadhaar.' });
   }
 };
 
@@ -369,9 +397,9 @@ export const markInstallmentPaid = async (req: AuthRequest, res: Response) => {
     
     let isCompleted = newBalance <= 0;
     
-    // Double check if there are any remaining unpaid installments
+    // Double check if there are any remaining unpaid or pending installments
     const installments = await db.getInstallmentsByLoanId(loan.id);
-    const unpaidCount = installments.filter(i => i.id !== installmentId && i.status === 'Unpaid').length;
+    const unpaidCount = installments.filter(i => i.id !== installmentId && i.status !== 'Paid').length;
     
     if (unpaidCount === 0) {
       isCompleted = true;
@@ -478,5 +506,44 @@ export const getReports = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Get reports error:', error);
     return res.status(500).json({ error: 'Failed to generate reports.' });
+  }
+};
+
+export const getSettings = async (req: Request, res: Response) => {
+  try {
+    const upiQrUrl = await db.getSetting('upi_qr_url', 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=dakshinamurthy@ybl%26pn=Dakshinamurthy%20Daily%20Finance');
+    return res.status(200).json({ settings: { upi_qr_url: upiQrUrl } });
+  } catch (error: any) {
+    console.error('Failed to get settings:', error);
+    return res.status(500).json({ error: 'Failed to fetch settings.' });
+  }
+};
+
+export const updateUpiQr = async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Please upload a QR code image.' });
+    }
+
+    let upi_qr_url = null;
+    try {
+      upi_qr_url = await uploadToCloudinary(req.file.path);
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+    } catch (err) {
+      console.error('Cloudinary QR upload failed, using local path:', err);
+      upi_qr_url = `/uploads/qr/${req.file.filename}`;
+    }
+
+    await db.updateSetting('upi_qr_url', upi_qr_url);
+
+    return res.status(200).json({
+      message: 'UPI QR Code updated successfully.',
+      upi_qr_url
+    });
+  } catch (error: any) {
+    console.error('Failed to update QR setting:', error);
+    return res.status(500).json({ error: 'Failed to save QR code setting.' });
   }
 };

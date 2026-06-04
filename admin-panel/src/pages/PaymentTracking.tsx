@@ -27,8 +27,11 @@ interface Installment {
   id: string;
   loan_id: string;
   due_date: string;
-  status: 'Paid' | 'Unpaid';
+  status: 'Paid' | 'Unpaid' | 'Pending';
   payment_date: string | null;
+  transaction_id?: string;
+  proof_url?: string;
+  collection_mode?: 'cash' | 'upi'; // inferred: upi if transaction_id present, else cash
 }
 
 interface PaymentTrackingProps {
@@ -227,28 +230,76 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                     return (
                       <div 
                         key={inst.id} 
-                        className={`p-3.5 rounded-xl border flex justify-between items-center transition-all ${
+                        className={`p-3.5 rounded-xl border flex flex-col sm:flex-row justify-between sm:items-center gap-3 transition-all ${
                           inst.status === 'Paid' 
                             ? 'bg-emerald-50/20 border-emerald-100/50' 
+                            : inst.status === 'Pending'
+                            ? 'bg-amber-50/25 border-amber-200/60 shadow-sm shadow-amber-500/5'
                             : isOverdue 
                             ? 'bg-rose-50/20 border-rose-100/50' 
                             : 'bg-slate-50/40 border-slate-150'
                         }`}
                       >
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="text-xs font-bold text-slate-500">Day {index + 1}</span>
                             <span className="text-sm font-semibold font-mono text-slate-700">{inst.due_date}</span>
+                            {inst.status === 'Pending' && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">⏳ Pending Approval</span>
+                            )}
+                            {inst.status === 'Paid' && !inst.transaction_id && (
+                              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">💵 Cash Collected</span>
+                            )}
+                            {inst.status === 'Paid' && inst.transaction_id && (
+                              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">📱 UPI Payment</span>
+                            )}
                             {isOverdue && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200"><BadgeAlert size={10} className="mr-0.5" /> Overdue</span>
                             )}
                           </div>
+
                           {inst.status === 'Paid' && inst.payment_date && (
-                            <span className="text-[10px] text-slate-400 font-mono block">Collected on: {new Date(inst.payment_date).toLocaleString('en-IN')}</span>
+                            <span className="text-[10px] text-slate-400 font-mono block">
+                              {inst.transaction_id ? '✅ Verified on:' : '📋 Collected on:'} {new Date(inst.payment_date).toLocaleString('en-IN')}
+                            </span>
+                          )}
+
+                          {/* Show UTR + Proof for Pending submissions */}
+                          {inst.status === 'Pending' && inst.transaction_id && (
+                            <div className="text-[10px] text-slate-500 font-bold mt-1">
+                              UTR/Txn ID: <span className="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">{inst.transaction_id}</span>
+                              {inst.proof_url && (
+                                <a 
+                                  href={inst.proof_url.startsWith('http') ? inst.proof_url : `http://localhost:8081${inst.proof_url}`} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 underline ml-2 inline-flex items-center gap-0.5"
+                                >
+                                  👁️ View Proof Screenshot
+                                </a>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Show UTR + Proof for already-approved UPI payments */}
+                          {inst.status === 'Paid' && inst.transaction_id && (
+                            <div className="text-[10px] text-slate-500 font-bold mt-1">
+                              UTR/Txn ID: <span className="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">{inst.transaction_id}</span>
+                              {inst.proof_url && (
+                                <a 
+                                  href={inst.proof_url.startsWith('http') ? inst.proof_url : `http://localhost:8081${inst.proof_url}`} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  className="text-emerald-600 hover:text-emerald-800 underline ml-2 inline-flex items-center gap-0.5"
+                                >
+                                  📷 View Proof Screenshot
+                                </a>
+                              )}
+                            </div>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
                           <span className="text-sm font-bold text-slate-800">₹{selectedLoan.daily_installment}</span>
                           {inst.status === 'Paid' ? (
                             <span className="text-emerald-600 flex items-center gap-1 font-bold text-xs bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
@@ -258,9 +309,13 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                           ) : (
                             <button
                               onClick={() => handleMarkPaid(inst.id)}
-                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm flex items-center gap-1"
+                              className={`px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 ${
+                                inst.status === 'Pending'
+                                  ? 'bg-amber-500 hover:bg-amber-600'
+                                  : 'bg-blue-600 hover:bg-blue-700'
+                              }`}
                             >
-                              <span>Mark Paid</span>
+                              <span>{inst.status === 'Pending' ? 'Approve Payment' : 'Mark Paid'}</span>
                             </button>
                           )}
                         </div>

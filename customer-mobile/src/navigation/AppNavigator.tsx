@@ -14,10 +14,13 @@ import ProfileScreen from '../screens/ProfileScreen';
 import LenderDetailsScreen from '../screens/LenderDetailsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PaymentHistoryDetailScreen from '../screens/PaymentHistoryDetailScreen';
+import PaymentScreen from '../screens/PaymentScreen';
+import HowToRepayScreen from '../screens/HowToRepayScreen';
 
 // Custom tab icons mock since we don't install expo-vector-icons specifically, we can use simple Text or Styles!
 import { Text, View, StyleSheet, TouchableOpacity, Linking, Platform, Alert } from 'react-native';
 import { COLORS } from '../utils/theme';
+import { FontAwesome } from '@expo/vector-icons';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -93,10 +96,18 @@ function TabNavigator() {
                 Alert.alert('Info', 'Pull down the screen to refresh data.');
               }
             }}
-            style={{ marginRight: 16 }}
+            style={{ 
+              marginRight: 16,
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
             activeOpacity={0.7}
           >
-            <Text style={{ fontSize: 16 }}>🔄</Text>
+            <Text style={{ fontSize: 18, color: '#FFFFFF', fontWeight: 'bold', lineHeight: 22, marginTop: -2 }}>↻</Text>
           </TouchableOpacity>
         ),
         tabBarLabelStyle: {
@@ -115,7 +126,14 @@ function TabNavigator() {
         }
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Daily Finance' }} />
+      <Tab.Screen 
+        name="Dashboard" 
+        component={DashboardScreen} 
+        options={{ 
+          title: 'Daily Finance',
+          headerShown: false
+        }} 
+      />
       <Tab.Screen name="History" component={PaymentHistoryScreen} options={{ title: 'Repayment Log' }} />
       <Tab.Screen name="Support" component={LenderDetailsScreen} options={{ title: 'Lender Support' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
@@ -134,10 +152,9 @@ const FloatingWhatsApp = () => {
     <TouchableOpacity 
       style={styles.floatingWhatsapp} 
       onPress={handleOpenWhatsApp}
-      activeOpacity={0.8}
+      activeOpacity={0.85}
     >
-      <Text style={styles.whatsappEmoji}>💬</Text>
-      <Text style={styles.whatsappText}>WhatsApp Support</Text>
+      <FontAwesome name="whatsapp" size={32} color="#FFFFFF" />
     </TouchableOpacity>
   );
 };
@@ -159,10 +176,18 @@ export default function AppNavigator() {
                   Alert.alert('Info', 'Pull down to refresh or go back to main screen.');
                 }
               }}
-              style={{ marginRight: 16 }}
+              style={{ 
+                marginRight: 16,
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
               activeOpacity={0.7}
             >
-              <Text style={{ fontSize: 16 }}>🔄</Text>
+              <Text style={{ fontSize: 18, color: '#FFFFFF', fontWeight: 'bold', lineHeight: 22, marginTop: -2 }}>↻</Text>
             </TouchableOpacity>
           )
         }}>
@@ -206,10 +231,27 @@ export default function AppNavigator() {
                   headerTintColor: COLORS.white 
                 }} 
               />
+              <Stack.Screen 
+                name="Payment" 
+                component={PaymentScreen} 
+                options={{ 
+                  headerShown: true, 
+                  title: 'UPI QR Payment',
+                  headerStyle: { backgroundColor: COLORS.primary },
+                  headerTintColor: COLORS.white 
+                }} 
+              />
+              <Stack.Screen 
+                name="HowToRepay" 
+                component={HowToRepayScreen} 
+                options={{ 
+                  headerShown: false,
+                }} 
+              />
             </>
           )}
         </Stack.Navigator>
-        <FloatingWhatsApp />
+        {token !== null && <FloatingWhatsApp />}
       </View>
     </View>
   );
@@ -325,28 +367,18 @@ const styles = StyleSheet.create({
   floatingWhatsapp: {
     position: 'absolute',
     bottom: 92,
-    right: 20,
+    right: 22,
     backgroundColor: '#25D366',
-    flexDirection: 'row',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 99,
+    justifyContent: 'center',
     shadowColor: '#25D366',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 10,
     zIndex: 9999,
-  },
-  whatsappEmoji: {
-    fontSize: 16,
-    marginRight: 6,
-  },
-  whatsappText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 0.5,
   }
 });
