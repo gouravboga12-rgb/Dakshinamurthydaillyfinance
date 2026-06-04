@@ -146,10 +146,18 @@ if (DEV_MODE) {
 
   // 1. Build Admin Panel
   log(GOLD, '🔨', 'Building Admin Panel (Vite)...');
+  if (!fs.existsSync(path.join(ADMIN, 'node_modules'))) {
+    log(GOLD, '📦', 'Installing Admin Panel dependencies...');
+    run('npm install', ADMIN, 'Admin Panel');
+  }
   run('npm run build', ADMIN, 'Admin Panel');
 
   // 2. Build Customer Mobile Web
   log(GOLD, '🔨', 'Building Customer Web App (Expo)...');
+  if (!fs.existsSync(path.join(MOBILE, 'node_modules'))) {
+    log(GOLD, '📦', 'Installing Customer App dependencies...');
+    run('npm install', MOBILE, 'Customer App');
+  }
   run('npx expo export --platform web', MOBILE, 'Customer App');
 
   if (BUILD_ONLY) {
