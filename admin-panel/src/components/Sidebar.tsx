@@ -29,8 +29,10 @@ export default function Sidebar({ currentPage, setCurrentPage, adminName, onLogo
     { id: 'settings',   label: 'Settings',             icon: Settings        },
   ];
 
-  const initials = adminName
+  const safeName = adminName || 'Dakshinamurthy';
+  const initials = safeName
     .split(' ')
+    .filter(Boolean)
     .map((n) => n[0])
     .join('')
     .toUpperCase()
@@ -121,7 +123,7 @@ export default function Sidebar({ currentPage, setCurrentPage, adminName, onLogo
             {initials}
           </div>
           <div className="truncate">
-            <h4 className="text-sm font-bold text-white truncate">{adminName}</h4>
+            <h4 className="text-sm font-bold text-white truncate">{safeName}</h4>
             <p className="text-[10px] text-brand/70 font-semibold">Administrator</p>
           </div>
         </div>

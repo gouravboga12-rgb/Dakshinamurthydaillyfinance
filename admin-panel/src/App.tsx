@@ -26,9 +26,9 @@ export default function App() {
       <Login 
         onLoginSuccess={(t, name) => {
           localStorage.setItem('admin-token', t);
-          localStorage.setItem('admin-name', name);
+          localStorage.setItem('admin-name', name || 'Dakshinamurthy');
           setToken(t);
-          setAdminName(name);
+          setAdminName(name || 'Dakshinamurthy');
         }}
       />
     );
