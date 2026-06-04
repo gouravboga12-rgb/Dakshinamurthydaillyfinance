@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Lock, Phone, AlertCircle } from 'lucide-react';
+import { Lock, Mail, AlertCircle } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: (token: string, adminName: string) => void;
 }
 
 export default function Login({ onLoginSuccess }: LoginProps) {
-  const [mobile, setMobile] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mobile || !password) {
+    if (!email || !password) {
       setError('Please fill in all fields.');
       return;
     }
@@ -25,7 +25,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     try {
       // Direct post to backend API proxy /api/auth/login
       const response = await axios.post('/api/auth/login', {
-        mobile_number: mobile,
+        mobile_number: email,
         password: password
       });
 
@@ -75,22 +75,22 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             )}
 
             <div>
-              <label htmlFor="mobile" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Mobile Number / Email
+              <label htmlFor="email" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Email Address
               </label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                  <Phone size={16} />
+                  <Mail size={16} />
                 </div>
                 <input
-                  id="mobile"
-                  name="mobile"
-                  type="text"
+                  id="email"
+                  name="email"
+                  type="email"
                   required
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="appearance-none block w-full pl-10 pr-3 py-3 border border-slate-800 bg-slate-950 text-white rounded-xl placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent transition-all sm:text-sm"
-                  placeholder="Enter mobile or email"
+                  placeholder="Enter email address"
                 />
               </div>
             </div>

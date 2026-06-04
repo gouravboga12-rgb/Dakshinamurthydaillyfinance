@@ -15,11 +15,11 @@ export const getCustomers = async (req: AuthRequest, res: Response) => {
     
     let filtered = users;
     if (status) {
-      filtered = filtered.filter(u => u.status === status);
+      filtered = filtered.filter((u: any) => u.status === status);
     }
     if (search) {
       const s = String(search).toLowerCase();
-      filtered = filtered.filter(u => 
+      filtered = filtered.filter((u: any) => 
         u.full_name.toLowerCase().includes(s) || 
         u.mobile_number.includes(s) ||
         (u.email && u.email.toLowerCase().includes(s))
@@ -399,7 +399,7 @@ export const markInstallmentPaid = async (req: AuthRequest, res: Response) => {
     
     // Double check if there are any remaining unpaid or pending installments
     const installments = await db.getInstallmentsByLoanId(loan.id);
-    const unpaidCount = installments.filter(i => i.id !== installmentId && i.status !== 'Paid').length;
+    const unpaidCount = installments.filter((i: any) => i.id !== installmentId && i.status !== 'Paid').length;
     
     if (unpaidCount === 0) {
       isCompleted = true;
@@ -489,9 +489,9 @@ export const getReports = async (req: AuthRequest, res: Response) => {
 
     // Default: Return a generic loan performance overview
     const allLoans = await db.getLoans();
-    const active = allLoans.filter(l => l.status === 'Active');
-    const completed = allLoans.filter(l => l.status === 'Completed');
-    const pending = allLoans.filter(l => l.status === 'Pending');
+    const active = allLoans.filter((l: any) => l.status === 'Active');
+    const completed = allLoans.filter((l: any) => l.status === 'Completed');
+    const pending = allLoans.filter((l: any) => l.status === 'Pending');
 
     return res.status(200).json({
       reportName: 'Loan Performance Report',
@@ -500,7 +500,7 @@ export const getReports = async (req: AuthRequest, res: Response) => {
         activeCount: active.length,
         completedCount: completed.length,
         pendingCount: pending.length,
-        totalOutstanding: active.reduce((sum, l) => sum + l.remaining_balance, 0)
+        totalOutstanding: active.reduce((sum: number, l: any) => sum + l.remaining_balance, 0)
       }
     });
   } catch (error: any) {

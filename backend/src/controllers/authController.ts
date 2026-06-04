@@ -123,14 +123,14 @@ export const login = async (req: Request, res: Response) => {
     // Verify password
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid mobile number or password.' });
+      return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
     // Generate JWT
     const token = jwt.sign(
       { id: user.id, role: user.role, status: user.status },
       JWT_SECRET,
-      { expiresIn: JWT_EXPIRE }
+      { expiresIn: JWT_EXPIRE as any }
     );
 
     return res.status(200).json({
