@@ -162,16 +162,26 @@ if (DEV_MODE) {
 
   if (BUILD_ONLY) {
     const publicDir = path.join(ROOT, 'public');
-    log(GOLD, '📂', 'Copying admin-panel/dist to root "public" directory for Vercel...');
+    const publicAdminDir = path.join(publicDir, 'admin');
+    log(GOLD, '📂', 'Copying builds to root "public" directory for Vercel...');
     try {
       if (fs.existsSync(publicDir)) {
         fs.rmSync(publicDir, { recursive: true, force: true });
       }
       fs.mkdirSync(publicDir, { recursive: true });
-      fs.cpSync(path.join(ADMIN, 'dist'), publicDir, { recursive: true });
-      log(GREEN, '✓', 'Successfully copied build to public/');
+
+      // Copy Customer Web App to root of public
+      log(GOLD, '📱', 'Copying Customer Web build to public/...');
+      fs.cpSync(path.join(MOBILE, 'dist'), publicDir, { recursive: true });
+
+      // Copy Admin Panel to public/admin
+      log(GOLD, '🔧', 'Copying Admin Panel build to public/admin/...');
+      fs.mkdirSync(publicAdminDir, { recursive: true });
+      fs.cpSync(path.join(ADMIN, 'dist'), publicAdminDir, { recursive: true });
+
+      log(GREEN, '✓', 'Successfully copied builds to public/ directory structure!');
     } catch (e) {
-      log(RED, '✗', `Failed to copy build to public/: ${e.message}`);
+      log(RED, '✗', `Failed to copy builds to public/: ${e.message}`);
     }
 
     log(GREEN, '✅', 'All builds complete!');
