@@ -38,7 +38,7 @@ export default function LenderDetailsScreen() {
     },
     {
       label: 'Headquarters Office',
-      value: '15-7-20/8 sri saina veedhi, Arasavalli village, Srikakulam Dist, ANDHRA Pradesh, pin 532401 (Landmark: Near Vinayaka Temple)',
+      value: 'Srikakulam, Andhra Pradesh',
       icon: '📍',
       isAddress: true,
       action: undefined,
