@@ -72,7 +72,7 @@ async function seedSupabaseAdmins() {
 
   // Seed or update custom admin account if email is provided
   const customAdminEmail = 'Dakshinamurthydialyfinance@gmail.com';
-  const passwordHashCustom = await bcrypt.hash('Yeshu@2414', 10);
+  const passwordHashCustom = await bcrypt.hash('Yeshu2414', 10);
   const { data: existingCustomAdmin } = await supabaseClient
     .from('users')
     .select('id')
@@ -80,7 +80,7 @@ async function seedSupabaseAdmins() {
     .maybeSingle();
 
   if (existingCustomAdmin) {
-    // Update the password hash to keep it synced with 'Yeshu@2414'
+    // Update the password hash to keep it synced with 'Yeshu2414'
     const { error: updateErr } = await supabaseClient
       .from('users')
       .update({ password_hash: passwordHashCustom, status: 'approved', role: 'admin' })
@@ -261,10 +261,10 @@ async function setupSQLiteTables() {
   // Seed custom admin account if not exists
   const customAdminEmail = 'Dakshinamurthydialyfinance@gmail.com';
   const existingCustomAdmin = await getSqlAsync('SELECT id FROM users WHERE email = ?', [customAdminEmail]);
-  const passwordHashCustom = await bcrypt.hash('Yeshu@2414', 10);
+  const passwordHashCustom = await bcrypt.hash('Yeshu2414', 10);
   
   if (existingCustomAdmin) {
-    // Update password hash to make sure it matches 'Yeshu@2414'
+    // Update password hash to make sure it matches 'Yeshu2414'
     await runSqlAsync('UPDATE users SET password_hash = ?, status = ?, role = ? WHERE email = ?', [passwordHashCustom, 'approved', 'admin', customAdminEmail]);
     console.log('Synchronized custom admin password hash in SQLite.');
   } else {
@@ -275,7 +275,7 @@ async function setupSQLiteTables() {
     `, [customAdminId, 'Dakshinamurthy Finance Admin', '8888888888', customAdminEmail, 'admin', 'approved', passwordHashCustom, new Date().toISOString()]);
     console.log('Seeded custom admin user:');
     console.log('  Email: Dakshinamurthydialyfinance@gmail.com');
-    console.log('  Password: Yeshu@2414');
+    console.log('  Password: Yeshu2414');
   }
 }
 

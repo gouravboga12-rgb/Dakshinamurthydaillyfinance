@@ -86,10 +86,10 @@ VALUES ('upi_qr_url', 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&
 ON CONFLICT (key) DO NOTHING;
 
 -- 8. Seed Admin Users
--- Owner Account: Email=Dakshinamurthydialyfinance@gmail.com, Password=Yeshu@2414
+-- Owner Account: Email=Dakshinamurthydialyfinance@gmail.com, Password=Yeshu2414
 -- System Admin: Mobile=9999999999, Password=admin123
 
--- Owner Admin (login with email Dakshinamurthydialyfinance@gmail.com and password Yeshu@2414)
+-- Owner Admin (login with email Dakshinamurthydialyfinance@gmail.com and password Yeshu2414)
 INSERT INTO users (id, full_name, mobile_number, email, role, status, password_hash)
 VALUES (
     '334e7a4b-de7f-430e-bbc9-91b1f3617de1', 
@@ -98,7 +98,7 @@ VALUES (
     'Dakshinamurthydialyfinance@gmail.com', 
     'admin', 
     'approved', 
-    '$2a$10$X5V5LzGR4lTaRpIKNKQ9pO7AHlm6EwJpI0BxT1n7IKkYknOqrJoKO' -- hashed 'Yeshu@2414'
+    '$2a$10$c.Vwbttq5Qcv4.MG7QTEKOMnd2l7FlcxoqFdgfQvtMyfm05NHg6SW' -- hashed 'Yeshu2414'
 );
 
 -- System Admin (login with mobile 9999999999 and password admin123)

@@ -152,12 +152,12 @@ export default function Login({ onLoginSuccess, onBypass }: LoginProps) {
                 <p className="text-xs text-slate-500 mb-1 font-semibold uppercase tracking-wider">Owner Account</p>
                 <button
                   type="button"
-                  onClick={() => { setMobile('Dakshinamurthydialyfinance@gmail.com'); setPassword('Yeshu@2414'); }}
+                  onClick={() => { setMobile('Dakshinamurthydialyfinance@gmail.com'); setPassword('Yeshu2414'); }}
                   className="text-left w-full bg-slate-900 hover:bg-slate-800 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center text-xs font-medium text-slate-300 transition-colors"
                 >
                   <div>
                     <div>Email: <span className="text-white font-mono">Dakshinamurthydialyfinance@gmail.com</span></div>
-                    <div>Pass: <span className="text-white font-mono">Yeshu@2414</span></div>
+                    <div>Pass: <span className="text-white font-mono">Yeshu2414</span></div>
                   </div>
                   <span className="text-xs text-blue-400 font-semibold hover:underline shrink-0 ml-2">Auto-Fill</span>
                 </button>
