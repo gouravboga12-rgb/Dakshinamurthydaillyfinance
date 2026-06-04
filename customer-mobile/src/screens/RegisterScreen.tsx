@@ -18,22 +18,7 @@ import COLORS, { COMMON_STYLES } from '../utils/theme';
 export default function RegisterScreen({ navigation }: any) {
   const dispatch = useDispatch();
 
-  const handleGuestAccess = () => {
-    dispatch(loginSuccess({
-      token: 'guest-mock-token-12345',
-      user: {
-        id: 'mock-customer-id-12345',
-        full_name: fullName.trim() || 'Dakshinamurthy Customer',
-        mobile_number: mobile.trim() || '7337401590',
-        email: email.trim() || 'customer@gmail.com',
-        role: 'customer',
-        status: 'approved',
-        occupation: occupation.trim() || 'Private employee',
-        shop_name: shopName.trim() || 'Cognizant',
-        address: address.trim() || 'Hyderabad'
-      }
-    }));
-  };
+
   const [fullName, setFullName] = useState('');
   const [mobile, setMobile] = useState('');
   const [email, setEmail] = useState('');
@@ -290,12 +275,7 @@ export default function RegisterScreen({ navigation }: any) {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.guestButton}
-          onPress={handleGuestAccess}
-        >
-          <Text style={styles.guestButtonText}>Explore as Guest (Skip Signup)</Text>
-        </TouchableOpacity>
+
 
         <TouchableOpacity
           style={styles.loginLink}

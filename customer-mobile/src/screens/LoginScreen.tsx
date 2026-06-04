@@ -25,22 +25,7 @@ export default function LoginScreen({ navigation }: any) {
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleGuestAccess = () => {
-    dispatch(loginSuccess({
-      token: 'guest-mock-token-12345',
-      user: {
-        id: 'mock-customer-id-12345',
-        full_name: 'Dakshinamurthy Customer',
-        mobile_number: '7337401590',
-        email: 'customer@gmail.com',
-        role: 'customer',
-        status: 'approved',
-        occupation: 'Private Employee',
-        shop_name: 'Cognizant',
-        address: 'Hyderabad'
-      }
-    }));
-  };
+
 
   const handleLogin = async () => {
     if (!mobile.trim() || !password.trim()) {
@@ -148,12 +133,7 @@ export default function LoginScreen({ navigation }: any) {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.guestButton}
-            onPress={handleGuestAccess}
-          >
-            <Text style={styles.guestButtonText}>Explore as Guest (Skip Login)</Text>
-          </TouchableOpacity>
+
 
           <TouchableOpacity
             style={styles.registerLink}
