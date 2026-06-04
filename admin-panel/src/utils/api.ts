@@ -11,7 +11,9 @@ import axios from 'axios';
  */
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
   ? `${import.meta.env.VITE_API_BASE_URL}`
-  : '';
+  : (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
+      ? 'http://localhost:8081'
+      : '');
 
 const api = axios.create({
   baseURL: BASE_URL,

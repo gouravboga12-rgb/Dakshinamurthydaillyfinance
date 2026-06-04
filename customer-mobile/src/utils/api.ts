@@ -6,8 +6,16 @@ const getBaseUrl = () => {
   if (Platform.OS === 'web') {
     // When served from the unified backend, use relative URL (same origin)
     // If opened on the Expo dev server (port 8082), route API calls to Express backend (port 8081)
-    if (typeof window !== 'undefined' && window.location.port === '8082') {
-      return 'http://localhost:8081/api';
+    if (typeof window !== 'undefined') {
+      if (process.env.EXPO_PUBLIC_API_URL) {
+        return process.env.EXPO_PUBLIC_API_URL;
+      }
+      if (window.location.hostname.includes('vercel.app')) {
+        return 'http://localhost:8081/api';
+      }
+      if (window.location.port === '8082') {
+        return 'http://localhost:8081/api';
+      }
     }
     return '/api';
   }
