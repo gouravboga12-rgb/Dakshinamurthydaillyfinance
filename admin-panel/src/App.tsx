@@ -14,6 +14,7 @@ export default function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin-token'));
   const [adminName, setAdminName] = useState<string>(localStorage.getItem('admin-name') || 'Dakshinamurthy');
   const [currentPage, setCurrentPage] = useState<string>('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('admin-token');
@@ -53,7 +54,7 @@ export default function App() {
     }
   };
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+
 
   return (
     <div className="flex min-h-screen bg-background">
