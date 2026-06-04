@@ -30,13 +30,6 @@ export default function App() {
           setToken(t);
           setAdminName(name);
         }}
-        onBypass={() => {
-          const bypassToken = 'admin-bypass-token';
-          localStorage.setItem('admin-token', bypassToken);
-          localStorage.setItem('admin-name', 'Dakshinamurthy');
-          setToken(bypassToken);
-          setAdminName('Dakshinamurthy');
-        }}
       />
     );
   }

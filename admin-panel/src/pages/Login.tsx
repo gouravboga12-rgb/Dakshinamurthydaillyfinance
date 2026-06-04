@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Lock, Phone, AlertCircle, Sparkles } from 'lucide-react';
+import { Lock, Phone, AlertCircle } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: (token: string, adminName: string) => void;
-  onBypass: () => void;
 }
 
-export default function Login({ onLoginSuccess, onBypass }: LoginProps) {
+export default function Login({ onLoginSuccess }: LoginProps) {
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -43,11 +42,6 @@ export default function Login({ onLoginSuccess, onBypass }: LoginProps) {
       setError(err.response?.data?.error || 'Authentication failed. Please verify your credentials.');
       setLoading(false);
     }
-  };
-
-  const handleFillDemoAdmin = () => {
-    setMobile('9999999999');
-    setPassword('admin123');
   };
 
   return (
@@ -130,55 +124,8 @@ export default function Login({ onLoginSuccess, onBypass }: LoginProps) {
               >
                 {loading ? 'Verifying...' : 'Sign In'}
               </button>
-              <button
-                type="button"
-                onClick={onBypass}
-                className="w-full flex justify-center py-3 px-4 border border-slate-800 rounded-xl shadow-md text-sm font-semibold text-slate-300 bg-slate-950 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-slate-500 transition-all"
-              >
-                Quick Bypass (Demo Access)
-              </button>
             </div>
           </form>
-
-          {/* Admin Credentials Helper Card */}
-          <div className="mt-8 pt-6 border-t border-slate-800/80">
-            <div className="bg-slate-950/60 rounded-xl p-4 border border-slate-800/50 flex flex-col gap-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                <Sparkles size={14} />
-                <span>Admin Login Credentials</span>
-              </div>
-              {/* Owner account */}
-              <div>
-                <p className="text-xs text-slate-500 mb-1 font-semibold uppercase tracking-wider">Owner Account</p>
-                <button
-                  type="button"
-                  onClick={() => { setMobile('Dakshinamurthydialyfinance@gmail.com'); setPassword('Yeshu2414'); }}
-                  className="text-left w-full bg-slate-900 hover:bg-slate-800 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center text-xs font-medium text-slate-300 transition-colors"
-                >
-                  <div>
-                    <div>Email: <span className="text-white font-mono">Dakshinamurthydialyfinance@gmail.com</span></div>
-                    <div>Pass: <span className="text-white font-mono">Yeshu2414</span></div>
-                  </div>
-                  <span className="text-xs text-blue-400 font-semibold hover:underline shrink-0 ml-2">Auto-Fill</span>
-                </button>
-              </div>
-              {/* System admin */}
-              <div>
-                <p className="text-xs text-slate-500 mb-1 font-semibold uppercase tracking-wider">System Admin (Mobile Login)</p>
-                <button
-                  type="button"
-                  onClick={handleFillDemoAdmin}
-                  className="text-left w-full bg-slate-900 hover:bg-slate-800 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center text-xs font-medium text-slate-300 transition-colors"
-                >
-                  <div>
-                    <div>Mobile: <span className="text-white font-mono">9999999999</span></div>
-                    <div>Pass: <span className="text-white font-mono">admin123</span></div>
-                  </div>
-                  <span className="text-xs text-blue-400 font-semibold hover:underline shrink-0 ml-2">Auto-Fill</span>
-                </button>
-              </div>
-            </div>
-          </div>
 
         </div>
       </div>
