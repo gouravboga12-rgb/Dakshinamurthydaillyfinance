@@ -5,6 +5,31 @@
     <link rel="icon" type="image/png" href="logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dakshinamurthy Daily Finance - Admin Panel</title>
+    <script>
+      window.addEventListener('error', function(event) {
+        var container = document.getElementById('error-boundary-banner');
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'error-boundary-banner';
+          container.style.position = 'fixed';
+          container.style.bottom = '20px';
+          container.style.right = '20px';
+          container.style.zIndex = '999999';
+          container.style.background = '#881337';
+          container.style.color = '#FFE4E6';
+          container.style.padding = '20px';
+          container.style.borderRadius = '12px';
+          container.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
+          container.style.fontFamily = 'monospace';
+          container.style.fontSize = '12px';
+          container.style.maxWidth = '400px';
+          container.style.whiteSpace = 'pre-wrap';
+          container.style.border = '1px solid #F43F5E';
+          document.body.appendChild(container);
+        }
+        container.textContent = '⚠️ Uncaught Error: ' + event.message + '\n\nSource: ' + event.filename + '\nLine: ' + event.lineno + ':' + event.colno;
+      });
+    </script>
     <!-- Modern Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
