@@ -348,7 +348,7 @@ export default function Reports({ token }: ReportsProps) {
                             <td colSpan={8} className="py-6 text-center text-slate-400">No member details available.</td>
                           </tr>
                         ) : (
-                          reportData.membersDetails.map((m: any) => (
+                          (reportData.membersDetails || []).map((m: any) => (
                             <tr key={m.id} className="hover:bg-slate-50/40 transition-colors">
                               <td className="py-3 px-3 font-semibold text-slate-900">{m.name}</td>
                               <td className="py-3 px-3 text-slate-500">{m.mobile}</td>
@@ -389,7 +389,7 @@ export default function Reports({ token }: ReportsProps) {
                             <td colSpan={5} className="py-6 text-center text-slate-400">Great! No active overdue/missed payments recorded.</td>
                           </tr>
                         ) : (
-                          reportData.losses.map((item: any) => (
+                          (reportData.losses || []).map((item: any) => (
                             <tr key={item.id} className="hover:bg-rose-50/10 transition-colors">
                               <td className="py-3 px-3 font-semibold text-slate-900">
                                 <div>{item.customerName}</div>
@@ -435,7 +435,7 @@ export default function Reports({ token }: ReportsProps) {
                             <td colSpan={6} className="py-6 text-center text-slate-400">All pending payments have been cleared.</td>
                           </tr>
                         ) : (
-                          reportData.pendingPayments.map((item: any) => (
+                          (reportData.pendingPayments || []).map((item: any) => (
                             <tr key={item.id} className="hover:bg-amber-50/10 transition-colors">
                               <td className="py-3 px-3 font-semibold text-slate-900">
                                 <div>{item.customerName}</div>
