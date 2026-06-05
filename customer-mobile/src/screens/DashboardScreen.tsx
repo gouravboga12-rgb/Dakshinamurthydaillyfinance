@@ -293,8 +293,11 @@ export default function DashboardScreen({ navigation }: any) {
           
           {loan.status === 'Pending' ? (
             <View style={styles.pendingContainer}>
+              <Text style={styles.pendingLabel}>Loan Amount Requested</Text>
               <Text style={styles.pendingAmount}>₹{loan.approved_amount.toLocaleString('en-IN')}</Text>
-              <Text style={styles.pendingStatusText}>Proposal Submitted (Pending Admin Review)</Text>
+              <View style={styles.pendingBadge}>
+                <Text style={styles.pendingStatusText}>⏳  Proposal Submitted — Pending Admin Review</Text>
+              </View>
             </View>
           ) : (
             <>
@@ -782,10 +785,27 @@ const styles = StyleSheet.create({
 
   pendingContainer: {
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 16,
   },
-  pendingAmount: { color: COLORS.heading, fontSize: 24, fontWeight: '900' },
-  pendingStatusText: { color: '#F59E0B', fontSize: 12, fontWeight: '800', marginTop: 6 },
+  pendingLabel: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  pendingAmount: { color: '#FFFFFF', fontSize: 38, fontWeight: '900', letterSpacing: -0.5 },
+  pendingBadge: {
+    marginTop: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  pendingStatusText: { color: '#F59E0B', fontSize: 12, fontWeight: '800', textAlign: 'center' },
 
   loanApplySection: { paddingHorizontal: 24, paddingTop: 20 },
   sectionHeader: { color: COLORS.heading, fontSize: 14, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 },
