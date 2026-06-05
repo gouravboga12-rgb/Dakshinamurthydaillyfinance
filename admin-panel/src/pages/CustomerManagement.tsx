@@ -16,7 +16,8 @@ import {
   AlertCircle,
   Eye,
   Upload,
-  CreditCard
+  CreditCard,
+  Download
 } from 'lucide-react';
 
 interface Customer {
@@ -254,12 +255,22 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
               <span className="text-lg">📄</span>
               <span className="text-white font-bold text-sm">{pdfViewerUrl.split('/').pop()}</span>
             </div>
-            <button
-              onClick={() => setPdfViewerUrl(null)}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-colors"
-            >
-              <X size={14} /> Close PDF
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Download button inside PDF viewer */}
+              <a
+                href={pdfViewerUrl}
+                download={pdfViewerUrl.split('/').pop()}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors"
+              >
+                <Download size={13} /> Download
+              </a>
+              <button
+                onClick={() => setPdfViewerUrl(null)}
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-colors"
+              >
+                <X size={14} /> Close PDF
+              </button>
+            </div>
           </div>
 
           {/* PDF fills the rest */}
@@ -645,7 +656,16 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                           <div className="px-3 py-2 flex items-center gap-2.5 text-slate-600 text-xs font-semibold border-b border-slate-100">
                             <FileText size={15} className="text-slate-400 flex-shrink-0" />
                             <span className="truncate flex-1">{filename}</span>
-                            {/* Open full-screen button */}
+                            {/* Download button — always shown */}
+                            <a
+                              href={fullUrl}
+                              download={filename}
+                              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors"
+                              title="Download Aadhaar"
+                            >
+                              <Download size={11} /> Download
+                            </a>
+                            {/* Open full-screen button — PDF only */}
                             {!isImage && (
                               <button
                                 type="button"
