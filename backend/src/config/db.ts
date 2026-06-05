@@ -886,6 +886,20 @@ export const db = {
         }
       }));
     }
+  },
+
+  async deleteUnpaidInstallments(loanId: string) {
+    if (useSupabase) {
+      const { data, error } = await supabaseClient.from('installments')
+        .delete()
+        .eq('loan_id', loanId)
+        .eq('status', 'Unpaid');
+      if (error) throw error;
+      return data;
+    } else {
+      await runSqlAsync("DELETE FROM installments WHERE loan_id = ? AND status = 'Unpaid'", [loanId]);
+      return { loanId };
+    }
   }
 };
 

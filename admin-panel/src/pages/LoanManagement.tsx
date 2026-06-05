@@ -86,6 +86,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   const [approvalDurationDays, setApprovalDurationDays] = useState('');
   const [approvalFormError, setApprovalFormError] = useState('');
   const [approvalFormLoading, setApprovalFormLoading] = useState(false);
+  const [isEditingActive, setIsEditingActive] = useState(false);
+  const [approvalLoan, setApprovalLoan] = useState<Loan | null>(null);
 
   // Default settings loaded from database
   const [defaultPlatformFee, setDefaultPlatformFee] = useState('1000');
@@ -206,10 +208,19 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     setApprovalPlatformCharges(String(loan.platform_charges));
     setApprovalDailyInstallment(String(loan.daily_installment));
     setApprovalDurationDays(String(loan.duration_days));
+    setIsEditingActive(loan.status === 'Active');
+    setApprovalLoan(loan);
     
-    // Default interest percentage to 0% initially for approval modal to match requested EMI
-    setApprovalInterestPct('0');
-    setApprovalInterestPctOption('0');
+    // Calculate existing interest rate
+    const interestAmt = loan.total_repayment - loan.approved_amount;
+    const interestPct = loan.approved_amount > 0 ? Math.round((interestAmt / loan.approved_amount) * 100) : 0;
+    
+    // Default interest percentage to calculated value if editing active, or 0 if pending
+    const initialPct = loan.status === 'Active' ? interestPct : 0;
+    const isStandardPct = ['0', '5', '10', '11', '15', '20'].includes(String(initialPct));
+    
+    setApprovalInterestPct(String(initialPct));
+    setApprovalInterestPctOption(isStandardPct ? String(initialPct) : 'custom');
     setApprovalFormError('');
     setShowApproveModal(true);
   };
@@ -228,21 +239,38 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     const totalRepay = approvedAmt + interestAmt;
 
     try {
-      await axios.post(`/api/admin/loans/${approvalLoanId}/approve`, {
-        approved_amount: approvedAmt,
-        platform_charges: Number(approvalPlatformCharges),
-        amount_disbursed: approvedAmt - Number(approvalPlatformCharges),
-        daily_installment: Number(approvalDailyInstallment),
-        duration_days: Number(approvalDurationDays),
-        total_repayment: totalRepay
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert('Loan approved and activated successfully.');
+      if (isEditingActive) {
+        const currentPaid = approvalLoan ? (approvalLoan.total_repayment - approvalLoan.remaining_balance) : 0;
+        const newRemainingBalance = Math.max(0, totalRepay - currentPaid);
+
+        await axios.put(`/api/admin/loans/${approvalLoanId}`, {
+          approved_amount: approvedAmt,
+          platform_charges: Number(approvalPlatformCharges),
+          daily_installment: Number(approvalDailyInstallment),
+          duration_days: Number(approvalDurationDays),
+          total_repayment: totalRepay,
+          remaining_balance: newRemainingBalance
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert('Loan details updated successfully.');
+      } else {
+        await axios.post(`/api/admin/loans/${approvalLoanId}/approve`, {
+          approved_amount: approvedAmt,
+          platform_charges: Number(approvalPlatformCharges),
+          amount_disbursed: approvedAmt - Number(approvalPlatformCharges),
+          daily_installment: Number(approvalDailyInstallment),
+          duration_days: Number(approvalDurationDays),
+          total_repayment: totalRepay
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert('Loan approved and activated successfully.');
+      }
       setShowApproveModal(false);
       fetchLoans();
     } catch (err: any) {
-      setApprovalFormError(err.response?.data?.error || 'Failed to approve loan.');
+      setApprovalFormError(err.response?.data?.error || (isEditingActive ? 'Failed to update loan.' : 'Failed to approve loan.'));
     } finally {
       setApprovalFormLoading(false);
     }
@@ -486,13 +514,22 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                           </>
                         )}
                         {l.status === 'Active' && (
-                          <button
-                            onClick={() => handleCloseLoan(l.id)}
-                            title="Force Settle Loan"
-                            className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors"
-                          >
-                            <Lock size={14} />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => openApproveModal(l)}
+                              title="Edit Loan Parameters"
+                              className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleCloseLoan(l.id)}
+                              title="Force Settle Loan"
+                              className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors"
+                            >
+                              <Lock size={14} />
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -754,7 +791,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="bg-slate-900 p-5 text-white flex justify-between items-center">
               <div>
-                <h4 className="text-lg font-bold">Approve & Customize Loan</h4>
+                <h4 className="text-lg font-bold">{isEditingActive ? 'Edit Active Loan' : 'Approve & Customize Loan'}</h4>
                 <p className="text-xs text-slate-300 font-mono mt-0.5">Customer: {approvalCustomerName} ({approvalCustomerMobile})</p>
               </div>
               <button 
@@ -904,12 +941,19 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                 >
                   Cancel
                 </button>
-                <button
+                 <button
                   type="submit"
                   disabled={approvalFormLoading}
-                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-500/15"
+                  className={`px-5 py-2.5 text-white rounded-xl text-xs font-bold transition-all shadow-md ${
+                    isEditingActive 
+                      ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/15' 
+                      : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/15'
+                  }`}
                 >
-                  {approvalFormLoading ? 'Approving...' : 'Confirm & Approve'}
+                  {approvalFormLoading 
+                    ? (isEditingActive ? 'Saving...' : 'Approving...') 
+                    : (isEditingActive ? 'Save Changes' : 'Confirm & Approve')
+                  }
                 </button>
               </div>
             </form>

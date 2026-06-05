@@ -22,7 +22,8 @@ import {
   getSettings,
   updateUpiQr,
   updateSettings,
-  approveForeclosure
+  approveForeclosure,
+  updateLoan
 } from '../controllers/adminController';
 
 const uploadDir = path.resolve(__dirname, '../../uploads/aadhaar');
@@ -79,6 +80,7 @@ router.post('/loans/:id/approve', approveLoan);
 router.post('/loans/:id/reject', rejectLoan);
 router.post('/loans/:id/close', closeLoan);
 router.post('/loans/:id/approve-foreclosure', approveForeclosure);
+router.put('/loans/:id', updateLoan);
 
 // Payment Tracking
 router.post('/payments/mark-paid', markInstallmentPaid);

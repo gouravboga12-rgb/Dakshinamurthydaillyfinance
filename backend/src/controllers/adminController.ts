@@ -779,3 +779,68 @@ export const approveForeclosure = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ error: 'Failed to approve foreclosure.' });
   }
 };
+
+export const updateLoan = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const loan = await db.getLoanById(id);
+    if (!loan) {
+      return res.status(404).json({ error: 'Loan request not found.' });
+    }
+
+    const { approved_amount, platform_charges, daily_installment, duration_days, total_repayment, remaining_balance } = req.body;
+
+    const updates: any = {};
+    if (approved_amount !== undefined) updates.approved_amount = Number(approved_amount);
+    if (platform_charges !== undefined) {
+      updates.platform_charges = Number(platform_charges);
+      const appAmt = approved_amount !== undefined ? Number(approved_amount) : loan.approved_amount;
+      updates.amount_disbursed = appAmt - Number(platform_charges);
+    }
+    if (daily_installment !== undefined) updates.daily_installment = Number(daily_installment);
+    if (duration_days !== undefined) updates.duration_days = Number(duration_days);
+    if (total_repayment !== undefined) updates.total_repayment = Number(total_repayment);
+    if (remaining_balance !== undefined) updates.remaining_balance = Number(remaining_balance);
+
+    const updatedLoan = await db.updateLoanStatus(id, loan.status, updates);
+
+    // If active and duration/daily_installment was updated, regenerate the unpaid installments
+    if (loan.status === 'Active' && (duration_days !== undefined || daily_installment !== undefined)) {
+      const existingInstallments = await db.getInstallmentsByLoanId(id);
+      const paidOrPending = existingInstallments.filter((inst: any) => inst.status === 'Paid' || inst.status === 'Pending');
+
+      // Delete unpaid ones
+      await db.deleteUnpaidInstallments(id);
+
+      // Re-generate unpaid ones
+      const remainingCount = Math.max(0, updatedLoan.duration_days - paidOrPending.length);
+      if (remainingCount > 0) {
+        const newInstallments = [];
+        const now = new Date().toISOString();
+        const startDate = new Date();
+        for (let i = 1; i <= remainingCount; i++) {
+          const dueDate = new Date(startDate);
+          dueDate.setDate(startDate.getDate() + i);
+          newInstallments.push({
+            id: crypto.randomUUID(),
+            loan_id: id,
+            due_date: dueDate.toISOString().split('T')[0],
+            status: 'Unpaid',
+            payment_date: null,
+            created_at: now
+          });
+        }
+        await db.createInstallments(newInstallments);
+      }
+    }
+
+    return res.status(200).json({
+      message: 'Loan updated successfully.',
+      loan: updatedLoan
+    });
+  } catch (error: any) {
+    console.error('Update loan error:', error);
+    return res.status(500).json({ error: 'Failed to update loan details.' });
+  }
+};
+
