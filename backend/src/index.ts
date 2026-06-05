@@ -6,7 +6,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import http from 'http';
-import { initDatabase } from './config/db';
+import { initDatabase, db } from './config/db';
 import authRoutes from './routes/authRoutes';
 import adminRoutes from './routes/adminRoutes';
 import customerRoutes from './routes/customerRoutes';
@@ -35,6 +35,15 @@ app.use('/api/customer', customerRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/test-analytics', async (req, res) => {
+  try {
+    const stats = await db.getDashboardAnalytics();
+    res.json({ success: true, stats });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || err });
+  }
 });
 
 // ─── Development Proxy Logic ─────────────────────────────────────────────────

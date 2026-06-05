@@ -854,5 +854,38 @@ export const db = {
       outstandingAmount,
       overduePaymentsCount
     };
+  },
+
+  async getPortfolioInstallments() {
+    if (useSupabase) {
+      const { data, error } = await supabaseClient.from('installments')
+        .select('*, loan:loans(*, customer:users(*))')
+        .in('status', ['Unpaid', 'Pending']);
+      if (error) throw error;
+      return data;
+    } else {
+      const sql = `
+        SELECT i.*, l.daily_installment, l.customer_id, u.full_name as customer_name, u.mobile_number as customer_mobile
+        FROM installments i
+        JOIN loans l ON i.loan_id = l.id
+        JOIN users u ON l.customer_id = u.id
+        WHERE i.status IN ('Unpaid', 'Pending')
+      `;
+      const rows = await allSqlAsync(sql);
+      return rows.map((r: any) => ({
+        ...r,
+        loan: {
+          id: r.loan_id,
+          daily_installment: r.daily_installment,
+          customer_id: r.customer_id,
+          customer: {
+            id: r.customer_id,
+            full_name: r.customer_name,
+            mobile_number: r.customer_mobile
+          }
+        }
+      }));
+    }
   }
 };
+

@@ -535,6 +535,112 @@ export const getReports = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    if (type === 'portfolio_outstanding') {
+      const customers = await db.getUsers({ role: 'customer' });
+      const customerMap = new Map();
+      
+      customers.forEach((c: any) => {
+        customerMap.set(c.id, {
+          id: c.id,
+          name: c.full_name,
+          mobile: c.mobile_number,
+          activeLoans: 0,
+          totalApproved: 0,
+          totalPaid: 0,
+          remainingBalance: 0,
+          overdueCount: 0,
+          overdueAmount: 0,
+          pendingCount: 0,
+          pendingAmount: 0
+        });
+      });
+
+      const allLoans = await db.getLoans();
+      allLoans.forEach((l: any) => {
+        const cust = customerMap.get(l.customer_id);
+        if (cust) {
+          if (l.status === 'Active') {
+            cust.activeLoans += 1;
+            cust.totalApproved += l.approved_amount || 0;
+            cust.totalPaid += ((l.total_repayment || 0) - (l.remaining_balance || 0));
+            cust.remainingBalance += l.remaining_balance || 0;
+          }
+        }
+      });
+
+      const installments = await db.getPortfolioInstallments();
+      const losses: any[] = [];
+      const pendingPayments: any[] = [];
+
+      installments.forEach((inst: any) => {
+        const custId = inst.loan?.customer_id;
+        const cust = customerMap.get(custId);
+        const dailyInst = inst.loan?.daily_installment || inst.daily_installment || 0;
+
+        if (inst.status === 'Unpaid') {
+          if (inst.due_date < today) {
+            const dueTime = new Date(inst.due_date).getTime();
+            const todayTime = new Date(today).getTime();
+            const diffTime = todayTime - dueTime;
+            const daysOverdue = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+
+            losses.push({
+              id: inst.id,
+              loanId: inst.loan_id,
+              customerName: inst.loan?.customer?.full_name || 'Unknown',
+              mobile: inst.loan?.customer?.mobile_number || '',
+              dueDate: inst.due_date,
+              amount: dailyInst,
+              daysOverdue
+            });
+
+            if (cust) {
+              cust.overdueCount += 1;
+              cust.overdueAmount += dailyInst;
+            }
+          }
+        } else if (inst.status === 'Pending') {
+          pendingPayments.push({
+            id: inst.id,
+            loanId: inst.loan_id,
+            customerName: inst.loan?.customer?.full_name || 'Unknown',
+            mobile: inst.loan?.customer?.mobile_number || '',
+            paymentDate: inst.payment_date,
+            transactionId: inst.transaction_id,
+            proofUrl: inst.proof_url,
+            amount: dailyInst
+          });
+
+          if (cust) {
+            cust.pendingCount += 1;
+            cust.pendingAmount += dailyInst;
+          }
+        }
+      });
+
+      const membersDetails = Array.from(customerMap.values());
+      const activeLoans = allLoans.filter((l: any) => l.status === 'Active');
+      const totalOutstanding = activeLoans.reduce((sum: number, l: any) => sum + (l.remaining_balance || 0), 0);
+      const totalLosses = losses.reduce((sum: number, l: any) => sum + l.amount, 0);
+      const totalPending = pendingPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
+      const activeMembersCount = membersDetails.filter((m: any) => m.activeLoans > 0).length;
+
+      return res.status(200).json({
+        reportName: 'Portfolio Risk & Outstanding Balances',
+        date: today,
+        metrics: {
+          totalLosses,
+          totalPending,
+          totalOutstanding,
+          totalMembers: customers.length,
+          activeMembers: activeMembersCount
+        },
+        losses,
+        pendingPayments,
+        membersDetails
+      });
+    }
+
     // Default: Return a generic loan performance overview
     const allLoans = await db.getLoans();
     const active = allLoans.filter((l: any) => l.status === 'Active');
