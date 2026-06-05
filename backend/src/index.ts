@@ -14,6 +14,20 @@ import customerRoutes from './routes/customerRoutes';
 const app = express();
 const PORT = process.env.PORT || 8081;
 
+// Initialize database connection for serverless/Vercel before any route processing
+let isDbInit = false;
+app.use(async (req, res, next) => {
+  if (!isDbInit) {
+    try {
+      await initDatabase();
+      isDbInit = true;
+    } catch (e) {
+      console.error('Failed to initialize database in serverless environment:', e);
+    }
+  }
+  next();
+});
+
 // ─── CORS ────────────────────────────────────────────────────────────────────
 app.use(cors());
 
@@ -196,6 +210,7 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 async function startServer() {
   try {
     await initDatabase();
+    isDbInit = true;
     const server = app.listen(PORT, () => {
       console.log('');
       console.log('╔══════════════════════════════════════════════════════╗');
