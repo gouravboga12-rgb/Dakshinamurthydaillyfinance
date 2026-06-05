@@ -517,9 +517,9 @@ export const getReports = async (req: AuthRequest, res: Response) => {
 
     if (type === 'daily_profit') {
       // In our model: Profit = Sum of Platform charges of active loans approved today
-      const loans = await db.getLoans({ status: 'Active' });
+      const loans = await db.getLoans();
       const approvedToday = loans.filter((l: any) => l.approval_date && l.approval_date.startsWith(today));
-      const platformFeeProfit = approvedToday.reduce((sum: number, l: any) => sum + l.platform_charges, 0);
+      const platformFeeProfit = approvedToday.reduce((sum: number, l: any) => sum + (l.platform_charges || 0), 0);
 
       return res.status(200).json({
         reportName: 'Daily Profit Report',
