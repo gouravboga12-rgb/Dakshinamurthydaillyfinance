@@ -10,9 +10,6 @@ const getBaseUrl = () => {
       if ((process.env as any).EXPO_PUBLIC_API_URL) {
         return (process.env as any).EXPO_PUBLIC_API_URL;
       }
-      if (window.location.hostname.includes('vercel.app')) {
-        return 'http://localhost:8081/api';
-      }
       if (window.location.port === '8082') {
         return 'http://localhost:8081/api';
       }
