@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.ts" },
     { "source": "/admin/(.*)", "destination": "/admin/index.html" },
     { "source": "/((?!admin|api|uploads).*)", "destination": "/index.html" }
   ]
