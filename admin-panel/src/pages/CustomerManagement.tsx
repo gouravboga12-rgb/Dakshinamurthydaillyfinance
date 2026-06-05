@@ -607,33 +607,42 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                       const isImage = /\.(png|jpg|jpeg|webp|gif)$/i.test(filename);
                       return (
                         <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
-                          {isImage ? (
-                            <div className="relative">
+                          {/* Filename bar */}
+                          <div className="px-3 py-2 flex items-center gap-2.5 text-slate-600 text-xs font-semibold border-b border-slate-100">
+                            <FileText size={15} className="text-slate-400 flex-shrink-0" />
+                            <span className="truncate">{filename}</span>
+                          </div>
+
+                          {/* Inline viewer — image */}
+                          {isImage && (
+                            <div className="bg-white p-3">
                               <img
                                 src={fullUrl}
                                 alt="Aadhaar Card"
-                                className="w-full max-h-64 object-contain bg-white"
-                                onError={(e: any) => { e.target.style.display = 'none'; (e.target.nextSibling as HTMLElement).style.display = 'flex'; }}
+                                className="w-full rounded-lg object-contain"
+                                style={{ maxHeight: '400px' }}
+                                onError={(e: any) => {
+                                  e.target.style.display = 'none';
+                                  (e.target.nextSibling as HTMLElement).style.display = 'flex';
+                                }}
                               />
-                              <div style={{display:'none'}} className="p-4 items-center justify-center text-xs text-rose-500 font-semibold">
-                                ⚠️ Could not load image. <a href={fullUrl} target="_blank" rel="noreferrer" className="underline ml-1">Open directly</a>
+                              <div style={{ display: 'none' }} className="p-4 items-center justify-center text-xs text-rose-500 font-semibold">
+                                ⚠️ Could not load Aadhaar image.
                               </div>
                             </div>
-                          ) : null}
-                          <div className="p-3 flex items-center justify-between border-t border-slate-100">
-                            <div className="flex items-center gap-2.5 text-slate-600 text-xs font-semibold">
-                              <FileText size={16} className="text-slate-400" />
-                              <span className="truncate max-w-[200px]">{filename}</span>
+                          )}
+
+                          {/* Inline viewer — PDF via iframe */}
+                          {!isImage && (
+                            <div className="bg-white p-2">
+                              <iframe
+                                src={fullUrl}
+                                title="Aadhaar PDF"
+                                className="w-full rounded-lg border border-slate-100"
+                                style={{ height: '420px' }}
+                              />
                             </div>
-                            <a
-                              href={fullUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-shrink-0 px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
-                            >
-                              {isImage ? '🔍 View Full' : '📄 Open PDF'}
-                            </a>
-                          </div>
+                          )}
                         </div>
                       );
                     })() : (
