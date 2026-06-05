@@ -150,7 +150,7 @@ export default function Reports({ token }: ReportsProps) {
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Aggregate Collected</span>
                   <span className="text-2xl font-extrabold text-slate-900">
-                    ₹{reportData.data?.reduce((sum: number, item: any) => sum + (item.daily_installment || 0), 0) || 0}
+                    ₹{reportData.data?.reduce((sum: number, item: any) => sum + (item.loan?.daily_installment ?? item.daily_installment ?? 200), 0) || 0}
                   </span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1">
@@ -180,7 +180,7 @@ export default function Reports({ token }: ReportsProps) {
                           <td className="py-3.5 px-2 font-mono text-xs">{item.id.slice(0, 8)}...</td>
                           <td className="py-3.5 px-2 font-mono text-xs text-blue-600">{item.loan_id.slice(0, 8)}...</td>
                           <td className="py-3.5 px-2">{new Date(item.payment_date).toLocaleTimeString('en-IN')}</td>
-                          <td className="py-3.5 px-2 text-right font-bold text-emerald-600">₹{item.daily_installment || 200}</td>
+                          <td className="py-3.5 px-2 text-right font-bold text-emerald-600">₹{item.loan?.daily_installment ?? item.daily_installment ?? 200}</td>
                         </tr>
                       ))
                     )}
