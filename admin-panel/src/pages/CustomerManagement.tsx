@@ -56,6 +56,9 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
   const [aadhaarUploading, setAadhaarUploading] = useState(false);
   const aadhaarInputRef = useRef<HTMLInputElement>(null);
 
+  // Full-screen PDF viewer
+  const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
+
   // Avatar upload within modal
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -238,6 +241,37 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+
+      {/* ── Full-Screen PDF Viewer Overlay ─────────────────────────────── */}
+      {pdfViewerUrl && (
+        <div
+          className="fixed inset-0 z-[100] bg-slate-950 flex flex-col"
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+        >
+          {/* Top bar */}
+          <div className="flex items-center justify-between px-5 py-3 bg-slate-900 border-b border-slate-800 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="text-lg">📄</span>
+              <span className="text-white font-bold text-sm">{pdfViewerUrl.split('/').pop()}</span>
+            </div>
+            <button
+              onClick={() => setPdfViewerUrl(null)}
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-colors"
+            >
+              <X size={14} /> Close PDF
+            </button>
+          </div>
+
+          {/* PDF fills the rest */}
+          <iframe
+            src={pdfViewerUrl}
+            title="Aadhaar PDF Viewer"
+            className="flex-1 w-full border-0"
+            style={{ height: 'calc(100vh - 52px)' }}
+          />
+        </div>
+      )}
+
       <div className="space-y-4 sm:space-y-6 animate-fade-in">
       
       {/* Header and controls */}
@@ -610,7 +644,17 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                           {/* Filename bar */}
                           <div className="px-3 py-2 flex items-center gap-2.5 text-slate-600 text-xs font-semibold border-b border-slate-100">
                             <FileText size={15} className="text-slate-400 flex-shrink-0" />
-                            <span className="truncate">{filename}</span>
+                            <span className="truncate flex-1">{filename}</span>
+                            {/* Open full-screen button */}
+                            {!isImage && (
+                              <button
+                                type="button"
+                                onClick={() => setPdfViewerUrl(fullUrl)}
+                                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
+                              >
+                                📄 View PDF
+                              </button>
+                            )}
                           </div>
 
                           {/* Inline viewer — image */}
@@ -632,15 +676,12 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                             </div>
                           )}
 
-                          {/* Inline viewer — PDF via iframe */}
+                          {/* PDF preview placeholder */}
                           {!isImage && (
-                            <div className="bg-white p-2">
-                              <iframe
-                                src={fullUrl}
-                                title="Aadhaar PDF"
-                                className="w-full rounded-lg border border-slate-100"
-                                style={{ height: '420px' }}
-                              />
+                            <div className="bg-slate-100 flex flex-col items-center justify-center gap-3 py-8">
+                              <div className="text-4xl">📄</div>
+                              <p className="text-sm font-semibold text-slate-600">{filename}</p>
+                              <p className="text-xs text-slate-400">Click "View PDF" above to open full-screen</p>
                             </div>
                           )}
                         </div>
