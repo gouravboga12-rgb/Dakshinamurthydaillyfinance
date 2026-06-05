@@ -40,3 +40,12 @@ Thumbs.db
 *.njsproj
 *.sln
 *.swp
+
+# Runtime file uploads (Aadhaar, avatars, proofs — served locally, not source)
+backend/uploads/
+
+# Stray screenshot / image files in root
+image copy*.png
+image copy*.jpg
+*.png
+*.jpg
