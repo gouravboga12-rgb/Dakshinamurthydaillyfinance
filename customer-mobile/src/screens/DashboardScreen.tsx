@@ -28,6 +28,8 @@ interface DashboardSummary {
     amount_disbursed: number;
     daily_installment: number;
     remaining_balance: number;
+    total_repayment: number;
+    duration_days: number;
     status: string;
     approval_date: string | null;
   } | null;
@@ -299,6 +301,28 @@ export default function DashboardScreen({ navigation }: any) {
               <View style={styles.balanceInfoContainer}>
                 <Text style={styles.balanceLabel}>Current Amount to be Paid</Text>
                 <Text style={styles.balanceAmount}>₹{loan.remaining_balance.toLocaleString('en-IN')}</Text>
+                
+                {/* Beautiful breakdown grid showing Principal, Interest Rate, and Total Repayable */}
+                <View style={styles.loanDetailsGrid}>
+                  <View style={styles.loanDetailsGridItem}>
+                    <Text style={styles.loanDetailsGridLabel}>Taken Amount</Text>
+                    <Text style={styles.loanDetailsGridValue}>₹{loan.approved_amount.toLocaleString('en-IN')}</Text>
+                  </View>
+                  <View style={[styles.loanDetailsGridItem, styles.loanDetailsGridItemBorder]}>
+                    <Text style={styles.loanDetailsGridLabel}>Interest Rate</Text>
+                    <Text style={styles.loanDetailsGridValue}>
+                      {loan.approved_amount > 0 
+                        ? `${Math.round(((loan.total_repayment - loan.approved_amount) / loan.approved_amount) * 100)}%`
+                        : '0%'
+                      }
+                    </Text>
+                  </View>
+                  <View style={styles.loanDetailsGridItem}>
+                    <Text style={styles.loanDetailsGridLabel}>Total Payable</Text>
+                    <Text style={styles.loanDetailsGridValue}>₹{loan.total_repayment.toLocaleString('en-IN')}</Text>
+                  </View>
+                </View>
+
                 <Text style={styles.repaymentDetailText}>
                   {summary.paidInstallmentsCount} of {summary.installmentsCount} installments paid
                 </Text>
@@ -1147,5 +1171,41 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
+  },
+  loanDetailsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginTop: 18,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  loanDetailsGridItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loanDetailsGridItemBorder: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  loanDetailsGridLabel: {
+    color: 'rgba(255, 255, 255, 0.45)',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  loanDetailsGridValue: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 4,
   },
 });
