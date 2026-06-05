@@ -10,6 +10,7 @@ import {
   editCustomerDetails,
   getCustomerDetails,
   uploadCustomerAadhaar,
+  uploadCustomerAvatar,
   getLoans,
   createLoan,
   approveLoan,
@@ -37,12 +38,28 @@ try {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir);
+    if (file.fieldname === 'avatar') {
+      const dir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/avatar');
+      try {
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+      } catch (e) {
+        console.warn('Could not create avatar directory:', e);
+      }
+      cb(null, dir);
+    } else {
+      cb(null, uploadDir);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
-    cb(null, `aadhaar-${uniqueSuffix}${ext}`);
+    if (file.fieldname === 'avatar') {
+      cb(null, `avatar-${uniqueSuffix}${ext}`);
+    } else {
+      cb(null, `aadhaar-${uniqueSuffix}${ext}`);
+    }
   }
 });
 
@@ -70,11 +87,12 @@ router.use(requireAdmin);
 
 // Customer Management
 router.get('/customers', getCustomers);
-router.post('/customers', upload.single('aadhaar'), createCustomer);
+router.post('/customers', upload.fields([{ name: 'aadhaar', maxCount: 1 }, { name: 'avatar', maxCount: 1 }]), createCustomer);
 router.get('/customers/:id', getCustomerDetails);
 router.patch('/customers/:id/status', updateCustomerStatus);
 router.put('/customers/:id', editCustomerDetails);
 router.post('/customers/:id/aadhaar', upload.single('aadhaar'), uploadCustomerAadhaar);
+router.post('/customers/:id/avatar', upload.single('avatar'), uploadCustomerAvatar);
 
 // Loan Management
 router.get('/loans', getLoans);

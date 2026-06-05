@@ -29,6 +29,7 @@ interface Customer {
   address: string | null;
   status: 'pending' | 'approved' | 'rejected' | 'deactivated';
   aadhaar_url: string | null;
+  avatar_url: string | null;
   created_at: string;
   loan_count?: number;
   active_loan_count?: number;
@@ -54,6 +55,22 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
   // Aadhaar upload within modal
   const [aadhaarUploading, setAadhaarUploading] = useState(false);
   const aadhaarInputRef = useRef<HTMLInputElement>(null);
+
+  // Avatar upload within modal
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const getImageUrl = (path: string | null) => {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    const origin = baseUrl 
+      ? (baseUrl.endsWith('/api') ? baseUrl.slice(0, -4) : baseUrl)
+      : 'http://localhost:8081';
+    return `${origin}${path}`;
+  };
 
   const openCustomerDetailsModal = async (cust: Customer) => {
     setSelectedCust(cust);
@@ -93,6 +110,26 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
       setAadhaarUploading(false);
     }
   };
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!selectedCust) return;
+    setAvatarUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const response = await axios.post(`/api/admin/customers/${selectedCust.id}/avatar`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const updatedUrl = response.data.avatar_url;
+      setSelectedCust(prev => prev ? { ...prev, avatar_url: updatedUrl } : null);
+      setCustomers(prev => prev.map(c => c.id === selectedCust.id ? { ...c, avatar_url: updatedUrl } : c));
+      alert('Profile photo uploaded successfully!');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to upload profile photo.');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
   
   // Create Customer Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -104,6 +141,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
   const [newAddress, setNewAddress] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newAadhaarFile, setNewAadhaarFile] = useState<File | null>(null);
+  const [newAvatarFile, setNewAvatarFile] = useState<File | null>(null);
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
 
@@ -169,6 +207,9 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
       if (newAadhaarFile) {
         formData.append('aadhaar', newAadhaarFile);
       }
+      if (newAvatarFile) {
+        formData.append('avatar', newAvatarFile);
+      }
 
       await axios.post('/api/admin/customers', formData, {
         headers: { 
@@ -185,6 +226,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
       setNewAddress('');
       setNewPassword('');
       setNewAadhaarFile(null);
+      setNewAvatarFile(null);
       setShowCreateModal(false);
       fetchCustomers();
     } catch (err: any) {
@@ -270,9 +312,17 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                   <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 uppercase border border-slate-200/50">
-                          {c.full_name.slice(0, 2)}
-                        </div>
+                        {c.avatar_url ? (
+                          <img
+                            src={getImageUrl(c.avatar_url)}
+                            alt={c.full_name}
+                            className="h-10 w-10 rounded-full object-cover border border-slate-200/50 bg-slate-100"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 uppercase border border-slate-200/50">
+                            {c.full_name.slice(0, 2)}
+                          </div>
+                        )}
                         <div>
                           <button
                             onClick={() => openCustomerDetailsModal(c)}
@@ -388,10 +438,23 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
             {/* Header */}
-            <div className="bg-slate-900 p-6 text-white flex justify-between items-start">
-              <div>
-                <h4 className="text-xl font-bold">{selectedCust.full_name}</h4>
-                <p className="text-xs text-slate-300 font-mono mt-1">UUID: {selectedCust.id}</p>
+            <div className="bg-slate-900 p-6 text-white flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                {selectedCust.avatar_url ? (
+                  <img
+                    src={getImageUrl(selectedCust.avatar_url)}
+                    alt={selectedCust.full_name}
+                    className="h-16 w-16 rounded-full object-cover border-2 border-slate-700 bg-white"
+                  />
+                ) : (
+                  <div className="h-16 w-16 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center font-bold text-xl uppercase">
+                    {selectedCust.full_name.slice(0, 2)}
+                  </div>
+                )}
+                <div>
+                  <h4 className="text-xl font-bold">{selectedCust.full_name}</h4>
+                  <p className="text-xs text-slate-300 font-mono mt-1">UUID: {selectedCust.id}</p>
+                </div>
               </div>
               <button 
                 onClick={() => setSelectedCust(null)}
@@ -467,6 +530,51 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                     </div>
                   </div>
 
+                  {/* Profile Photo Attachment Viewer */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        Profile Photo
+                      </h5>
+                      {/* Upload button */}
+                      <button
+                        type="button"
+                        onClick={() => avatarInputRef.current?.click()}
+                        disabled={avatarUploading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                      >
+                        {avatarUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                        {avatarUploading ? 'Uploading...' : selectedCust.avatar_url ? 'Replace Photo' : 'Upload Photo'}
+                      </button>
+                      <input
+                        ref={avatarInputRef}
+                        type="file"
+                        accept=".png,.jpg,.jpeg"
+                        className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); e.target.value = ''; }}
+                      />
+                    </div>
+
+                    {selectedCust.avatar_url ? (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden p-3 flex items-center gap-4">
+                        <img
+                          src={getImageUrl(selectedCust.avatar_url)}
+                          alt="Profile avatar"
+                          className="h-16 w-16 rounded-full object-cover border border-slate-200 bg-white"
+                        />
+                        <div className="text-xs text-slate-500">
+                          <span className="font-semibold text-slate-700 block">Active Avatar</span>
+                          <span>Image successfully registered and loaded.</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center">
+                        <p className="text-xs text-slate-400 font-semibold">No profile photo uploaded yet.</p>
+                        <p className="text-[10px] text-slate-400 mt-1">Click "Upload Photo" above to add it.</p>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Aadhaar Attachment Viewer */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -494,7 +602,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
 
                     {selectedCust.aadhaar_url ? (() => {
                       const rawUrl = selectedCust.aadhaar_url!;
-                      const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
+                      const fullUrl = getImageUrl(rawUrl);
                       const filename = rawUrl.split('/').pop() || 'aadhaar';
                       const isImage = /\.(png|jpg|jpeg|webp|gif)$/i.test(filename);
                       return (
@@ -710,19 +818,36 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Aadhaar Card (PDF, PNG, JPG)</label>
-                  <input
-                    type="file"
-                    accept=".pdf,.png,.jpg,.jpeg"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setNewAadhaarFile(file);
-                      }
-                    }}
-                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Profile Photo (PNG, JPG, JPEG)</label>
+                    <input
+                      type="file"
+                      accept=".png,.jpg,.jpeg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setNewAvatarFile(file);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Aadhaar Card (PDF, PNG, JPG)</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setNewAadhaarFile(file);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1 border-t border-slate-100 pt-3">

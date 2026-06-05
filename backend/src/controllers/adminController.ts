@@ -67,18 +67,37 @@ export const createCustomer = async (req: AuthRequest, res: Response) => {
 
     const password_hash = await bcrypt.hash(password, 10);
 
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const aadhaarFile = files?.['aadhaar']?.[0];
+    const avatarFile = files?.['avatar']?.[0];
+
     // Upload Aadhaar to Cloudinary if provided
     let aadhaar_url = null;
-    if (req.file) {
+    if (aadhaarFile) {
       try {
-        aadhaar_url = await uploadToCloudinary(req.file.path);
+        aadhaar_url = await uploadToCloudinary(aadhaarFile.path);
         // Delete local temp file
-        if (fs.existsSync(req.file.path)) {
-          fs.unlinkSync(req.file.path);
+        if (fs.existsSync(aadhaarFile.path)) {
+          fs.unlinkSync(aadhaarFile.path);
         }
       } catch (err) {
         console.error('Error uploading to Cloudinary, falling back to local storage:', err);
-        aadhaar_url = `/uploads/aadhaar/${req.file.filename}`;
+        aadhaar_url = `/uploads/aadhaar/${aadhaarFile.filename}`;
+      }
+    }
+
+    // Upload Avatar to Cloudinary if provided
+    let avatar_url = null;
+    if (avatarFile) {
+      try {
+        avatar_url = await uploadToCloudinary(avatarFile.path);
+        // Delete local temp file
+        if (fs.existsSync(avatarFile.path)) {
+          fs.unlinkSync(avatarFile.path);
+        }
+      } catch (err) {
+        console.error('Error uploading Avatar to Cloudinary, falling back to local storage:', err);
+        avatar_url = `/uploads/avatar/${avatarFile.filename}`;
       }
     }
 
@@ -92,7 +111,8 @@ export const createCustomer = async (req: AuthRequest, res: Response) => {
       password_hash,
       role: 'customer',
       status: 'approved', // Created directly by Admin, auto-approved
-      aadhaar_url
+      aadhaar_url,
+      avatar_url
     });
 
     await db.createNotification(newUser.id, 'Welcome!', 'Your account has been created by the administrator.', 'system');
@@ -194,6 +214,34 @@ export const uploadCustomerAadhaar = async (req: AuthRequest, res: Response) => 
   } catch (error: any) {
     console.error('Upload Aadhaar error:', error);
     return res.status(500).json({ error: 'Failed to upload Aadhaar.' });
+  }
+};
+
+export const uploadCustomerAvatar = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await db.getUserById(id);
+    if (!user) {
+      return res.status(404).json({ error: 'Customer not found.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded.' });
+    }
+
+    let avatar_url: string;
+    try {
+      avatar_url = await uploadToCloudinary(req.file.path);
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    } catch (err) {
+      console.error('Cloudinary upload failed, using local storage:', err);
+      avatar_url = `/uploads/avatar/${req.file.filename}`;
+    }
+
+    const updated = await db.updateUser(id, { avatar_url });
+    return res.status(200).json({ message: 'Profile photo uploaded successfully.', avatar_url: updated?.avatar_url || avatar_url });
+  } catch (error: any) {
+    console.error('Upload avatar error:', error);
+    return res.status(500).json({ error: 'Failed to upload profile photo.' });
   }
 };
 
