@@ -15,17 +15,24 @@ const otpCache: { [email: string]: { otp: string; expiresAt: number } } = {};
 
 export const sendOtp = async (req: Request, res: Response) => {
   try {
-    const { email } = req.body;
+    const { email, type } = req.body;
     if (!email || !email.trim()) {
       return res.status(400).json({ error: 'Email address is required.' });
     }
 
     const trimmedEmail = email.trim().toLowerCase();
+    const actionType = type || 'register';
 
     // Check if email already exists in users database
     const existingUser = await db.getUserByEmail(trimmedEmail);
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email address is already registered.' });
+    if (actionType === 'register') {
+      if (existingUser) {
+        return res.status(400).json({ error: 'Email address is already registered.' });
+      }
+    } else if (actionType === 'reset') {
+      if (!existingUser) {
+        return res.status(404).json({ error: 'No account found with this email address.' });
+      }
     }
 
     // Generate 6-digit OTP
@@ -37,7 +44,7 @@ export const sendOtp = async (req: Request, res: Response) => {
       expiresAt: Date.now() + 5 * 60 * 1000 // 5 minutes
     };
 
-    console.log(`Generated OTP for ${trimmedEmail}: ${otp}`);
+    console.log(`Generated OTP (${actionType}) for ${trimmedEmail}: ${otp}`);
 
     // Send OTP via Email
     const emailSent = await sendOtpEmail(trimmedEmail, otp);
@@ -237,15 +244,36 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 
 export const forgotPassword = async (req: Request, res: Response) => {
   try {
-    const { mobile_number, new_password } = req.body;
-    if (!mobile_number || !new_password) {
-      return res.status(400).json({ error: 'Email/Mobile and new password are required.' });
+    const { mobile_number, new_password, otp } = req.body;
+    if (!mobile_number || !new_password || !otp) {
+      return res.status(400).json({ error: 'Email/Mobile, new password, and OTP verification code are required.' });
     }
 
     let user = null;
     if (mobile_number.includes('@')) {
-      user = await db.getUserByEmail(mobile_number);
+      const trimmedEmail = mobile_number.trim().toLowerCase();
+      
+      // Verify OTP for email reset
+      const cachedOtpObj = otpCache[trimmedEmail];
+      if (!cachedOtpObj) {
+        return res.status(400).json({ error: 'No OTP requested for this email. Please request a code first.' });
+      }
+
+      if (cachedOtpObj.expiresAt < Date.now()) {
+        delete otpCache[trimmedEmail];
+        return res.status(400).json({ error: 'OTP has expired. Please request a new code.' });
+      }
+
+      if (cachedOtpObj.otp !== otp.trim()) {
+        return res.status(400).json({ error: 'Invalid OTP code. Please check and try again.' });
+      }
+
+      // Clear cached OTP
+      delete otpCache[trimmedEmail];
+
+      user = await db.getUserByEmail(trimmedEmail);
     } else {
+      // Legacy or mobile bypass
       user = await db.getUserByMobile(mobile_number);
     }
 

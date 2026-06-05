@@ -29,9 +29,12 @@ export default function LoginScreen({ navigation }: any) {
   // Forgot password states
   const [forgotModalVisible, setForgotModalVisible] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotOtpSent, setForgotOtpSent] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -74,8 +77,45 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
+  const requestResetOtp = async () => {
+    if (!forgotEmail.trim()) {
+      const msg = 'Please enter your registered email address first.';
+      if (Platform.OS === 'web') {
+        alert(`Missing Field: ${msg}`);
+      } else {
+        Alert.alert('Missing Field', msg);
+      }
+      return;
+    }
+
+    setOtpSending(true);
+    try {
+      await api.post('/auth/send-otp', {
+        email: forgotEmail.trim(),
+        type: 'reset',
+      });
+
+      setForgotOtpSent(true);
+      const msg = `A 6-digit verification code has been sent to ${forgotEmail.trim()}.`;
+      if (Platform.OS === 'web') {
+        alert(`Verification Code Sent! ✉️\n\n${msg}`);
+      } else {
+        Alert.alert('Verification Code Sent! ✉️', msg);
+      }
+    } catch (err: any) {
+      const message = err.response?.data?.error || 'Failed to send verification code. Please try again.';
+      if (Platform.OS === 'web') {
+        alert(`Request Failed: ${message}`);
+      } else {
+        Alert.alert('Request Failed', message);
+      }
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
   const handleResetPassword = async () => {
-    if (!forgotEmail.trim() || !newPassword.trim() || !confirmNewPassword.trim()) {
+    if (!forgotEmail.trim() || !forgotOtp.trim() || !newPassword.trim() || !confirmNewPassword.trim()) {
       const msg = 'Please fill in all fields.';
       if (Platform.OS === 'web') {
         alert(`Missing Fields: ${msg}`);
@@ -110,6 +150,7 @@ export default function LoginScreen({ navigation }: any) {
       await api.post('/auth/forgot-password', {
         mobile_number: forgotEmail.trim().toLowerCase(),
         new_password: newPassword.trim(),
+        otp: forgotOtp.trim(),
       });
 
       const msg = 'Your password has been reset successfully. You can now login with your new password.';
@@ -121,6 +162,8 @@ export default function LoginScreen({ navigation }: any) {
 
       setForgotModalVisible(false);
       setForgotEmail('');
+      setForgotOtp('');
+      setForgotOtpSent(false);
       setNewPassword('');
       setConfirmNewPassword('');
     } catch (err: any) {
@@ -133,6 +176,15 @@ export default function LoginScreen({ navigation }: any) {
     } finally {
       setResetLoading(false);
     }
+  };
+
+  const openResetModal = () => {
+    setForgotEmail('');
+    setForgotOtp('');
+    setForgotOtpSent(false);
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setForgotModalVisible(true);
   };
 
   return (
@@ -192,7 +244,7 @@ export default function LoginScreen({ navigation }: any) {
             {/* Forgot Password trigger link */}
             <TouchableOpacity
               style={styles.forgotPasswordContainer}
-              onPress={() => setForgotModalVisible(true)}
+              onPress={openResetModal}
               activeOpacity={0.7}
             >
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
@@ -249,54 +301,98 @@ export default function LoginScreen({ navigation }: any) {
             <View style={styles.modalDivider} />
 
             <View style={styles.modalBody}>
-              <View style={COMMON_STYLES.inputGroup}>
-                <Text style={COMMON_STYLES.label}>Registered Email Address</Text>
-                <TextInput
-                  style={COMMON_STYLES.input}
-                  value={forgotEmail}
-                  onChangeText={setForgotEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  placeholder="email@example.com"
-                  placeholderTextColor={COLORS.placeholder}
-                />
-              </View>
+              {!forgotOtpSent ? (
+                <View style={{ gap: 16 }}>
+                  <View style={COMMON_STYLES.inputGroup}>
+                    <Text style={COMMON_STYLES.label}>Registered Email Address</Text>
+                    <TextInput
+                      style={COMMON_STYLES.input}
+                      value={forgotEmail}
+                      onChangeText={setForgotEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      placeholder="email@example.com"
+                      placeholderTextColor={COLORS.placeholder}
+                    />
+                  </View>
 
-              <View style={COMMON_STYLES.inputGroup}>
-                <Text style={COMMON_STYLES.label}>New Password</Text>
-                <TextInput
-                  style={COMMON_STYLES.input}
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  secureTextEntry
-                  placeholder="Minimum 6 characters"
-                  placeholderTextColor={COLORS.placeholder}
-                />
-              </View>
+                  <TouchableOpacity
+                    style={[COMMON_STYLES.button, otpSending && { opacity: 0.6 }]}
+                    onPress={requestResetOtp}
+                    disabled={otpSending}
+                  >
+                    {otpSending ? (
+                      <ActivityIndicator color={COLORS.white} />
+                    ) : (
+                      <Text style={COMMON_STYLES.buttonText}>Send Verification Code</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <ScrollView contentContainerStyle={{ gap: 14 }}>
+                  <Text style={styles.modalSubtitle}>
+                    Verification code sent to:{'\n'}
+                    <Text style={{ fontWeight: '800', color: COLORS.primary }}>{forgotEmail.trim()}</Text>
+                  </Text>
 
-              <View style={COMMON_STYLES.inputGroup}>
-                <Text style={COMMON_STYLES.label}>Confirm New Password</Text>
-                <TextInput
-                  style={COMMON_STYLES.input}
-                  value={confirmNewPassword}
-                  onChangeText={setConfirmNewPassword}
-                  secureTextEntry
-                  placeholder="Confirm your new password"
-                  placeholderTextColor={COLORS.placeholder}
-                />
-              </View>
+                  <View style={COMMON_STYLES.inputGroup}>
+                    <Text style={COMMON_STYLES.label}>6-Digit OTP Code</Text>
+                    <TextInput
+                      style={[COMMON_STYLES.input, styles.otpInput]}
+                      value={forgotOtp}
+                      onChangeText={(text) => setForgotOtp(text.replace(/[^0-9]/g, ''))}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      placeholder="000000"
+                      placeholderTextColor={COLORS.placeholder}
+                    />
+                  </View>
 
-              <TouchableOpacity
-                style={[COMMON_STYLES.button, { marginTop: 8 }, resetLoading && { opacity: 0.6 }]}
-                onPress={handleResetPassword}
-                disabled={resetLoading}
-              >
-                {resetLoading ? (
-                  <ActivityIndicator color={COLORS.white} />
-                ) : (
-                  <Text style={COMMON_STYLES.buttonText}>Reset Password</Text>
-                )}
-              </TouchableOpacity>
+                  <View style={COMMON_STYLES.inputGroup}>
+                    <Text style={COMMON_STYLES.label}>New Password</Text>
+                    <TextInput
+                      style={COMMON_STYLES.input}
+                      value={newPassword}
+                      onChangeText={setNewPassword}
+                      secureTextEntry
+                      placeholder="Minimum 6 characters"
+                      placeholderTextColor={COLORS.placeholder}
+                    />
+                  </View>
+
+                  <View style={COMMON_STYLES.inputGroup}>
+                    <Text style={COMMON_STYLES.label}>Confirm New Password</Text>
+                    <TextInput
+                      style={COMMON_STYLES.input}
+                      value={confirmNewPassword}
+                      onChangeText={setConfirmNewPassword}
+                      secureTextEntry
+                      placeholder="Confirm your new password"
+                      placeholderTextColor={COLORS.placeholder}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[COMMON_STYLES.button, { marginTop: 8 }, resetLoading && { opacity: 0.6 }]}
+                    onPress={handleResetPassword}
+                    disabled={resetLoading}
+                  >
+                    {resetLoading ? (
+                      <ActivityIndicator color={COLORS.white} />
+                    ) : (
+                      <Text style={COMMON_STYLES.buttonText}>Reset Password</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.resendBtn}
+                    onPress={requestResetOtp}
+                    disabled={resetLoading}
+                  >
+                    <Text style={styles.resendText}>Resend Verification Code</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              )}
             </View>
           </View>
         </View>
@@ -425,6 +521,7 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 400,
+    maxHeight: '90%',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.25,
@@ -454,5 +551,29 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     gap: 16,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: COLORS.body,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  otpInput: {
+    textAlign: 'center',
+    fontSize: 22,
+    letterSpacing: 8,
+    fontWeight: '800',
+    height: 50,
+  },
+  resendBtn: {
+    marginTop: 12,
+    alignItems: 'center',
+    padding: 10,
+  },
+  resendText: {
+    color: COLORS.secondary,
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
