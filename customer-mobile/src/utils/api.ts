@@ -302,5 +302,18 @@ api.interceptors.request.use(
   }
 );
 
+// Parse error responses defensively to avoid [object Object] displays
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.data && error.response.data.error) {
+      if (typeof error.response.data.error === 'object') {
+        error.response.data.error = error.response.data.error.message || JSON.stringify(error.response.data.error);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
 export { getBaseUrl };

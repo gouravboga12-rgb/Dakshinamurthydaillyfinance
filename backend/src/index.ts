@@ -22,9 +22,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ─── File Uploads ─────────────────────────────────────────────────────────────
-const uploadDir = path.resolve(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+const uploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../uploads');
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Could not create uploads root directory:', e);
 }
 app.use('/uploads', express.static(uploadDir));
 

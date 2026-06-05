@@ -17,10 +17,13 @@ import {
   submitForeclosureProof
 } from '../controllers/customerController';
 
-// Multer storage setup for payment proofs
-const proofUploadDir = path.resolve(__dirname, '../../uploads/proof');
-if (!fs.existsSync(proofUploadDir)) {
-  fs.mkdirSync(proofUploadDir, { recursive: true });
+const proofUploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/proof');
+try {
+  if (!fs.existsSync(proofUploadDir)) {
+    fs.mkdirSync(proofUploadDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Could not create customer proof upload directory:', e);
 }
 
 const proofStorage = multer.diskStorage({

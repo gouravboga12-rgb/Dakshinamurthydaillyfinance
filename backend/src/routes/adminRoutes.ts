@@ -26,9 +26,13 @@ import {
   updateLoan
 } from '../controllers/adminController';
 
-const uploadDir = path.resolve(__dirname, '../../uploads/aadhaar');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+const uploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/aadhaar');
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Could not create admin upload directory:', e);
 }
 
 const storage = multer.diskStorage({
@@ -86,9 +90,13 @@ router.put('/loans/:id', updateLoan);
 router.post('/payments/mark-paid', markInstallmentPaid);
 
 // Settings Configuration
-const qrUploadDir = path.resolve(__dirname, '../../uploads/qr');
-if (!fs.existsSync(qrUploadDir)) {
-  fs.mkdirSync(qrUploadDir, { recursive: true });
+const qrUploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/qr');
+try {
+  if (!fs.existsSync(qrUploadDir)) {
+    fs.mkdirSync(qrUploadDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Could not create admin qr upload directory:', e);
 }
 
 const qrStorage = multer.diskStorage({

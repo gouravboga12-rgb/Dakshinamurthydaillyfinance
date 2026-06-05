@@ -8,9 +8,13 @@ import { authenticateToken } from '../middleware/auth';
 const router = Router();
 
 // Multer storage setup for Aadhaar card uploads
-const uploadDir = path.resolve(__dirname, '../../uploads/aadhaar');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+const uploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/aadhaar');
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Could not create auth upload directory:', e);
 }
 
 const storage = multer.diskStorage({
@@ -25,9 +29,13 @@ const storage = multer.diskStorage({
 });
 
 // Multer storage setup for Profile Avatar uploads
-const avatarUploadDir = path.resolve(__dirname, '../../uploads/avatar');
-if (!fs.existsSync(avatarUploadDir)) {
-  fs.mkdirSync(avatarUploadDir, { recursive: true });
+const avatarUploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/avatar');
+try {
+  if (!fs.existsSync(avatarUploadDir)) {
+    fs.mkdirSync(avatarUploadDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Could not create auth avatar upload directory:', e);
 }
 
 const avatarStorage = multer.diskStorage({
