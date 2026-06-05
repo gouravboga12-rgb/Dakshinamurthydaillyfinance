@@ -27,11 +27,15 @@ export async function initDatabase() {
     }
   } else {
     console.log('No Supabase credentials found. Falling back to local SQLite database...');
-    const dbDir = path.resolve(__dirname, '../../data');
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true });
+    const dbDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../data');
+    try {
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+    } catch (e) {
+      console.warn('Could not create SQLite database directory:', e);
     }
-    const dbPath = path.join(dbDir, 'finance.db');
+    const dbPath = process.env.VERCEL ? '/tmp/finance.db' : path.join(dbDir, 'finance.db');
     sqliteDb = new sqlite3.Database(dbPath);
     await setupSQLiteTables();
   }
