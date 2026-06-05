@@ -209,10 +209,10 @@ export default function PaymentHistoryScreen({ navigation }: any) {
               <Text style={styles.loanDetailsLinkArrow}>❯</Text>
             </TouchableOpacity>
 
-            {/* Horizontal Navigation Boxes */}
+            {/* Horizontal/Grid Navigation Boxes */}
             <View style={styles.actionRow}>
               <TouchableOpacity
-                style={styles.actionBox}
+                style={[styles.actionBox, { width: '48%' }]}
                 onPress={() => navigation.navigate('PaymentHistoryDetail', { loanId: selectedLoan.id })}
                 activeOpacity={0.8}
               >
@@ -221,7 +221,7 @@ export default function PaymentHistoryScreen({ navigation }: any) {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.actionBox}
+                style={[styles.actionBox, { width: '48%' }]}
                 onPress={handleHowToRepay}
                 activeOpacity={0.8}
               >
@@ -230,13 +230,32 @@ export default function PaymentHistoryScreen({ navigation }: any) {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.actionBox}
+                style={[
+                  styles.actionBox,
+                  { width: selectedLoan.status === 'Active' ? '48%' : '100%' }
+                ]}
                 onPress={handleLenderDetails}
                 activeOpacity={0.8}
               >
                 <Text style={styles.actionLabel}>Lender details</Text>
                 <Text style={styles.arrowText}>❯</Text>
               </TouchableOpacity>
+
+              {selectedLoan.status === 'Active' && (
+                <TouchableOpacity
+                  style={[styles.actionBox, styles.forecloseActionBox, { width: '48%' }]}
+                  onPress={() => navigation.navigate('Payment', {
+                    installmentId: null,
+                    amount: selectedLoan.remaining_balance,
+                    isForeclosure: true,
+                    loanId: selectedLoan.id,
+                  })}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.actionLabel, styles.forecloseActionLabel]}>Foreclose Loan</Text>
+                  <Text style={styles.arrowText}>❯</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -376,11 +395,11 @@ const styles = StyleSheet.create({
 
   actionRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 8,
   },
   actionBox: {
-    flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingVertical: 12,
@@ -393,6 +412,12 @@ const styles = StyleSheet.create({
   },
   actionLabel: { color: COLORS.heading, fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
   arrowText: { color: COLORS.secondary, fontSize: 11, fontWeight: '900' },
+  forecloseActionBox: {
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  forecloseActionLabel: {
+    color: '#EF4444',
+  },
 
   listContainer: { paddingHorizontal: 24, paddingTop: 20 },
   sectionHeaderRow: {
