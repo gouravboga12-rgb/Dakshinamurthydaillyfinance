@@ -7,7 +7,8 @@ import {
   BadgeAlert,
   ChevronRight,
   Loader2,
-  FileCheck2
+  FileCheck2,
+  X
 } from 'lucide-react';
 
 interface ActiveLoan {
@@ -46,6 +47,21 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
   const [installmentsLoading, setInstallmentsLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  const [proofModalUrl, setProofModalUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setProofModalUrl(null);
+      }
+    };
+    if (proofModalUrl) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [proofModalUrl]);
 
   const fetchActiveLoans = async () => {
     try {
@@ -172,7 +188,7 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
               >
                 <div>
                   <h4 className="font-bold text-slate-800 text-sm">{l.customer?.full_name}</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5 font-mono">Loan ID: {l.id.slice(0, 8)}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5 font-mono">Loan ID: DMF-{l.id.split('-')[0].toUpperCase()}</p>
                   <div className="flex gap-4 text-xs font-semibold text-slate-500 mt-2">
                     <span className="flex items-center gap-1"><Coins size={12} className="text-emerald-500" /> ₹{l.daily_installment}/day</span>
                     <span>Bal: ₹{l.remaining_balance}</span>
@@ -214,6 +230,72 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
 
             {/* Installments schedules */}
             <div className="p-6 pt-0 space-y-4">
+
+              {/* Foreclosure Request Banner — shown if all Pending share same UTR */}
+              {(() => {
+                const pendingInsts = installments.filter(i => i.status === 'Pending');
+                const unpaidInsts = installments.filter(i => i.status === 'Unpaid');
+                const totalRemaining = installments.filter(i => i.status !== 'Paid');
+                const isForeclosure = pendingInsts.length > 0 &&
+                  unpaidInsts.length === 0 &&
+                  pendingInsts.every(i => i.transaction_id === pendingInsts[0].transaction_id);
+                if (!isForeclosure) return null;
+                return (
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-black text-red-700">🔒 FORECLOSURE REQUEST</span>
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-600 rounded-full border border-red-200">Full Loan Closure</span>
+                        </div>
+                        <p className="text-xs text-red-600 font-semibold">
+                          Customer has submitted payment proof to close the loan in one payment.
+                        </p>
+                        <p className="text-[11px] text-red-500 mt-1 font-mono">
+                          UTR: {pendingInsts[0].transaction_id} · {pendingInsts.length} installments pending
+                        </p>
+                        <p className="text-sm font-black text-red-800 mt-1">
+                          Total: ₹{selectedLoan.remaining_balance.toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                      {pendingInsts[0].proof_url && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const rawUrl = pendingInsts[0].proof_url!;
+                            const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
+                            setProofModalUrl(fullUrl);
+                          }}
+                          className="shrink-0 px-3 py-1.5 text-xs font-bold bg-white border border-red-200 text-red-700 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                        >
+                          👁️ View Proof
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(`Approve foreclosure? This will mark all ${pendingInsts.length} remaining installments as paid and close the loan permanently.`)) return;
+                        try {
+                          await axios.post(`/api/admin/loans/${selectedLoan.id}/approve-foreclosure`, {}, {
+                            headers: { Authorization: `Bearer ${token}` }
+                          });
+                          alert('Foreclosure approved! Loan has been successfully settled and closed.');
+                          setSelectedLoan(null);
+                          setInstallments([]);
+                          fetchActiveLoans();
+                        } catch (e: any) {
+                          console.error(e);
+                          alert(e.response?.data?.error || 'Failed to approve foreclosure.');
+                        }
+                      }}
+                      className="mt-3 w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors"
+                    >
+                      ✅ Approve Foreclosure — Close Loan Now
+                    </button>
+                  </div>
+                );
+              })()}
+
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h5 className="font-bold text-slate-900 flex items-center gap-1.5"><CalendarDays size={16} className="text-blue-600" /> Daily installment ledger</h5>
                 <span className="text-[10px] text-slate-400 font-bold uppercase">Manual Collection Verification</span>
@@ -269,14 +351,17 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                             <div className="text-[10px] text-slate-500 font-bold mt-1">
                               UTR/Txn ID: <span className="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">{inst.transaction_id}</span>
                               {inst.proof_url && (
-                                <a 
-                                  href={inst.proof_url.startsWith('http') ? inst.proof_url : `http://localhost:8081${inst.proof_url}`} 
-                                  target="_blank" 
-                                  rel="noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline ml-2 inline-flex items-center gap-0.5"
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const rawUrl = inst.proof_url!;
+                                    const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
+                                    setProofModalUrl(fullUrl);
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 underline ml-2 inline-flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0 font-bold"
                                 >
                                   👁️ View Proof Screenshot
-                                </a>
+                                </button>
                               )}
                             </div>
                           )}
@@ -286,14 +371,17 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                             <div className="text-[10px] text-slate-500 font-bold mt-1">
                               UTR/Txn ID: <span className="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">{inst.transaction_id}</span>
                               {inst.proof_url && (
-                                <a 
-                                  href={inst.proof_url.startsWith('http') ? inst.proof_url : `http://localhost:8081${inst.proof_url}`} 
-                                  target="_blank" 
-                                  rel="noreferrer"
-                                  className="text-emerald-600 hover:text-emerald-800 underline ml-2 inline-flex items-center gap-0.5"
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const rawUrl = inst.proof_url!;
+                                    const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
+                                    setProofModalUrl(fullUrl);
+                                  }}
+                                  className="text-emerald-600 hover:text-emerald-800 underline ml-2 inline-flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0 font-bold"
                                 >
                                   📷 View Proof Screenshot
-                                </a>
+                                </button>
                               )}
                             </div>
                           )}
@@ -337,6 +425,52 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
           </div>
         )}
       </div>
+
+      {/* Proof Modal */}
+      {proofModalUrl && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 cursor-pointer"
+          onClick={() => setProofModalUrl(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh] cursor-default animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-950 text-sm sm:text-base">Payment Proof Screenshot</h3>
+              <button 
+                type="button"
+                onClick={() => setProofModalUrl(null)} 
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {/* Modal Content */}
+            <div className="p-4 sm:p-6 overflow-y-auto flex items-center justify-center bg-slate-50 min-h-[250px] sm:min-h-[300px]">
+              <img 
+                src={proofModalUrl} 
+                alt="Payment Proof" 
+                className="max-w-full max-h-[55vh] object-contain rounded-lg border border-slate-200"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Failed+to+load+image';
+                }}
+              />
+            </div>
+            {/* Modal Footer */}
+            <div className="p-3 sm:p-4 border-t border-slate-100 flex justify-end">
+              <button 
+                type="button"
+                onClick={() => setProofModalUrl(null)} 
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

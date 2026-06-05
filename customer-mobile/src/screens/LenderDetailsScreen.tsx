@@ -65,7 +65,7 @@ export default function LenderDetailsScreen() {
           <Image
             source={require('../../assets/logo.png')}
             style={styles.logoImage}
-            resizeMode="contain"
+            resizeMode="cover"
           />
         </View>
         <Text style={styles.heroTitle}>Dakshinamurthy Daily Finance</Text>
@@ -205,17 +205,17 @@ const styles = StyleSheet.create({
     }),
   },
   logoWrapper: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    padding: 6,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#FFFFFF',
+    padding: 2,
+    borderRadius: 44,
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
     marginBottom: 16,
   },
   logoImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   heroTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', textAlign: 'center', marginBottom: 6 },
   heroSubtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 13, textAlign: 'center', fontWeight: '500' },

@@ -30,36 +30,42 @@ interface Loan {
   status: string;
 }
 
-export default function PaymentHistoryDetailScreen({ navigation }: any) {
+export default function PaymentHistoryDetailScreen({ route, navigation }: any) {
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [loan, setLoan] = useState<Loan | null>(null);
   const [loading, setLoading] = useState(true);
+  const loanId = route?.params?.loanId;
 
   useEffect(() => {
     const fetchPayments = async () => {
       try {
         const response = await api.get('/customer/loans');
         if (response.data.length > 0) {
-          const activeLoan = response.data[0];
-          setLoan(activeLoan);
-          const detailResponse = await api.get(`/customer/loans/${activeLoan.id}`);
-          const allInstallments: Installment[] = detailResponse.data.installments;
+          const targetLoan = loanId 
+            ? response.data.find((l: any) => l.id === loanId) 
+            : response.data.find((l: any) => l.status === 'Active' || l.status === 'Pending') || response.data[0];
 
-          // Enrich with display data: amount, method, and simulate one "failed" entry
-          const enriched = allInstallments.map((inst, idx) => ({
-            ...inst,
-            amount: activeLoan.daily_installment,
-            method: 'UPI',
-            // Simulate a failed entry at index 5 for demo purposes
-            isFailed: inst.status === 'Paid' && idx === 5,
-          }));
+          if (targetLoan) {
+            setLoan(targetLoan);
+            const detailResponse = await api.get(`/customer/loans/${targetLoan.id}`);
+            const allInstallments: Installment[] = detailResponse.data.installments;
 
-          // Show paid + 1 failed simulation, reverse so newest first
-          const displayable = enriched
-            .filter(i => i.status === 'Paid')
-            .reverse();
+            // Enrich with display data: amount, method, and simulate one "failed" entry
+            const enriched = allInstallments.map((inst, idx) => ({
+              ...inst,
+              amount: targetLoan.daily_installment,
+              method: 'UPI',
+              // Simulate a failed entry at index 5 for demo purposes
+              isFailed: inst.status === 'Paid' && idx === 5,
+            }));
 
-          setInstallments(displayable);
+            // Show paid + 1 failed simulation, reverse so newest first
+            const displayable = enriched
+              .filter(i => i.status === 'Paid')
+              .reverse();
+
+            setInstallments(displayable);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -68,7 +74,7 @@ export default function PaymentHistoryDetailScreen({ navigation }: any) {
       }
     };
     fetchPayments();
-  }, []);
+  }, [loanId]);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '—';

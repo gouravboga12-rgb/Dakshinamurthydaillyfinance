@@ -39,6 +39,36 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
       const paidAmount = paid.length * activeLoan.daily_installment;
       const progressPercentage = Math.round((paidAmount / activeLoan.approved_amount) * 100);
 
+      // Overdue calculation: unpaid installments where due_date is before today
+      const overdueInstallments = unpaid.filter((i: any) => i.due_date < todayStr);
+      const overdueCount = overdueInstallments.length;
+      const overdueAmount = overdueCount * activeLoan.daily_installment;
+
+      // Zomato style notification: check if customer has overdue installments and hasn't been warned recently
+      if (overdueCount > 0 && activeLoan.status === 'Active') {
+        const recentNotif = notifications.find(
+          (n: any) => (n.title.includes('Alert') || n.title.includes('Reminder') || n.type === 'alert') && 
+                      (new Date().getTime() - new Date(n.created_at).getTime()) < 24 * 60 * 60 * 1000
+        );
+        if (!recentNotif) {
+          const titles = [
+            "⚠️ Missed Installment Alert!",
+            "⏳ Repayment Reminder: Don't lose your standing!",
+            "🚨 Action Required: Settle Outstanding Dues",
+            "💳 Settle your unpaid dues!"
+          ];
+          const messages = [
+            `Hey! You have ${overdueCount} missed daily installment${overdueCount > 1 ? 's' : ''} (Total: ₹${overdueAmount}). Please pay immediately to prevent affecting your lending score profile!`,
+            `Avoid late penalty fees! You have ₹${overdueAmount} overdue for your active loan. Clear it quickly.`,
+            `Urgent: Your loan profile status is at risk. Settle your ₹${overdueAmount} unpaid dues to maintain a healthy repayment profile.`
+          ];
+          // Pick based on overdue count or random
+          const selectedTitle = titles[Math.min(overdueCount - 1, titles.length - 1)];
+          const selectedMsg = messages[Math.min(overdueCount - 1, messages.length - 1)];
+          await db.createNotification(customerId, selectedTitle, selectedMsg, 'alert');
+        }
+      }
+
       summary = {
         hasActiveLoan: true,
         loan: activeLoan,
@@ -50,7 +80,10 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
         paidAmount,
         nextDue: nextDueInstallment ? nextDueInstallment.due_date : null,
         nextDueInstallmentId: nextDueInstallment ? nextDueInstallment.id : null,
-        dueTodayAmount: activeLoan.status === 'Active' ? activeLoan.daily_installment : 0
+        dueTodayAmount: activeLoan.status === 'Active' ? activeLoan.daily_installment : 0,
+        overdueCount,
+        overdueAmount,
+        unpaidInstallments: installments.filter((i: any) => i.status !== 'Paid').slice(0, 5)
       };
     }
 
@@ -265,7 +298,15 @@ export const payInstallment = async (req: AuthRequest, res: Response) => {
 export const getSettings = async (req: Request, res: Response) => {
   try {
     const upiQrUrl = await db.getSetting('upi_qr_url', 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=dakshinamurthy@ybl%26pn=Dakshinamurthy%20Daily%20Finance');
-    return res.status(200).json({ settings: { upi_qr_url: upiQrUrl } });
+    const upiMobileNumber = await db.getSetting('upi_mobile_number', '9999999999');
+    const defaultDuration = await db.getSetting('default_duration', '50');
+    return res.status(200).json({ 
+      settings: { 
+        upi_qr_url: upiQrUrl,
+        upi_mobile_number: upiMobileNumber,
+        default_duration: defaultDuration
+      } 
+    });
   } catch (error: any) {
     console.error('Failed to get settings:', error);
     return res.status(500).json({ error: 'Failed to fetch settings.' });
@@ -333,5 +374,135 @@ export const submitPaymentProof = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Submit payment proof error:', error);
     return res.status(500).json({ error: 'Failed to submit payment proof.' });
+  }
+};
+
+export const forecloseLoan = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    const customerId = req.user.id;
+    const { id } = req.params;
+
+    // Fetch the loan
+    const loan = await db.getLoanById(id);
+    if (!loan) {
+      return res.status(404).json({ error: 'Loan not found.' });
+    }
+    if (loan.customer_id !== customerId) {
+      return res.status(403).json({ error: 'Access denied to this loan.' });
+    }
+    if (loan.status !== 'Active') {
+      return res.status(400).json({ error: 'Only active loans can be foreclosed.' });
+    }
+
+    // Mark all unpaid installments as Paid
+    const installments = await db.getInstallmentsByLoanId(id);
+    const unpaid = installments.filter((i: any) => i.status !== 'Paid');
+    if (unpaid.length === 0) {
+      return res.status(400).json({ error: 'All installments are already paid.' });
+    }
+
+    const now = new Date().toISOString();
+    for (const inst of unpaid) {
+      await db.markInstallmentPaid(inst.id, now);
+    }
+
+    // Close the loan
+    const foreclosureAmount = loan.remaining_balance;
+    await db.updateLoanStatus(loan.id, 'Completed', {
+      remaining_balance: 0,
+      completion_date: now
+    });
+
+    // Notify customer
+    await db.createNotification(
+      customerId,
+      'Loan Foreclosed Successfully 🎉',
+      `Your loan of ₹${loan.approved_amount} has been foreclosed by paying ₹${foreclosureAmount}. Loan is now closed.`,
+      'loan'
+    );
+
+    return res.status(200).json({
+      message: 'Loan foreclosed successfully.',
+      foreclosureAmount,
+      loanId: loan.id
+    });
+  } catch (error: any) {
+    console.error('Foreclose loan error:', error);
+    return res.status(500).json({ error: 'Failed to foreclose loan.' });
+  }
+};
+
+export const submitForeclosureProof = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    const customerId = req.user.id;
+    const { id } = req.params;
+    const { transaction_id } = req.body;
+
+    if (!transaction_id) {
+      return res.status(400).json({ error: 'UTR/Transaction ID is required.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'Please upload a payment screenshot proof.' });
+    }
+
+    // Verify the loan belongs to this customer
+    const loan = await db.getLoanById(id);
+    if (!loan) {
+      return res.status(404).json({ error: 'Loan not found.' });
+    }
+    if (loan.customer_id !== customerId) {
+      return res.status(403).json({ error: 'Access denied to this loan.' });
+    }
+    if (loan.status !== 'Active') {
+      return res.status(400).json({ error: 'Only active loans can be foreclosed.' });
+    }
+
+    // Upload proof screenshot
+    let proof_url = '';
+    try {
+      const { uploadToCloudinary } = await import('../config/cloudinary');
+      proof_url = await uploadToCloudinary(req.file.path);
+      const fs = await import('fs');
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+    } catch (err) {
+      console.error('Cloudinary upload error, using local fallback:', err);
+      proof_url = `/uploads/proof/${req.file.filename}`;
+    }
+
+    // Mark all unpaid installments as Pending with the proof
+    const installments = await db.getInstallmentsByLoanId(id);
+    const unpaid = installments.filter((i: any) => i.status !== 'Paid');
+    if (unpaid.length === 0) {
+      return res.status(400).json({ error: 'All installments are already paid.' });
+    }
+
+    for (const inst of unpaid) {
+      await db.submitInstallmentProof(inst.id, transaction_id, proof_url);
+    }
+
+    // Notify customer
+    await db.createNotification(
+      customerId,
+      'Foreclosure Proof Submitted ⏳',
+      `Your foreclosure payment proof (UTR: ${transaction_id}) for ₹${loan.remaining_balance} has been submitted. Your loan will be closed once the admin verifies the payment.`,
+      'loan'
+    );
+
+    return res.status(200).json({
+      message: 'Foreclosure proof submitted successfully. Awaiting admin verification.',
+      loanId: loan.id,
+      pendingInstallments: unpaid.length
+    });
+  } catch (error: any) {
+    console.error('Submit foreclosure proof error:', error);
+    return res.status(500).json({ error: 'Failed to submit foreclosure proof.' });
   }
 };

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { register, login, getProfile, forgotPassword, updateProfile } from '../controllers/authController';
+import { register, login, getProfile, forgotPassword, updateProfile, sendOtp } from '../controllers/authController';
 import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
@@ -69,6 +69,7 @@ router.post('/register', upload.single('aadhaar'), register);
 router.post('/login', login);
 router.get('/profile', authenticateToken, getProfile);
 router.put('/profile', authenticateToken, avatarUpload.single('avatar'), updateProfile);
+router.post('/send-otp', sendOtp);
 router.post('/forgot-password', forgotPassword);
 
 router.get('/test-supabase', async (req, res) => {

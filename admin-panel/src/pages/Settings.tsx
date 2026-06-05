@@ -16,6 +16,7 @@ export default function Settings({ token }: SettingsProps) {
   const [platformFee, setPlatformFee] = useState('1000');
   const [defaultDuration, setDefaultDuration] = useState('50');
   const [defaultInstallment, setDefaultInstallment] = useState('200');
+  const [upiMobileNumber, setUpiMobileNumber] = useState('9999999999');
   const [saved, setSaved] = useState(false);
 
   // QR config states
@@ -30,7 +31,14 @@ export default function Settings({ token }: SettingsProps) {
       const response = await axios.get('/api/admin/settings', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setQrUrl(response.data.settings.upi_qr_url);
+      const s = response.data.settings;
+      if (s) {
+        if (s.upi_qr_url) setQrUrl(s.upi_qr_url);
+        if (s.upi_mobile_number) setUpiMobileNumber(s.upi_mobile_number);
+        if (s.platform_fee) setPlatformFee(s.platform_fee);
+        if (s.default_duration) setDefaultDuration(s.default_duration);
+        if (s.default_installment) setDefaultInstallment(s.default_installment);
+      }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
     }
@@ -40,10 +48,22 @@ export default function Settings({ token }: SettingsProps) {
     fetchSettings();
   }, [token]);
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      await axios.post('/api/admin/settings', {
+        upi_mobile_number: upiMobileNumber,
+        platform_fee: platformFee,
+        default_duration: defaultDuration,
+        default_installment: defaultInstallment
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to update settings.');
+    }
   };
 
   const handleQrFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,7 +84,6 @@ export default function Settings({ token }: SettingsProps) {
 
       const response = await axios.post('/api/admin/settings/upi-qr', formData, {
         headers: { 
-          'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}` 
         }
       });
@@ -130,14 +149,26 @@ export default function Settings({ token }: SettingsProps) {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Default Installment Amount (₹)</label>
-                <input
-                  type="number"
-                  value={defaultInstallment}
-                  onChange={(e) => setDefaultInstallment(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Default Installment Amount (₹)</label>
+                  <input
+                    type="number"
+                    value={defaultInstallment}
+                    onChange={(e) => setDefaultInstallment(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">UPI Mobile Number for Payments</label>
+                  <input
+                    type="text"
+                    value={upiMobileNumber}
+                    onChange={(e) => setUpiMobileNumber(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                    placeholder="e.g. 9999999999"
+                  />
+                </div>
               </div>
 
               <button

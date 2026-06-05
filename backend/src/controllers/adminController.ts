@@ -25,7 +25,28 @@ export const getCustomers = async (req: AuthRequest, res: Response) => {
         (u.email && u.email.toLowerCase().includes(s))
       );
     }
-    return res.status(200).json(filtered);
+
+    // Map loan counts and active loan counts to each customer
+    const loans = await db.getLoans();
+    const userLoansMap = loans.reduce((acc: any, loan: any) => {
+      const custId = loan.customer_id;
+      if (!acc[custId]) {
+        acc[custId] = { totalLoans: 0, activeLoans: 0 };
+      }
+      acc[custId].totalLoans += 1;
+      if (loan.status === 'Active') {
+        acc[custId].activeLoans += 1;
+      }
+      return acc;
+    }, {});
+
+    const enriched = filtered.map((u: any) => ({
+      ...u,
+      loan_count: userLoansMap[u.id]?.totalLoans || 0,
+      active_loan_count: userLoansMap[u.id]?.activeLoans || 0
+    }));
+
+    return res.status(200).json(enriched);
   } catch (error: any) {
     console.error('Get customers error:', error);
     return res.status(500).json({ error: 'Failed to fetch customers.' });
@@ -195,7 +216,7 @@ export const getLoans = async (req: AuthRequest, res: Response) => {
 
 export const createLoan = async (req: AuthRequest, res: Response) => {
   try {
-    const { customer_id, approved_amount, platform_charges, daily_installment, duration_days } = req.body;
+    const { customer_id, approved_amount, platform_charges, daily_installment, duration_days, total_repayment } = req.body;
 
     if (!customer_id || !approved_amount || !platform_charges || !daily_installment || !duration_days) {
       return res.status(400).json({ error: 'Missing required loan parameters.' });
@@ -218,8 +239,8 @@ export const createLoan = async (req: AuthRequest, res: Response) => {
 
     // Calculations
     const amount_disbursed = Number(approved_amount) - Number(platform_charges);
-    const total_repayment = Number(approved_amount); // Repayment is based on approved amount
-    const remaining_balance = total_repayment;
+    const repaymentTarget = total_repayment !== undefined ? Number(total_repayment) : Number(approved_amount);
+    const remaining_balance = repaymentTarget;
 
     const newLoan = await db.createLoan({
       customer_id,
@@ -228,7 +249,7 @@ export const createLoan = async (req: AuthRequest, res: Response) => {
       amount_disbursed,
       daily_installment: Number(daily_installment),
       duration_days: Number(duration_days),
-      total_repayment,
+      total_repayment: repaymentTarget,
       remaining_balance,
       status: 'Pending' // Initial state is Pending, requires Approval
     });
@@ -254,16 +275,43 @@ export const approveLoan = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: `Cannot approve loan in '${loan.status}' status.` });
     }
 
+    const { approved_amount, platform_charges, amount_disbursed, daily_installment, duration_days, total_repayment } = req.body;
+
     // Update status to Active
     const now = new Date().toISOString();
-    const updatedLoan = await db.updateLoanStatus(id, 'Active', {
+    const additionalFields: any = {
       approval_date: now
-    });
+    };
+
+    if (approved_amount !== undefined) {
+      additionalFields.approved_amount = Number(approved_amount);
+    }
+    if (total_repayment !== undefined) {
+      additionalFields.total_repayment = Number(total_repayment);
+      additionalFields.remaining_balance = Number(total_repayment);
+    } else if (approved_amount !== undefined) {
+      additionalFields.total_repayment = Number(approved_amount);
+      additionalFields.remaining_balance = Number(approved_amount);
+    }
+    if (platform_charges !== undefined) {
+      additionalFields.platform_charges = Number(platform_charges);
+    }
+    if (amount_disbursed !== undefined) {
+      additionalFields.amount_disbursed = Number(amount_disbursed);
+    }
+    if (daily_installment !== undefined) {
+      additionalFields.daily_installment = Number(daily_installment);
+    }
+    if (duration_days !== undefined) {
+      additionalFields.duration_days = Number(duration_days);
+    }
+
+    const updatedLoan = await db.updateLoanStatus(id, 'Active', additionalFields);
 
     // Automatically generate daily installments
     const installments = [];
-    const startDate = new Date(); // Start tomorrow or today. Let's start tomorrow.
-    for (let i = 1; i <= loan.duration_days; i++) {
+    const startDate = new Date(); // Start tomorrow.
+    for (let i = 1; i <= updatedLoan.duration_days; i++) {
       const dueDate = new Date(startDate);
       dueDate.setDate(startDate.getDate() + i);
       installments.push({
@@ -278,9 +326,9 @@ export const approveLoan = async (req: AuthRequest, res: Response) => {
     await db.createInstallments(installments);
 
     await db.createNotification(
-      loan.customer_id,
+      updatedLoan.customer_id,
       'Loan Approved!',
-      `Your loan request of ₹${loan.approved_amount} has been approved. Daily installment is ₹${loan.daily_installment}.`,
+      `Your loan request of ₹${updatedLoan.approved_amount} has been approved. Daily installment is ₹${updatedLoan.daily_installment}.`,
       'loan'
     );
 
@@ -512,10 +560,47 @@ export const getReports = async (req: AuthRequest, res: Response) => {
 export const getSettings = async (req: Request, res: Response) => {
   try {
     const upiQrUrl = await db.getSetting('upi_qr_url', 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=dakshinamurthy@ybl%26pn=Dakshinamurthy%20Daily%20Finance');
-    return res.status(200).json({ settings: { upi_qr_url: upiQrUrl } });
+    const upiMobileNumber = await db.getSetting('upi_mobile_number', '9999999999');
+    const platformFee = await db.getSetting('platform_fee', '1000');
+    const defaultDuration = await db.getSetting('default_duration', '50');
+    const defaultInstallment = await db.getSetting('default_installment', '200');
+    
+    return res.status(200).json({ 
+      settings: { 
+        upi_qr_url: upiQrUrl,
+        upi_mobile_number: upiMobileNumber,
+        platform_fee: platformFee,
+        default_duration: defaultDuration,
+        default_installment: defaultInstallment
+      } 
+    });
   } catch (error: any) {
     console.error('Failed to get settings:', error);
     return res.status(500).json({ error: 'Failed to fetch settings.' });
+  }
+};
+
+export const updateSettings = async (req: Request, res: Response) => {
+  try {
+    const { upi_mobile_number, platform_fee, default_duration, default_installment } = req.body;
+    
+    if (upi_mobile_number !== undefined) {
+      await db.updateSetting('upi_mobile_number', String(upi_mobile_number));
+    }
+    if (platform_fee !== undefined) {
+      await db.updateSetting('platform_fee', String(platform_fee));
+    }
+    if (default_duration !== undefined) {
+      await db.updateSetting('default_duration', String(default_duration));
+    }
+    if (default_installment !== undefined) {
+      await db.updateSetting('default_installment', String(default_installment));
+    }
+
+    return res.status(200).json({ message: 'Settings updated successfully.' });
+  } catch (error: any) {
+    console.error('Failed to update settings:', error);
+    return res.status(500).json({ error: 'Failed to update settings.' });
   }
 };
 
@@ -545,5 +630,46 @@ export const updateUpiQr = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Failed to update QR setting:', error);
     return res.status(500).json({ error: 'Failed to save QR code setting.' });
+  }
+};
+
+export const approveForeclosure = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const loan = await db.getLoanById(id);
+    if (!loan) {
+      return res.status(404).json({ error: 'Loan not found.' });
+    }
+
+    const installments = await db.getInstallmentsByLoanId(id);
+    const now = new Date().toISOString();
+    
+    // Mark all unpaid/pending installments as Paid
+    for (const inst of installments) {
+      if (inst.status !== 'Paid') {
+        await db.markInstallmentPaid(inst.id, now);
+      }
+    }
+
+    // Update loan status to Completed
+    const updatedLoan = await db.updateLoanStatus(id, 'Completed', {
+      remaining_balance: 0,
+      completion_date: now
+    });
+
+    await db.createNotification(
+      loan.customer_id,
+      'Loan Foreclosed Successfully! 🔒',
+      `Your foreclosure request for loan ₹${loan.approved_amount} has been approved. The loan is now closed.`,
+      'loan'
+    );
+
+    return res.status(200).json({
+      message: 'Foreclosure approved and loan closed successfully.',
+      loan: updatedLoan
+    });
+  } catch (error: any) {
+    console.error('Approve foreclosure error:', error);
+    return res.status(500).json({ error: 'Failed to approve foreclosure.' });
   }
 };

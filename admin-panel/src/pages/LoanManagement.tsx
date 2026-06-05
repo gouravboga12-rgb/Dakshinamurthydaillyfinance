@@ -9,7 +9,8 @@ import {
   Lock,
   Calculator,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Edit
 } from 'lucide-react';
 
 interface Loan {
@@ -62,11 +63,33 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formCustId, setFormCustId] = useState('');
   const [formApprovedAmount, setFormApprovedAmount] = useState('');
-  const [formPlatformCharges, setFormPlatformCharges] = useState('');
+  const [formInterestPct, setFormInterestPct] = useState('10'); // Default to 10%
+  const [formInterestPctOption, setFormInterestPctOption] = useState('10');
+  const [formInterestAmt, setFormInterestAmt] = useState('0');
+  const [formPlatformCharges, setFormPlatformCharges] = useState('1000');
   const [formDailyInstallment, setFormDailyInstallment] = useState('');
-  const [formDurationDays, setFormDurationDays] = useState('');
+  const [formDurationDays, setFormDurationDays] = useState('50');
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+
+  // Approval Customize Modal States
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [approvalLoanId, setApprovalLoanId] = useState('');
+  const [approvalCustomerName, setApprovalCustomerName] = useState('');
+  const [approvalCustomerMobile, setApprovalCustomerMobile] = useState('');
+  const [approvalApprovedAmt, setApprovalApprovedAmt] = useState('');
+  const [approvalInterestPct, setApprovalInterestPct] = useState('10'); // Default to 10%
+  const [approvalInterestPctOption, setApprovalInterestPctOption] = useState('10');
+  const [approvalInterestAmt, setApprovalInterestAmt] = useState('0');
+  const [approvalPlatformCharges, setApprovalPlatformCharges] = useState('');
+  const [approvalDailyInstallment, setApprovalDailyInstallment] = useState('');
+  const [approvalDurationDays, setApprovalDurationDays] = useState('');
+  const [approvalFormError, setApprovalFormError] = useState('');
+  const [approvalFormLoading, setApprovalFormLoading] = useState(false);
+
+  // Default settings loaded from database
+  const [defaultPlatformFee, setDefaultPlatformFee] = useState('1000');
+  const [defaultDurationVal, setDefaultDurationVal] = useState('50');
 
   const fetchLoans = async () => {
     try {
@@ -102,6 +125,25 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     }
   };
 
+  const fetchDefaultSettings = async () => {
+    try {
+      const response = await axios.get('/api/admin/settings', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data && response.data.settings) {
+        const s = response.data.settings;
+        setDefaultPlatformFee(s.platform_fee || '1000');
+        setDefaultDurationVal(s.default_duration || '50');
+      }
+    } catch (err) {
+      console.error('Failed to load default settings', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDefaultSettings();
+  }, [token]);
+
   useEffect(() => {
     fetchLoans();
   }, [statusFilter, search, sortOrder, token]);
@@ -109,19 +151,100 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   useEffect(() => {
     if (showCreateModal) {
       fetchEligibleCustomers();
+      setFormDurationDays(defaultDurationVal);
+      setFormPlatformCharges(defaultPlatformFee);
+      setFormInterestPct('10');
+      setFormInterestPctOption('10');
     }
-  }, [showCreateModal]);
+  }, [showCreateModal, defaultDurationVal, defaultPlatformFee]);
 
-  const handleApprove = async (id: string) => {
-    if (!window.confirm('Are you sure you want to Approve and Activate this loan? This will generate daily installments.')) return;
+  // Dynamic calculations for Create Loan modal
+  useEffect(() => {
+    const amt = Number(formApprovedAmount) || 0;
+    const pct = Number(formInterestPct) || 0;
+    const interestAmt = Math.round(amt * (pct / 100));
+    setFormInterestAmt(String(interestAmt));
+  }, [formApprovedAmount, formInterestPct]);
+
+  useEffect(() => {
+    const amt = Number(formApprovedAmount) || 0;
+    const interestAmt = Number(formInterestAmt) || 0;
+    const dur = Number(formDurationDays) || 0;
+    const totalRepay = amt + interestAmt;
+    if (totalRepay > 0 && dur > 0) {
+      setFormDailyInstallment(String(Math.round(totalRepay / dur)));
+    } else {
+      setFormDailyInstallment('');
+    }
+  }, [formApprovedAmount, formInterestAmt, formDurationDays]);
+
+  // Dynamic calculations for Approval Customize modal
+  useEffect(() => {
+    const amt = Number(approvalApprovedAmt) || 0;
+    const pct = Number(approvalInterestPct) || 0;
+    const interestAmt = Math.round(amt * (pct / 100));
+    setApprovalInterestAmt(String(interestAmt));
+  }, [approvalApprovedAmt, approvalInterestPct]);
+
+  useEffect(() => {
+    const amt = Number(approvalApprovedAmt) || 0;
+    const interestAmt = Number(approvalInterestAmt) || 0;
+    const dur = Number(approvalDurationDays) || 0;
+    const totalRepay = amt + interestAmt;
+    if (totalRepay > 0 && dur > 0) {
+      setApprovalDailyInstallment(String(Math.round(totalRepay / dur)));
+    } else {
+      setApprovalDailyInstallment('');
+    }
+  }, [approvalApprovedAmt, approvalInterestAmt, approvalDurationDays]);
+
+  const openApproveModal = (loan: Loan) => {
+    setApprovalLoanId(loan.id);
+    setApprovalCustomerName(loan.customer?.full_name || 'Customer');
+    setApprovalCustomerMobile(loan.customer?.mobile_number || '');
+    setApprovalApprovedAmt(String(loan.approved_amount));
+    setApprovalPlatformCharges(String(loan.platform_charges));
+    setApprovalDailyInstallment(String(loan.daily_installment));
+    setApprovalDurationDays(String(loan.duration_days));
+    
+    // Default interest percentage to 0% initially for approval modal to match requested EMI
+    setApprovalInterestPct('0');
+    setApprovalInterestPctOption('0');
+    setApprovalFormError('');
+    setShowApproveModal(true);
+  };
+
+  const handleApproveSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!approvalApprovedAmt || !approvalPlatformCharges || !approvalDailyInstallment || !approvalDurationDays) {
+      setApprovalFormError('Please fill in all parameters.');
+      return;
+    }
+
+    setApprovalFormLoading(true);
+    setApprovalFormError('');
+    const approvedAmt = Number(approvalApprovedAmt) || 0;
+    const interestAmt = Number(approvalInterestAmt) || 0;
+    const totalRepay = approvedAmt + interestAmt;
+
     try {
-      await axios.post(`/api/admin/loans/${id}/approve`, {}, {
+      await axios.post(`/api/admin/loans/${approvalLoanId}/approve`, {
+        approved_amount: approvedAmt,
+        platform_charges: Number(approvalPlatformCharges),
+        amount_disbursed: approvedAmt - Number(approvalPlatformCharges),
+        daily_installment: Number(approvalDailyInstallment),
+        duration_days: Number(approvalDurationDays),
+        total_repayment: totalRepay
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert('Loan approved successfully.');
+      alert('Loan approved and activated successfully.');
+      setShowApproveModal(false);
       fetchLoans();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to approve loan.');
+      setApprovalFormError(err.response?.data?.error || 'Failed to approve loan.');
+    } finally {
+      setApprovalFormLoading(false);
     }
   };
 
@@ -171,14 +294,18 @@ export default function LoanManagement({ token }: LoanManagementProps) {
 
     setFormLoading(true);
     setFormError('');
+    const approvedAmt = Number(formApprovedAmount) || 0;
+    const interestAmt = Number(formInterestAmt) || 0;
+    const totalRepay = approvedAmt + interestAmt;
 
     try {
       await axios.post('/api/admin/loans', {
         customer_id: formCustId,
-        approved_amount: Number(formApprovedAmount),
+        approved_amount: approvedAmt,
         platform_charges: Number(formPlatformCharges),
         daily_installment: Number(formDailyInstallment),
-        duration_days: Number(formDurationDays)
+        duration_days: Number(formDurationDays),
+        total_repayment: totalRepay
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -186,9 +313,9 @@ export default function LoanManagement({ token }: LoanManagementProps) {
       // Clear Form
       setFormCustId('');
       setFormApprovedAmount('');
-      setFormPlatformCharges('');
+      setFormPlatformCharges(defaultPlatformFee);
       setFormDailyInstallment('');
-      setFormDurationDays('');
+      setFormDurationDays(defaultDurationVal);
       setShowCreateModal(false);
       fetchLoans();
     } catch (err: any) {
@@ -204,7 +331,9 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   const dispNetDisburse = Math.max(0, dispApproved - dispCharges);
   const dispDuration = Number(formDurationDays) || 0;
   const dispDaily = Number(formDailyInstallment) || 0;
-  const dispTotalRepayment = dispApproved; // Repayment basis is Approved Amount
+  const dispInterestPct = Number(formInterestPct) || 0;
+  const dispInterestAmt = Number(formInterestAmt) || 0;
+  const dispTotalRepayment = dispApproved + dispInterestAmt; // Total repayment target basis is approved + interest
   const projectedRepaymentAmt = dispDuration * dispDaily;
 
   return (
@@ -295,7 +424,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                     <td className="px-6 py-4">
                       <div className="space-y-0.5">
                         <span className="font-bold text-slate-900 block">{l.customer?.full_name}</span>
-                        <span className="text-[10px] text-slate-400 block font-mono">Loan ID: {l.id.slice(0, 8)} | Mobile: {l.customer?.mobile_number}</span>
+                        <span className="text-[10px] text-slate-400 block font-mono">Loan ID: DMF-{l.id.split('-')[0].toUpperCase()} | Mobile: {l.customer?.mobile_number}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 font-bold text-slate-800">₹{l.approved_amount}</td>
@@ -334,7 +463,14 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                         {l.status === 'Pending' && (
                           <>
                             <button
-                              onClick={() => handleApprove(l.id)}
+                              onClick={() => openApproveModal(l)}
+                              title="Edit & Approve"
+                              className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button
+                              onClick={() => openApproveModal(l)}
                               title="Approve Loan"
                               className="p-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100 transition-colors"
                             >
@@ -378,7 +514,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
             <div className="bg-slate-900 p-6 text-white flex justify-between items-start">
               <div>
                 <h4 className="text-lg font-bold">Installment Ledger: {selectedLoanDetails.customer?.full_name}</h4>
-                <p className="text-xs text-slate-300 font-mono mt-1">Loan: {selectedLoanDetails.loan?.id}</p>
+                <p className="text-xs text-slate-300 font-mono mt-1">Loan ID: DMF-{selectedLoanDetails.loan?.id.split('-')[0].toUpperCase()}</p>
               </div>
               <button 
                 onClick={() => setSelectedLoanDetails(null)}
@@ -471,17 +607,53 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                   </select>
                 </div>
 
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Approved Amount (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={formApprovedAmount}
+                    onChange={(e) => setFormApprovedAmount(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                    placeholder="e.g. 10000"
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Approved Amount (₹) *</label>
-                    <input
-                      type="number"
-                      required
-                      value={formApprovedAmount}
-                      onChange={(e) => setFormApprovedAmount(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                      placeholder="e.g. 10000"
-                    />
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Charges / Interest (%)</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={formInterestPctOption}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormInterestPctOption(val);
+                          if (val !== 'custom') {
+                            setFormInterestPct(val);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                      >
+                        <option value="0">0%</option>
+                        <option value="5">5%</option>
+                        <option value="10">10%</option>
+                        <option value="11">11%</option>
+                        <option value="15">15%</option>
+                        <option value="20">20%</option>
+                        <option value="custom">Custom %</option>
+                      </select>
+                      {formInterestPctOption === 'custom' && (
+                        <input
+                          type="number"
+                          required
+                          value={formInterestPct}
+                          onChange={(e) => setFormInterestPct(e.target.value)}
+                          className="w-24 px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                          placeholder="%"
+                          min="0"
+                        />
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Upfront Platform Fee (₹) *</label>
@@ -490,7 +662,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                       required
                       value={formPlatformCharges}
                       onChange={(e) => setFormPlatformCharges(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                      className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
                       placeholder="e.g. 1000"
                     />
                   </div>
@@ -528,14 +700,22 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                     <span>Real-time loan disburse ledger</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500">Platform upfront deductions</span>
-                    <span className="font-semibold text-rose-500">- ₹{dispCharges}</span>
+                    <span className="text-slate-500 font-medium">Approved Principal</span>
+                    <span className="font-semibold text-slate-800">₹{dispApproved}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Charges / Interest ({dispInterestPct}%)</span>
+                    <span className="font-semibold text-blue-600">+ ₹{dispInterestAmt}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Platform upfront deductions</span>
+                    <span className="font-semibold text-rose-500">- ₹{dispCharges}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs border-t border-slate-200/50 pt-2">
                     <span className="text-slate-500 font-bold">Net disburse output (Given to client)</span>
                     <span className="font-extrabold text-emerald-600 text-sm">₹{dispNetDisburse}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs border-t border-slate-200/50 pt-2">
+                  <div className="flex justify-between items-center text-xs">
                     <span className="text-slate-500 font-bold">Total repayment target basis</span>
                     <span className="font-extrabold text-slate-800 text-sm">₹{dispTotalRepayment}</span>
                   </div>
@@ -561,6 +741,175 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                   className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all"
                 >
                   {formLoading ? 'Disbursing...' : 'Create Loan Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Approve & Customize Loan Modal */}
+      {showApproveModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="bg-slate-900 p-5 text-white flex justify-between items-center">
+              <div>
+                <h4 className="text-lg font-bold">Approve & Customize Loan</h4>
+                <p className="text-xs text-slate-300 font-mono mt-0.5">Customer: {approvalCustomerName} ({approvalCustomerMobile})</p>
+              </div>
+              <button 
+                onClick={() => setShowApproveModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleApproveSubmit}>
+              <div className="p-6 space-y-4">
+                {approvalFormError && (
+                  <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex gap-2 text-rose-800 text-xs">
+                    <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                    <span>{approvalFormError}</span>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Approved Amount (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={approvalApprovedAmt}
+                    onChange={(e) => setApprovalApprovedAmt(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                    placeholder="e.g. 10000"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Charges / Interest (%)</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={approvalInterestPctOption}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setApprovalInterestPctOption(val);
+                          if (val !== 'custom') {
+                            setApprovalInterestPct(val);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                      >
+                        <option value="0">0%</option>
+                        <option value="5">5%</option>
+                        <option value="10">10%</option>
+                        <option value="11">11%</option>
+                        <option value="15">15%</option>
+                        <option value="20">20%</option>
+                        <option value="custom">Custom %</option>
+                      </select>
+                      {approvalInterestPctOption === 'custom' && (
+                        <input
+                          type="number"
+                          required
+                          value={approvalInterestPct}
+                          onChange={(e) => setApprovalInterestPct(e.target.value)}
+                          className="w-24 px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                          placeholder="%"
+                          min="0"
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Upfront Platform Fee (₹) *</label>
+                    <input
+                      type="number"
+                      required
+                      value={approvalPlatformCharges}
+                      onChange={(e) => setApprovalPlatformCharges(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                      placeholder="e.g. 1000"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Daily Installment (₹) *</label>
+                    <input
+                      type="number"
+                      required
+                      value={approvalDailyInstallment}
+                      onChange={(e) => setApprovalDailyInstallment(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                      placeholder="e.g. 200"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Duration (Days) *</label>
+                    <input
+                      type="number"
+                      required
+                      value={approvalDurationDays}
+                      onChange={(e) => setApprovalDurationDays(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                      placeholder="e.g. 50"
+                    />
+                  </div>
+                </div>
+
+                {/* Real-time ledger calculations */}
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100/80 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    <Calculator size={13} className="text-blue-600" />
+                    <span>Calculated Loan Summary</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Approved Principal</span>
+                    <span className="font-semibold text-slate-800">₹{Number(approvalApprovedAmt) || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Charges / Interest ({Number(approvalInterestPct) || 0}%)</span>
+                    <span className="font-semibold text-blue-600">+ ₹{Number(approvalInterestAmt) || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Upfront platform charges (Deducted)</span>
+                    <span className="font-semibold text-rose-500">- ₹{Number(approvalPlatformCharges) || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs border-t border-slate-200/50 pt-2">
+                    <span className="text-slate-500 font-bold">Net disburse output (Given to client)</span>
+                    <span className="font-extrabold text-emerald-600 text-sm">₹{Math.max(0, (Number(approvalApprovedAmt) || 0) - (Number(approvalPlatformCharges) || 0))}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-bold">Total repayment target basis</span>
+                    <span className="font-extrabold text-slate-800 text-sm">₹{(Number(approvalApprovedAmt) || 0) + (Number(approvalInterestAmt) || 0)}</span>
+                  </div>
+                  {(Number(approvalDailyInstallment) || 0) * (Number(approvalDurationDays) || 0) > 0 && 
+                   (Number(approvalDailyInstallment) || 0) * (Number(approvalDurationDays) || 0) !== 
+                   ((Number(approvalApprovedAmt) || 0) + (Number(approvalInterestAmt) || 0)) && (
+                    <div className="text-[10px] text-amber-600 font-medium">
+                      ⚠️ Note: Daily (₹{approvalDailyInstallment}) x Duration ({approvalDurationDays} days) = ₹{(Number(approvalDailyInstallment) || 0) * (Number(approvalDurationDays) || 0)} projected aggregate payments. (Repayment target basis is approved ₹{(Number(approvalApprovedAmt) || 0) + (Number(approvalInterestAmt) || 0)}).
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowApproveModal(false)}
+                  className="px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={approvalFormLoading}
+                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-500/15"
+                >
+                  {approvalFormLoading ? 'Approving...' : 'Confirm & Approve'}
                 </button>
               </div>
             </form>

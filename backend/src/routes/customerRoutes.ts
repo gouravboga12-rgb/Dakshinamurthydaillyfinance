@@ -12,7 +12,9 @@ import {
   requestLoan,
   payInstallment,
   getSettings,
-  submitPaymentProof
+  submitPaymentProof,
+  forecloseLoan,
+  submitForeclosureProof
 } from '../controllers/customerController';
 
 // Multer storage setup for payment proofs
@@ -64,5 +66,7 @@ router.get('/settings', getSettings);
 router.post('/request-loan', requestLoan);
 router.post('/pay', payInstallment);
 router.post('/pay-proof', uploadProof.single('proof'), submitPaymentProof);
+router.post('/loans/:id/foreclose', forecloseLoan);
+router.post('/loans/:id/foreclose-proof', uploadProof.single('proof'), submitForeclosureProof);
 
 export default router;

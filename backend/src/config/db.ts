@@ -596,6 +596,7 @@ export const db = {
       proof_url: proofUrl
     };
     if (useSupabase) {
+      // First, try to update with all fields (transaction_id + proof_url + status)
       try {
         const { data, error } = await supabaseClient.from('installments')
           .update(updateFields)
@@ -605,23 +606,35 @@ export const db = {
         if (error) throw error;
         return data;
       } catch (err: any) {
-        if (err.code === '42703' || String(err.message || '').includes('proof_url')) {
-          console.warn('Supabase installments table does not have transaction_id or proof_url columns. Retrying update with only status...');
-          const { data, error } = await supabaseClient.from('installments')
+        // ANY error from the full update → fall back to status-only update
+        // (columns transaction_id / proof_url may not exist in the Supabase table)
+        console.warn('submitInstallmentProof: full update failed, falling back to status-only update.', err?.message || err?.code || err);
+        try {
+          const { data, error: fallbackError } = await supabaseClient.from('installments')
             .update({ status: 'Pending' })
             .eq('id', id)
             .select()
             .single();
-          if (error) throw error;
+          if (fallbackError) throw fallbackError;
+          // Merge the proof info in-memory so callers still have access to it
           return { ...data, transaction_id: transactionId, proof_url: proofUrl };
+        } catch (fallbackErr: any) {
+          console.error('submitInstallmentProof: fallback status-only update also failed:', fallbackErr?.message || fallbackErr);
+          throw fallbackErr;
         }
-        throw err;
       }
     } else {
-      await runSqlAsync("UPDATE installments SET status = 'Pending', transaction_id = ?, proof_url = ? WHERE id = ?", [transactionId, proofUrl, id]);
+      try {
+        await runSqlAsync("UPDATE installments SET status = 'Pending', transaction_id = ?, proof_url = ? WHERE id = ?", [transactionId, proofUrl, id]);
+      } catch (err: any) {
+        // SQLite may not have these columns yet — fall back to status only
+        console.warn('submitInstallmentProof SQLite: falling back to status-only update.', err?.message);
+        await runSqlAsync("UPDATE installments SET status = 'Pending' WHERE id = ?", [id]);
+      }
       return await this.getInstallmentById(id);
     }
   },
+
 
   async getSetting(key: string, defaultValue: string = '') {
     if (useSupabase) {

@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../store/authSlice';
@@ -17,7 +18,6 @@ import COLORS, { COMMON_STYLES } from '../utils/theme';
 
 export default function RegisterScreen({ navigation }: any) {
   const dispatch = useDispatch();
-
 
   const [fullName, setFullName] = useState('');
   const [mobile, setMobile] = useState('');
@@ -29,38 +29,109 @@ export default function RegisterScreen({ navigation }: any) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // OTP modal states
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+
   const fileInputRef = useRef<any>(null);
   const [aadhaarFile, setAadhaarFile] = useState<{ uri: string; name: string; type: string; fileObj: any } | null>(null);
 
-  const handleRegister = async () => {
-    if (!fullName.trim() || !mobile.trim() || !password.trim()) {
-      Alert.alert('Missing Fields', 'Full Name, Mobile Number, and Password are required.');
+  // Step 1: Request OTP code
+  const requestSignupOtp = async () => {
+    if (!fullName.trim() || !mobile.trim() || !email.trim() || !password.trim()) {
+      const msg = 'Full Name, Mobile Number, Email Address, and Password are required.';
+      if (Platform.OS === 'web') {
+        alert(`Missing Fields: ${msg}`);
+      } else {
+        Alert.alert('Missing Fields', msg);
+      }
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Password Mismatch', 'Passwords do not match. Please re-enter.');
+      const msg = 'Passwords do not match. Please re-enter.';
+      if (Platform.OS === 'web') {
+        alert(`Password Mismatch: ${msg}`);
+      } else {
+        Alert.alert('Password Mismatch', msg);
+      }
       return;
     }
     if (mobile.length !== 10) {
-      Alert.alert('Invalid Mobile', 'Please enter a valid 10-digit mobile number.');
+      const msg = 'Please enter a valid 10-digit mobile number.';
+      if (Platform.OS === 'web') {
+        alert(`Invalid Mobile: ${msg}`);
+      } else {
+        Alert.alert('Invalid Mobile', msg);
+      }
       return;
     }
     if (!aadhaarFile) {
-      Alert.alert('Missing Aadhaar', 'Please select and upload your Aadhaar Card document.');
+      const msg = 'Please select and upload your Aadhaar Card document.';
+      if (Platform.OS === 'web') {
+        alert(`Missing Aadhaar: ${msg}`);
+      } else {
+        Alert.alert('Missing Aadhaar', msg);
+      }
       return;
     }
 
     setLoading(true);
     try {
+      await api.post('/auth/send-otp', { email: email.trim() });
+      const msg = `A 6-digit verification code has been sent to ${email.trim()}.`;
+      if (Platform.OS === 'web') {
+        alert(`Verification Code Sent! ✉️\n\n${msg}`);
+      } else {
+        Alert.alert('Verification Code Sent! ✉️', msg);
+      }
+      setOtpModalVisible(true);
+    } catch (err: any) {
+      const message = err.response?.data?.error || 'Failed to send verification code. Please try again.';
+      if (Platform.OS === 'web') {
+        alert(`Verification Failed: ${message}`);
+      } else {
+        Alert.alert('Verification Failed', message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: Verify OTP and Register user
+  const handleRegister = async () => {
+    if (!otp.trim() || otp.trim().length !== 6) {
+      const msg = 'Please enter the 6-digit verification code sent to your email.';
+      if (Platform.OS === 'web') {
+        alert(`Validation Error: ${msg}`);
+      } else {
+        Alert.alert('Validation Error', msg);
+      }
+      return;
+    }
+
+    if (!aadhaarFile) {
+      const msg = 'Please select and upload your Aadhaar Card document.';
+      if (Platform.OS === 'web') {
+        alert(`Missing Aadhaar: ${msg}`);
+      } else {
+        Alert.alert('Missing Aadhaar', msg);
+      }
+      return;
+    }
+
+    setOtpLoading(true);
+    try {
       const formData = new FormData();
       formData.append('full_name', fullName.trim());
       formData.append('mobile_number', mobile.trim());
-      if (email.trim()) formData.append('email', email.trim());
+      formData.append('email', email.trim());
       if (occupation.trim()) formData.append('occupation', occupation.trim());
       if (shopName.trim()) formData.append('shop_name', shopName.trim());
       if (address.trim()) formData.append('address', address.trim());
       formData.append('password', password.trim());
       formData.append('confirm_password', confirmPassword.trim());
+      formData.append('otp', otp.trim());
 
       if (Platform.OS === 'web') {
         formData.append('aadhaar', aadhaarFile.fileObj);
@@ -74,9 +145,12 @@ export default function RegisterScreen({ navigation }: any) {
 
       await api.post('/auth/register', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': Platform.OS === 'web' ? undefined : 'multipart/form-data',
         },
       });
+
+      setOtpModalVisible(false);
+      setOtp('');
 
       if (Platform.OS === 'web') {
         alert('Registration Successful! 🎉\n\nYour account has been created successfully. You can now login.');
@@ -84,7 +158,7 @@ export default function RegisterScreen({ navigation }: any) {
       } else {
         Alert.alert(
           'Registration Successful! 🎉',
-          'Your account has been created successfully. You can now login with your mobile number and password.',
+          'Your account has been created successfully. You can now login with your email and password.',
           [{ text: 'Login Now', onPress: () => navigation.navigate('Login') }]
         );
       }
@@ -96,198 +170,259 @@ export default function RegisterScreen({ navigation }: any) {
         Alert.alert('Registration Failed', message);
       }
     } finally {
-      setLoading(false);
+      setOtpLoading(false);
     }
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: COLORS.primary }}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* Header */}
-      <View style={styles.headerContainer}>
-        <Text style={styles.brandName}>DAKSHINAMURTHY</Text>
-        <Text style={styles.brandSub}>Daily Finance</Text>
-        <Text style={styles.headerSubtitle}>New Customer Registration</Text>
-      </View>
-
-      {/* Form Card */}
-      <View style={styles.formCard}>
-        <Text style={styles.sectionTitle}>Personal Details</Text>
-
-        <View style={COMMON_STYLES.inputGroup}>
-          <Text style={COMMON_STYLES.label}>Full Name *</Text>
-          <TextInput
-            style={COMMON_STYLES.input}
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder="Enter your full name"
-            placeholderTextColor={COLORS.placeholder}
-          />
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: COLORS.primary }}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header */}
+        <View style={styles.headerContainer}>
+          <Text style={styles.brandName}>DAKSHINAMURTHY</Text>
+          <Text style={styles.brandSub}>Daily Finance</Text>
+          <Text style={styles.headerSubtitle}>New Customer Registration</Text>
         </View>
 
-        <View style={COMMON_STYLES.inputGroup}>
-          <Text style={COMMON_STYLES.label}>Mobile Number *</Text>
-          <TextInput
-            style={COMMON_STYLES.input}
-            value={mobile}
-            onChangeText={setMobile}
-            keyboardType="phone-pad"
-            placeholder="10-digit mobile number"
-            placeholderTextColor={COLORS.placeholder}
-            maxLength={10}
-          />
-        </View>
+        {/* Form Card */}
+        <View style={styles.formCard}>
+          <Text style={styles.sectionTitle}>Personal Details</Text>
 
-        <View style={COMMON_STYLES.inputGroup}>
-          <Text style={COMMON_STYLES.label}>Email Address</Text>
-          <TextInput
-            style={COMMON_STYLES.input}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholder="email@example.com"
-            placeholderTextColor={COLORS.placeholder}
-          />
-        </View>
+          <View style={COMMON_STYLES.inputGroup}>
+            <Text style={COMMON_STYLES.label}>Full Name *</Text>
+            <TextInput
+              style={COMMON_STYLES.input}
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="Enter your full name"
+              placeholderTextColor={COLORS.placeholder}
+            />
+          </View>
 
-        <View style={styles.divider} />
-        <Text style={styles.sectionTitle}>Business Information</Text>
+          <View style={COMMON_STYLES.inputGroup}>
+            <Text style={COMMON_STYLES.label}>Mobile Number *</Text>
+            <TextInput
+              style={COMMON_STYLES.input}
+              value={mobile}
+              onChangeText={setMobile}
+              keyboardType="phone-pad"
+              placeholder="10-digit mobile number"
+              placeholderTextColor={COLORS.placeholder}
+              maxLength={10}
+            />
+          </View>
 
-        <View style={COMMON_STYLES.inputGroup}>
-          <Text style={COMMON_STYLES.label}>Occupation</Text>
-          <TextInput
-            style={COMMON_STYLES.input}
-            value={occupation}
-            onChangeText={setOccupation}
-            placeholder="e.g. Merchant, Trader"
-            placeholderTextColor={COLORS.placeholder}
-          />
-        </View>
+          <View style={COMMON_STYLES.inputGroup}>
+            <Text style={COMMON_STYLES.label}>Email Address *</Text>
+            <TextInput
+              style={COMMON_STYLES.input}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholder="email@example.com"
+              placeholderTextColor={COLORS.placeholder}
+            />
+          </View>
 
-        <View style={COMMON_STYLES.inputGroup}>
-          <Text style={COMMON_STYLES.label}>Shop / Company Name</Text>
-          <TextInput
-            style={COMMON_STYLES.input}
-            value={shopName}
-            onChangeText={setShopName}
-            placeholder="Shop or company name"
-            placeholderTextColor={COLORS.placeholder}
-          />
-        </View>
+          <View style={styles.divider} />
+          <Text style={styles.sectionTitle}>Business Information</Text>
 
-        <View style={COMMON_STYLES.inputGroup}>
-          <Text style={COMMON_STYLES.label}>Address</Text>
-          <TextInput
-            style={[COMMON_STYLES.input, styles.multilineInput]}
-            value={address}
-            onChangeText={setAddress}
-            multiline
-            numberOfLines={3}
-            placeholder="Full address including city and pincode"
-            placeholderTextColor={COLORS.placeholder}
-          />
-        </View>
+          <View style={COMMON_STYLES.inputGroup}>
+            <Text style={COMMON_STYLES.label}>Occupation</Text>
+            <TextInput
+              style={COMMON_STYLES.input}
+              value={occupation}
+              onChangeText={setOccupation}
+              placeholder="e.g. Merchant, Trader"
+              placeholderTextColor={COLORS.placeholder}
+            />
+          </View>
 
-        <View style={styles.divider} />
-        <Text style={styles.sectionTitle}>Security Credentials</Text>
+          <View style={COMMON_STYLES.inputGroup}>
+            <Text style={COMMON_STYLES.label}>Shop / Company Name</Text>
+            <TextInput
+              style={COMMON_STYLES.input}
+              value={shopName}
+              onChangeText={setShopName}
+              placeholder="Shop or company name"
+              placeholderTextColor={COLORS.placeholder}
+            />
+          </View>
 
-        <View style={COMMON_STYLES.inputGroup}>
-          <Text style={COMMON_STYLES.label}>Password *</Text>
-          <TextInput
-            style={COMMON_STYLES.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="Create a strong password"
-            placeholderTextColor={COLORS.placeholder}
-          />
-        </View>
+          <View style={COMMON_STYLES.inputGroup}>
+            <Text style={COMMON_STYLES.label}>Address</Text>
+            <TextInput
+              style={[COMMON_STYLES.input, styles.multilineInput]}
+              value={address}
+              onChangeText={setAddress}
+              multiline
+              numberOfLines={3}
+              placeholder="Full address including city and pincode"
+              placeholderTextColor={COLORS.placeholder}
+            />
+          </View>
 
-        <View style={COMMON_STYLES.inputGroup}>
-          <Text style={COMMON_STYLES.label}>Confirm Password *</Text>
-          <TextInput
-            style={COMMON_STYLES.input}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            placeholder="Re-enter password to confirm"
-            placeholderTextColor={COLORS.placeholder}
-          />
-        </View>
+          <View style={styles.divider} />
+          <Text style={styles.sectionTitle}>Security Credentials</Text>
 
-        {Platform.OS === 'web' && (
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            accept=".png,.jpg,.jpeg,.pdf"
-            onChange={(e: any) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                setAadhaarFile({
-                  uri: URL.createObjectURL(file),
-                  name: file.name,
-                  type: file.type,
-                  fileObj: file
-                });
-              }
-            }}
-          />
-        )}
+          <View style={COMMON_STYLES.inputGroup}>
+            <Text style={COMMON_STYLES.label}>Password *</Text>
+            <TextInput
+              style={COMMON_STYLES.input}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholder="Create a strong password"
+              placeholderTextColor={COLORS.placeholder}
+            />
+          </View>
 
-        <View style={styles.uploadContainer}>
-          <Text style={COMMON_STYLES.label}>Aadhaar Card Upload (PDF, PNG, JPG) *</Text>
+          <View style={COMMON_STYLES.inputGroup}>
+            <Text style={COMMON_STYLES.label}>Confirm Password *</Text>
+            <TextInput
+              style={COMMON_STYLES.input}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              placeholder="Re-enter password to confirm"
+              placeholderTextColor={COLORS.placeholder}
+            />
+          </View>
+
+          {Platform.OS === 'web' && (
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              accept=".png,.jpg,.jpeg,.pdf"
+              onChange={(e: any) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setAadhaarFile({
+                    uri: URL.createObjectURL(file),
+                    name: file.name,
+                    type: file.type,
+                    fileObj: file
+                  });
+                }
+              }}
+            />
+          )}
+
+          <View style={styles.uploadContainer}>
+            <Text style={COMMON_STYLES.label}>Aadhaar Card Upload (PDF, PNG, JPG) *</Text>
+            <TouchableOpacity
+              style={[styles.uploadButton, aadhaarFile && styles.uploadButtonSuccess]}
+              onPress={() => {
+                if (Platform.OS === 'web') {
+                  fileInputRef.current?.click();
+                } else {
+                  Alert.alert('Upload Document', 'Document picker is supported on web.');
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.uploadButtonText}>
+                {aadhaarFile ? `✓ Selected: ${aadhaarFile.name}` : '📁 Choose Aadhaar File'}
+              </Text>
+            </TouchableOpacity>
+            {aadhaarFile && (
+              <Text style={styles.uploadSuccessDetail}>
+                Size: {Math.round(aadhaarFile.fileObj?.size ? (aadhaarFile.fileObj.size / 1024) : 0)} KB
+              </Text>
+            )}
+          </View>
+
           <TouchableOpacity
-            style={[styles.uploadButton, aadhaarFile && styles.uploadButtonSuccess]}
-            onPress={() => {
-              if (Platform.OS === 'web') {
-                fileInputRef.current?.click();
-              } else {
-                Alert.alert('Upload Document', 'Document picker is supported on web.');
-              }
-            }}
-            activeOpacity={0.8}
+            style={[COMMON_STYLES.button, loading && { opacity: 0.6 }]}
+            onPress={requestSignupOtp}
+            disabled={loading}
           >
-            <Text style={styles.uploadButtonText}>
-              {aadhaarFile ? `✓ Selected: ${aadhaarFile.name}` : '📁 Choose Aadhaar File'}
+            {loading ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={COMMON_STYLES.buttonText}>Submit Registration</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.loginLink}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.loginText}>
+              Already have an account?{' '}
+              <Text style={styles.loginLinkText}>Sign In</Text>
             </Text>
           </TouchableOpacity>
-          {aadhaarFile && (
-            <Text style={styles.uploadSuccessDetail}>
-              Size: {Math.round(aadhaarFile.fileObj?.size ? (aadhaarFile.fileObj.size / 1024) : 0)} KB
-            </Text>
-          )}
         </View>
+      </ScrollView>
 
-        <TouchableOpacity
-          style={[COMMON_STYLES.button, loading && { opacity: 0.6 }]}
-          onPress={handleRegister}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <Text style={COMMON_STYLES.buttonText}>Submit Registration</Text>
-          )}
-        </TouchableOpacity>
+      {/* OTP Verification Modal */}
+      <Modal
+        visible={otpModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOtpModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Verify Email</Text>
+              <TouchableOpacity onPress={() => setOtpModalVisible(false)}>
+                <Text style={styles.closeBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
 
+            <View style={styles.modalDivider} />
 
+            <View style={styles.modalBody}>
+              <Text style={styles.modalSubtitle}>
+                Please enter the 6-digit verification code sent to:{'\n'}
+                <Text style={{ fontWeight: '800', color: COLORS.primary }}>{email.trim()}</Text>
+              </Text>
 
-        <TouchableOpacity
-          style={styles.loginLink}
-          onPress={() => navigation.navigate('Login')}
-        >
-          <Text style={styles.loginText}>
-            Already have an account?{' '}
-            <Text style={styles.loginLinkText}>Sign In</Text>
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+              <View style={COMMON_STYLES.inputGroup}>
+                <Text style={COMMON_STYLES.label}>Verification Code</Text>
+                <TextInput
+                  style={[COMMON_STYLES.input, styles.otpInput]}
+                  value={otp}
+                  onChangeText={(text) => setOtp(text.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  placeholder="000000"
+                  placeholderTextColor={COLORS.placeholder}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[COMMON_STYLES.button, { marginTop: 8 }, otpLoading && { opacity: 0.6 }]}
+                onPress={handleRegister}
+                disabled={otpLoading}
+              >
+                {otpLoading ? (
+                  <ActivityIndicator color={COLORS.white} />
+                ) : (
+                  <Text style={COMMON_STYLES.buttonText}>Confirm & Register</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.resendBtn}
+                onPress={requestSignupOtp}
+                disabled={otpLoading}
+              >
+                <Text style={styles.resendText}>Resend Verification Code</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -324,7 +459,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: '#00',
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.15,
     shadowRadius: 32,
@@ -393,18 +528,72 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     fontWeight: '700',
   },
-  guestButton: {
-    borderWidth: 1,
-    borderColor: COLORS.secondary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
+  // Modal styling
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.7)',
     justifyContent: 'center',
-    marginTop: 12,
+    alignItems: 'center',
+    padding: 24,
   },
-  guestButtonText: {
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.25,
+    shadowRadius: 40,
+    elevation: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    color: COLORS.primary,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  closeBtn: {
+    color: COLORS.muted,
+    fontSize: 18,
+    fontWeight: '700',
+    padding: 4,
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 16,
+  },
+  modalBody: {
+    gap: 16,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: COLORS.body,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  otpInput: {
+    textAlign: 'center',
+    fontSize: 22,
+    letterSpacing: 8,
+    fontWeight: '800',
+    height: 50,
+  },
+  resendBtn: {
+    marginTop: 12,
+    alignItems: 'center',
+    padding: 10,
+  },
+  resendText: {
     color: COLORS.secondary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
 });

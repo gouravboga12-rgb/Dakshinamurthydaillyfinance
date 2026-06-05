@@ -30,6 +30,8 @@ interface Customer {
   status: 'pending' | 'approved' | 'rejected' | 'deactivated';
   aadhaar_url: string | null;
   created_at: string;
+  loan_count?: number;
+  active_loan_count?: number;
 }
 
 interface CustomerManagementProps {
@@ -45,10 +47,32 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
   
   // Selected Customer Modal View
   const [selectedCust, setSelectedCust] = useState<Customer | null>(null);
+  const [selectedCustLoans, setSelectedCustLoans] = useState<any[]>([]);
+  const [selectedCustLoading, setSelectedCustLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'profile' | 'loans'>('profile');
   
   // Aadhaar upload within modal
   const [aadhaarUploading, setAadhaarUploading] = useState(false);
   const aadhaarInputRef = useRef<HTMLInputElement>(null);
+
+  const openCustomerDetailsModal = async (cust: Customer) => {
+    setSelectedCust(cust);
+    setSelectedCustLoans([]);
+    setSelectedCustLoading(true);
+    setActiveTab('profile');
+    try {
+      const response = await axios.get(`/api/admin/customers/${cust.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data && response.data.loans) {
+        setSelectedCustLoans(response.data.loans);
+      }
+    } catch (err) {
+      console.error('Failed to load customer details & loan history:', err);
+    } finally {
+      setSelectedCustLoading(false);
+    }
+  };
 
   const handleAadhaarUpload = async (file: File) => {
     if (!selectedCust) return;
@@ -57,7 +81,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
       const formData = new FormData();
       formData.append('aadhaar', file);
       const response = await axios.post(`/api/admin/customers/${selectedCust.id}/aadhaar`, formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+        headers: { Authorization: `Bearer ${token}` }
       });
       const updatedUrl = response.data.aadhaar_url;
       setSelectedCust(prev => prev ? { ...prev, aadhaar_url: updatedUrl } : null);
@@ -148,8 +172,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
 
       await axios.post('/api/admin/customers', formData, {
         headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
+          Authorization: `Bearer ${token}`
         }
       });
 
@@ -252,12 +275,19 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                         </div>
                         <div>
                           <button
-                            onClick={() => setSelectedCust(c)}
+                            onClick={() => openCustomerDetailsModal(c)}
                             className="font-bold text-slate-900 hover:text-blue-600 hover:underline text-left block"
                           >
                             {c.full_name}
                           </button>
-                          <span className="text-[10px] font-semibold text-slate-400 block font-mono">ID: {c.id.slice(0, 8)}</span>
+                          <div className="flex gap-2 items-center text-[10px] font-semibold text-slate-400 mt-0.5">
+                            <span className="font-mono">ID: {c.id.slice(0, 8)}</span>
+                            {c.loan_count !== undefined && (
+                              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                                Loans: {c.loan_count} ({c.active_loan_count || 0} active)
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -293,7 +323,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                       <div className="inline-flex gap-1.5 items-center">
                           {/* View Profile button - always visible */}
                           <button
-                            onClick={() => setSelectedCust(c)}
+                            onClick={() => openCustomerDetailsModal(c)}
                             title="View Customer Profile & Aadhaar"
                             className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors"
                           >
@@ -371,112 +401,212 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
               </button>
             </div>
             
+            {/* Tabs Selector */}
+            <div className="flex border-b border-slate-200">
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                className={`flex-1 py-3 text-center text-sm font-bold border-b-2 transition-all ${
+                  activeTab === 'profile'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Profile & Documents
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('loans')}
+                className={`flex-1 py-3 text-center text-sm font-bold border-b-2 transition-all flex items-center justify-center gap-1.5 ${
+                  activeTab === 'loans'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <span>Loan History</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                  activeTab === 'loans' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {selectedCustLoading ? '...' : selectedCustLoans.length}
+                </span>
+              </button>
+            </div>
+
             {/* Body */}
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <Phone size={16} className="text-blue-600" />
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Mobile Number</span>
-                    <span className="font-semibold text-slate-700">{selectedCust.mobile_number}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <Mail size={16} className="text-blue-600" />
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Email Address</span>
-                    <span className="font-semibold text-slate-700">{selectedCust.email || 'N/A'}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <Briefcase size={16} className="text-blue-600" />
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Occupation</span>
-                    <span className="font-semibold text-slate-700">{selectedCust.occupation || 'N/A'}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <MapPin size={16} className="text-blue-600" />
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Address</span>
-                    <span className="font-semibold text-slate-700">{selectedCust.address || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Aadhaar Attachment Viewer */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <CreditCard size={13} /> Aadhaar Card
-                  </h5>
-                  {/* Upload button */}
-                  <button
-                    onClick={() => aadhaarInputRef.current?.click()}
-                    disabled={aadhaarUploading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
-                  >
-                    {aadhaarUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                    {aadhaarUploading ? 'Uploading...' : selectedCust.aadhaar_url ? 'Replace' : 'Upload Aadhaar'}
-                  </button>
-                  <input
-                    ref={aadhaarInputRef}
-                    type="file"
-                    accept=".pdf,.png,.jpg,.jpeg"
-                    className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAadhaarUpload(f); e.target.value = ''; }}
-                  />
-                </div>
-
-                {selectedCust.aadhaar_url ? (() => {
-                  const rawUrl = selectedCust.aadhaar_url!;
-                  const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
-                  const filename = rawUrl.split('/').pop() || 'aadhaar';
-                  const isImage = /\.(png|jpg|jpeg|webp|gif)$/i.test(filename);
-                  return (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
-                      {isImage ? (
-                        <div className="relative">
-                          <img
-                            src={fullUrl}
-                            alt="Aadhaar Card"
-                            className="w-full max-h-64 object-contain bg-white"
-                            onError={(e: any) => { e.target.style.display = 'none'; (e.target.nextSibling as HTMLElement).style.display = 'flex'; }}
-                          />
-                          <div style={{display:'none'}} className="p-4 items-center justify-center text-xs text-rose-500 font-semibold">
-                            ⚠️ Could not load image. <a href={fullUrl} target="_blank" rel="noreferrer" className="underline ml-1">Open directly</a>
-                          </div>
-                        </div>
-                      ) : null}
-                      <div className="p-3 flex items-center justify-between border-t border-slate-100">
-                        <div className="flex items-center gap-2.5 text-slate-600 text-xs font-semibold">
-                          <FileText size={16} className="text-slate-400" />
-                          <span className="truncate max-w-[200px]">{filename}</span>
-                        </div>
-                        <a
-                          href={fullUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-shrink-0 px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
-                        >
-                          {isImage ? '🔍 View Full' : '📄 Open PDF'}
-                        </a>
+            <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+              {activeTab === 'profile' ? (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <Phone size={16} className="text-blue-600" />
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block uppercase">Mobile Number</span>
+                        <span className="font-semibold text-slate-700">{selectedCust.mobile_number}</span>
                       </div>
                     </div>
-                  );
-                })() : (
-                  <div className="p-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center">
-                    <CreditCard size={28} className="text-slate-300 mx-auto mb-2" />
-                    <p className="text-xs text-slate-400 font-semibold">No Aadhaar document uploaded yet.</p>
-                    <p className="text-[10px] text-slate-400 mt-1">Click "Upload Aadhaar" above to add it.</p>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <Mail size={16} className="text-blue-600" />
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block uppercase">Email Address</span>
+                        <span className="font-semibold text-slate-700">{selectedCust.email || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <Briefcase size={16} className="text-blue-600" />
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block uppercase">Occupation</span>
+                        <span className="font-semibold text-slate-700">{selectedCust.occupation || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <MapPin size={16} className="text-blue-600" />
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block uppercase">Address</span>
+                        <span className="font-semibold text-slate-700">{selectedCust.address || 'N/A'}</span>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  {/* Aadhaar Attachment Viewer */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <CreditCard size={13} /> Aadhaar Card
+                      </h5>
+                      {/* Upload button */}
+                      <button
+                        type="button"
+                        onClick={() => aadhaarInputRef.current?.click()}
+                        disabled={aadhaarUploading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                      >
+                        {aadhaarUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                        {aadhaarUploading ? 'Uploading...' : selectedCust.aadhaar_url ? 'Replace' : 'Upload Aadhaar'}
+                      </button>
+                      <input
+                        ref={aadhaarInputRef}
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAadhaarUpload(f); e.target.value = ''; }}
+                      />
+                    </div>
+
+                    {selectedCust.aadhaar_url ? (() => {
+                      const rawUrl = selectedCust.aadhaar_url!;
+                      const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
+                      const filename = rawUrl.split('/').pop() || 'aadhaar';
+                      const isImage = /\.(png|jpg|jpeg|webp|gif)$/i.test(filename);
+                      return (
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+                          {isImage ? (
+                            <div className="relative">
+                              <img
+                                src={fullUrl}
+                                alt="Aadhaar Card"
+                                className="w-full max-h-64 object-contain bg-white"
+                                onError={(e: any) => { e.target.style.display = 'none'; (e.target.nextSibling as HTMLElement).style.display = 'flex'; }}
+                              />
+                              <div style={{display:'none'}} className="p-4 items-center justify-center text-xs text-rose-500 font-semibold">
+                                ⚠️ Could not load image. <a href={fullUrl} target="_blank" rel="noreferrer" className="underline ml-1">Open directly</a>
+                              </div>
+                            </div>
+                          ) : null}
+                          <div className="p-3 flex items-center justify-between border-t border-slate-100">
+                            <div className="flex items-center gap-2.5 text-slate-600 text-xs font-semibold">
+                              <FileText size={16} className="text-slate-400" />
+                              <span className="truncate max-w-[200px]">{filename}</span>
+                            </div>
+                            <a
+                              href={fullUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-shrink-0 px-3.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
+                            >
+                              {isImage ? '🔍 View Full' : '📄 Open PDF'}
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })() : (
+                      <div className="p-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center">
+                        <CreditCard size={28} className="text-slate-300 mx-auto mb-2" />
+                        <p className="text-xs text-slate-400 font-semibold">No Aadhaar document uploaded yet.</p>
+                        <p className="text-[10px] text-slate-400 mt-1">Click "Upload Aadhaar" above to add it.</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  {selectedCustLoading ? (
+                    <div className="py-12 flex flex-col justify-center items-center gap-2">
+                      <Loader2 className="animate-spin text-blue-600" size={24} />
+                      <span className="text-xs font-bold text-slate-500">Loading loan history...</span>
+                    </div>
+                  ) : selectedCustLoans.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 text-xs">
+                      No loan records found for this customer.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {selectedCustLoans.map((l) => (
+                        <div key={l.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className="text-xs font-bold text-slate-800">
+                                Approved Amount: ₹{l.approved_amount}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block font-mono">
+                                Loan ID: DMF-{l.id.split('-')[0].toUpperCase()} | Disbursed (Net): ₹{l.amount_disbursed}
+                              </span>
+                            </div>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${
+                              l.status === 'Active' 
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                : l.status === 'Pending'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : l.status === 'Completed'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : 'bg-rose-50 text-rose-700 border-rose-200'
+                            }`}>
+                              {l.status}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 text-xs border-t border-slate-100 pt-2 text-slate-500">
+                            <div>
+                              <span className="font-semibold block text-slate-400 text-[10px] uppercase">Repayment Basis</span>
+                              <span className="font-bold text-slate-700">₹{l.total_repayment}</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold block text-slate-400 text-[10px] uppercase">Daily EMI</span>
+                              <span className="font-bold text-slate-700">₹{l.daily_installment} / {l.duration_days} Days</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold block text-slate-400 text-[10px] uppercase">Remaining Due</span>
+                              <span className="font-bold text-slate-900">₹{l.remaining_balance}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-center text-[10px] text-slate-400">
+                            <span>Requested: {new Date(l.created_at).toLocaleDateString('en-IN')}</span>
+                            {l.approval_date && (
+                              <span>Approved: {new Date(l.approval_date).toLocaleDateString('en-IN')}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             {/* Footer */}
-            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end">
               <button
+                type="button"
                 onClick={() => setSelectedCust(null)}
                 className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-600 transition-colors"
               >

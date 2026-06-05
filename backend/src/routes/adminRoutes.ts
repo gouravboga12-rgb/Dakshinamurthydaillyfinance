@@ -20,7 +20,9 @@ import {
   getDashboardStats,
   getReports,
   getSettings,
-  updateUpiQr
+  updateUpiQr,
+  updateSettings,
+  approveForeclosure
 } from '../controllers/adminController';
 
 const uploadDir = path.resolve(__dirname, '../../uploads/aadhaar');
@@ -76,6 +78,7 @@ router.get('/loans/:id', getLoanDetails);
 router.post('/loans/:id/approve', approveLoan);
 router.post('/loans/:id/reject', rejectLoan);
 router.post('/loans/:id/close', closeLoan);
+router.post('/loans/:id/approve-foreclosure', approveForeclosure);
 
 // Payment Tracking
 router.post('/payments/mark-paid', markInstallmentPaid);
@@ -104,6 +107,7 @@ const uploadQr = multer({
 });
 
 router.get('/settings', getSettings);
+router.post('/settings', updateSettings);
 router.post('/settings/upi-qr', uploadQr.single('qr'), updateUpiQr);
 
 // Reports & Statistics

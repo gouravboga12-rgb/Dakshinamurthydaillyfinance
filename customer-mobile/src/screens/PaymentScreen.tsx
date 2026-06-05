@@ -15,9 +15,10 @@ import api, { getBaseUrl } from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
 
 export default function PaymentScreen({ route, navigation }: any) {
-  const { installmentId, amount } = route.params;
+  const { installmentId, amount, isForeclosure = false, loanId } = route.params;
 
   const [qrUrl, setQrUrl] = useState('');
+  const [upiMobileNumber, setUpiMobileNumber] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [utr, setUtr] = useState('');
@@ -29,7 +30,11 @@ export default function PaymentScreen({ route, navigation }: any) {
   const fetchSettings = async () => {
     try {
       const response = await api.get('/customer/settings');
-      setQrUrl(response.data.settings.upi_qr_url);
+      const settings = response.data.settings;
+      if (settings) {
+        setQrUrl(settings.upi_qr_url || '');
+        setUpiMobileNumber(settings.upi_mobile_number || '');
+      }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
     } finally {
@@ -78,34 +83,57 @@ export default function PaymentScreen({ route, navigation }: any) {
     setSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append('installmentId', installmentId);
       formData.append('transaction_id', utr.trim());
-      
-      if (Platform.OS === 'web') {
-        formData.append('proof', proofFile);
+
+      if (isForeclosure) {
+        // Foreclosure: submit to the loan-level foreclose-proof endpoint
+        if (Platform.OS === 'web') {
+          formData.append('proof', proofFile);
+        } else {
+          formData.append('proof', {
+            uri: proofPreviewUri,
+            name: 'proof.jpg',
+            type: 'image/jpeg',
+          } as any);
+        }
+        await api.post(`/customer/loans/${loanId}/foreclose-proof`, formData, {
+          headers: { 'Content-Type': Platform.OS === 'web' ? undefined : 'multipart/form-data' },
+        });
+        if (Platform.OS === 'web') {
+          alert('Foreclosure Request Submitted! 🎉\n\nYour full outstanding payment proof has been submitted to the administrator for review. Your loan will be closed once the admin verifies the payment.');
+        } else {
+          Alert.alert(
+            'Foreclosure Submitted! 🎉',
+            'Your full outstanding payment proof has been submitted to the administrator for review. Your loan will be closed once the admin verifies the payment.',
+            [{ text: 'OK' }]
+          );
+        }
       } else {
-        formData.append('proof', {
-          uri: proofPreviewUri,
-          name: 'proof.jpg',
-          type: 'image/jpeg',
-        } as any);
+        // Regular EMI installment payment
+        formData.append('installmentId', installmentId);
+        if (Platform.OS === 'web') {
+          formData.append('proof', proofFile);
+        } else {
+          formData.append('proof', {
+            uri: proofPreviewUri,
+            name: 'proof.jpg',
+            type: 'image/jpeg',
+          } as any);
+        }
+        await api.post('/customer/pay-proof', formData, {
+          headers: { 'Content-Type': Platform.OS === 'web' ? undefined : 'multipart/form-data' },
+        });
+        if (Platform.OS === 'web') {
+          alert('Repayment Submitted! 🎉\n\nYour repayment proof has been successfully submitted to the administrator for review.');
+        } else {
+          Alert.alert(
+            'Repayment Submitted! 🎉',
+            'Your repayment proof has been successfully submitted to the administrator for review.',
+            [{ text: 'Great' }]
+          );
+        }
       }
 
-      await api.post('/customer/pay-proof', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (Platform.OS === 'web') {
-        alert('Repayment Submitted! 🎉\n\nYour repayment proof has been successfully submitted to the administrator for review.');
-      } else {
-        Alert.alert(
-          'Repayment Submitted! 🎉',
-          'Your repayment proof has been successfully submitted to the administrator for review.',
-          [{ text: 'Great' }]
-        );
-      }
       navigation.goBack();
     } catch (err: any) {
       console.error(err);
@@ -144,8 +172,18 @@ export default function PaymentScreen({ route, navigation }: any) {
   return (
     <ScrollView style={COMMON_STYLES.container} contentContainerStyle={styles.content}>
       <View style={styles.paymentCard}>
-        <Text style={styles.amountLabel}>INSTALLMENT DUE AMOUNT</Text>
-        <Text style={styles.amountText}>₹{amount.toLocaleString('en-IN')}</Text>
+        {isForeclosure && (
+          <View style={styles.foreclosureBadge}>
+            <Text style={styles.foreclosureBadgeText}>🔒 LOAN FORECLOSURE</Text>
+          </View>
+        )}
+        <Text style={styles.amountLabel}>
+          {isForeclosure ? 'TOTAL OUTSTANDING BALANCE' : 'INSTALLMENT DUE AMOUNT'}
+        </Text>
+        <Text style={styles.amountText}>₹{Number(amount).toLocaleString('en-IN')}</Text>
+        {isForeclosure && (
+          <Text style={styles.foreclosureNote}>Pay this amount to close your loan permanently</Text>
+        )}
       </View>
 
       {/* QR Code Card */}
@@ -159,6 +197,19 @@ export default function PaymentScreen({ route, navigation }: any) {
         <Text style={styles.qrInstructions}>
           Scan this QR code with Google Pay, PhonePe, Paytm, BHIM, or any UPI app to pay.
         </Text>
+
+        {upiMobileNumber ? (
+          <>
+            <View style={styles.divider} />
+            <Text style={styles.upiMobileTitle}>💬 Pay via UPI Mobile Number</Text>
+            <View style={styles.upiMobileBox}>
+              <Text style={styles.upiMobileNumberText}>{upiMobileNumber}</Text>
+            </View>
+            <Text style={styles.upiMobileSubtext}>
+              Or enter this mobile number in your UPI app (GPay/PhonePe/Paytm) to pay directly.
+            </Text>
+          </>
+        ) : null}
       </View>
 
       {/* Submission Form */}
@@ -263,6 +314,28 @@ const styles = StyleSheet.create({
     color: '#FFC800',
     fontSize: 32,
     fontWeight: '900',
+  },
+  foreclosureBadge: {
+    backgroundColor: 'rgba(220, 38, 38, 0.2)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(220, 38, 38, 0.4)',
+  },
+  foreclosureBadgeText: {
+    color: '#FCA5A5',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  foreclosureNote: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 6,
+    textAlign: 'center',
   },
 
   qrCard: {
@@ -380,5 +453,44 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 14,
     letterSpacing: 0.5,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    width: '100%',
+    marginVertical: 16,
+  },
+  upiMobileTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  upiMobileBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    alignItems: 'center',
+    width: '100%',
+  },
+  upiMobileNumberText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: 1.5,
+  },
+  upiMobileSubtext: {
+    color: COLORS.muted,
+    fontSize: 11,
+    textAlign: 'center',
+    lineHeight: 16,
+    paddingHorizontal: 8,
+    fontWeight: '600',
   },
 });

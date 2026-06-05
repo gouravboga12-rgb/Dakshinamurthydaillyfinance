@@ -34,15 +34,13 @@ export default function PaymentHistoryScreen({ navigation }: any) {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'ongoing' | 'closed'>('ongoing');
 
   useEffect(() => {
     const fetchLoans = async () => {
       try {
         const response = await api.get('/customer/loans');
         setLoans(response.data);
-        if (response.data.length > 0) {
-          loadInstallments(response.data[0]);
-        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -51,6 +49,22 @@ export default function PaymentHistoryScreen({ navigation }: any) {
     };
     fetchLoans();
   }, []);
+
+  useEffect(() => {
+    const ongoingLoans = loans.filter(l => l.status === 'Active' || l.status === 'Pending');
+    const closedLoans = loans.filter(l => l.status === 'Completed' || l.status === 'Rejected');
+    const currentTabLoans = activeTab === 'ongoing' ? ongoingLoans : closedLoans;
+
+    if (currentTabLoans.length > 0) {
+      // Pre-select the first loan in the list if selected one is not in the list
+      if (!selectedLoan || !currentTabLoans.some(l => l.id === selectedLoan.id)) {
+        loadInstallments(currentTabLoans[0]);
+      }
+    } else {
+      setSelectedLoan(null);
+      setInstallments([]);
+    }
+  }, [activeTab, loans]);
 
   const loadInstallments = async (loan: Loan) => {
     setSelectedLoan(loan);
@@ -78,141 +92,220 @@ export default function PaymentHistoryScreen({ navigation }: any) {
     );
   }
 
-  if (loans.length === 0 || !selectedLoan) {
+  if (loans.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyIcon}>📄</Text>
-        <Text style={styles.emptyTitle}>No Active Loans</Text>
+        <Text style={styles.emptyTitle}>No Loan History</Text>
         <Text style={styles.emptySubtitle}>
-          Installment details will appear here as soon as an administrator sets up an active loan.
+          You do not have any ongoing or past loan records.
         </Text>
       </View>
     );
   }
 
+  const ongoingLoans = loans.filter(l => l.status === 'Active' || l.status === 'Pending');
+  const closedLoans = loans.filter(l => l.status === 'Completed' || l.status === 'Rejected');
+  const currentTabLoans = activeTab === 'ongoing' ? ongoingLoans : closedLoans;
   const nextDue = (installments || []).find(i => i?.status === 'Unpaid')?.due_date || '—';
 
   return (
     <ScrollView style={COMMON_STYLES.container} contentContainerStyle={styles.content}>
-      {/* Black Banner Section matching image copy 4.png */}
-      <View style={styles.blackBanner}>
-        {/* Loan Balance Info Card */}
-        <View style={styles.balanceCard}>
-          <View style={styles.cardHeader}>
-            <View style={styles.walletIconCircle}>
-              <Text style={styles.walletIcon}>💳</Text>
-            </View>
-            <View>
-              <Text style={styles.amountLabel}>Outstanding Balance</Text>
-              <Text style={styles.loanAmount}>
-                ₹{Number(selectedLoan?.remaining_balance || 0).toLocaleString('en-IN')}
-              </Text>
-              <Text style={styles.loanIdText}>
-                ID: KB{(selectedLoan?.id || '').slice(0, 10).toUpperCase()}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.dateLabelRow}>
-            <Text style={styles.dueOnLabel}>Due on</Text>
-            <Text style={styles.dueDateValue}>{nextDue}</Text>
-          </View>
-        </View>
-
-        {/* Horizontal Navigation Boxes */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={styles.actionBox}
-            onPress={() => navigation.navigate('PaymentHistoryDetail')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.actionLabel}>Payment history</Text>
-            <Text style={styles.arrowText}>❯</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionBox}
-            onPress={handleHowToRepay}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.actionLabel}>How to Repay?</Text>
-            <Text style={styles.arrowText}>❯</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionBox}
-            onPress={handleLenderDetails}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.actionLabel}>Lender details</Text>
-            <Text style={styles.arrowText}>❯</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Daily Installments List */}
-      <View style={styles.listContainer}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeader}>Repayment Ledger</Text>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('PaymentHistoryDetail')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.viewAllLink}>View All ›</Text>
-          </TouchableOpacity>
-        </View>
-        {(installments || []).map((inst, idx) => {
-          const isOverdue =
-            inst?.status === 'Unpaid' &&
-            inst?.due_date < new Date().toISOString().split('T')[0];
-          const isPaid = inst?.status === 'Paid';
-          return (
-            <View key={inst?.id || idx} style={styles.installmentCard}>
-              <View style={styles.rowLeft}>
-                <View style={[
-                  styles.calcIconBox,
-                  isPaid && styles.calcIconBoxPaid,
-                  isOverdue && styles.calcIconBoxOverdue,
-                ]}>
-                  <Text style={styles.calcEmoji}>
-                    {isPaid ? '✓' : isOverdue ? '⚠' : '⏳'}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={styles.installAmount}>
-                    ₹{Number(selectedLoan?.daily_installment || 0).toLocaleString('en-IN')}
-                  </Text>
-                  <Text style={styles.installDate}>
-                    Day {idx + 1} — {inst?.due_date || '—'}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.rowRight}>
-                <Text
-                  style={[
-                    styles.statusText,
-                    isPaid && styles.statusPaid,
-                    isOverdue && styles.statusOverdue,
-                    !isPaid && !isOverdue && styles.statusPending,
-                  ]}
-                >
-                  {isPaid ? 'PAID' : isOverdue ? 'LATE' : 'PENDING'}
-                </Text>
-              </View>
-            </View>
-          );
-        })}
-
-        {/* Full Payment History CTA */}
+      {/* Tabs Selector */}
+      <View style={styles.tabBar}>
         <TouchableOpacity
-          style={styles.historyCtaButton}
-          onPress={() => navigation.navigate('PaymentHistoryDetail')}
-          activeOpacity={0.85}
+          onPress={() => setActiveTab('ongoing')}
+          style={[styles.tabButton, activeTab === 'ongoing' && styles.tabButtonActive]}
+          activeOpacity={0.7}
         >
-          <Text style={styles.historyCtaEmoji}>📋</Text>
-          <Text style={styles.historyCtaText}>View Full Payment History</Text>
-          <Text style={styles.historyCtaArrow}>›</Text>
+          <Text style={[styles.tabText, activeTab === 'ongoing' && styles.tabTextActive]}>
+            Ongoing Loans
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveTab('closed')}
+          style={[styles.tabButton, activeTab === 'closed' && styles.tabButtonActive]}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.tabText, activeTab === 'closed' && styles.tabTextActive]}>
+            Closed Loans
+          </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Horizontal Multiple Loan picker scroll */}
+      {currentTabLoans.length > 1 && (
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          style={styles.loanSelectorScroll}
+          contentContainerStyle={styles.loanSelectorContent}
+        >
+          {currentTabLoans.map((l) => (
+            <TouchableOpacity
+              key={l.id}
+              onPress={() => loadInstallments(l)}
+              style={[
+                styles.loanSelectorBadge,
+                selectedLoan?.id === l.id && styles.loanSelectorBadgeActive
+              ]}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.loanSelectorText,
+                selectedLoan?.id === l.id && styles.loanSelectorTextActive
+              ]}>
+                KB{l.id.slice(0, 6).toUpperCase()} (₹{l.approved_amount})
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
+      {!selectedLoan ? (
+        <View style={styles.tabEmptyContainer}>
+          <Text style={styles.tabEmptyIcon}>📄</Text>
+          <Text style={styles.tabEmptyTitle}>
+            No {activeTab === 'ongoing' ? 'Ongoing' : 'Closed'} Loans
+          </Text>
+          <Text style={styles.tabEmptySubtitle}>
+            There are no {activeTab === 'ongoing' ? 'active or pending' : 'completed or rejected'} loans in this section.
+          </Text>
+        </View>
+      ) : (
+        <>
+          {/* Black Banner Section matching image copy 4.png */}
+          <View style={styles.blackBanner}>
+            {/* Loan Balance Info Card */}
+            <View style={styles.balanceCard}>
+              <View style={styles.cardHeader}>
+                <View style={styles.walletIconCircle}>
+                  <Text style={styles.walletIcon}>💳</Text>
+                </View>
+                <View>
+                  <Text style={styles.amountLabel}>Outstanding Balance</Text>
+                  <Text style={styles.loanAmount}>
+                    ₹{Number(selectedLoan?.remaining_balance || 0).toLocaleString('en-IN')}
+                  </Text>
+                  <Text style={styles.loanIdText}>
+                    Ref No: DMF-{(selectedLoan?.id || '').split('-')[0].toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.dateLabelRow}>
+                <Text style={styles.dueOnLabel}>Due on</Text>
+                <Text style={styles.dueDateValue}>{nextDue}</Text>
+              </View>
+            </View>
+
+            {/* Loan Details quick link */}
+            <TouchableOpacity
+              style={styles.loanDetailsLink}
+              onPress={() => navigation.navigate('LoanDetails', { loanId: selectedLoan.id })}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.loanDetailsLinkIcon}>📋</Text>
+              <Text style={styles.loanDetailsLinkText}>View Loan Details</Text>
+              <Text style={styles.loanDetailsLinkArrow}>❯</Text>
+            </TouchableOpacity>
+
+            {/* Horizontal Navigation Boxes */}
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={styles.actionBox}
+                onPress={() => navigation.navigate('PaymentHistoryDetail', { loanId: selectedLoan.id })}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.actionLabel}>Payment history</Text>
+                <Text style={styles.arrowText}>❯</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionBox}
+                onPress={handleHowToRepay}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.actionLabel}>How to Repay?</Text>
+                <Text style={styles.arrowText}>❯</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionBox}
+                onPress={handleLenderDetails}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.actionLabel}>Lender details</Text>
+                <Text style={styles.arrowText}>❯</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Daily Installments List */}
+          <View style={styles.listContainer}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeader}>Repayment Ledger</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('PaymentHistoryDetail', { loanId: selectedLoan.id })}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.viewAllLink}>View All ›</Text>
+              </TouchableOpacity>
+            </View>
+            {(installments || []).map((inst, idx) => {
+              const isOverdue =
+                inst?.status === 'Unpaid' &&
+                inst?.due_date < new Date().toISOString().split('T')[0];
+              const isPaid = inst?.status === 'Paid';
+              return (
+                <View key={inst?.id || idx} style={styles.installmentCard}>
+                  <View style={styles.rowLeft}>
+                    <View style={[
+                      styles.calcIconBox,
+                      isPaid && styles.calcIconBoxPaid,
+                      isOverdue && styles.calcIconBoxOverdue,
+                    ]}>
+                      <Text style={styles.calcEmoji}>
+                        {isPaid ? '✓' : isOverdue ? '⚠' : '⏳'}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.installAmount}>
+                        ₹{Number(selectedLoan?.daily_installment || 0).toLocaleString('en-IN')}
+                      </Text>
+                      <Text style={styles.installDate}>
+                        Day {idx + 1} — {inst?.due_date || '—'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.rowRight}>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        isPaid && styles.statusPaid,
+                        isOverdue && styles.statusOverdue,
+                        !isPaid && !isOverdue && styles.statusPending,
+                      ]}
+                    >
+                      {isPaid ? 'PAID' : isOverdue ? 'LATE' : 'PENDING'}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+
+            {/* Full Payment History CTA */}
+            <TouchableOpacity
+              style={styles.historyCtaButton}
+              onPress={() => navigation.navigate('PaymentHistoryDetail', { loanId: selectedLoan.id })}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.historyCtaEmoji}>📋</Text>
+              <Text style={styles.historyCtaText}>View Full Payment History</Text>
+              <Text style={styles.historyCtaArrow}>›</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -369,4 +462,108 @@ const styles = StyleSheet.create({
   historyCtaEmoji: { fontSize: 18 },
   historyCtaText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', flex: 1, textAlign: 'center' },
   historyCtaArrow: { color: COLORS.secondary, fontSize: 20, fontWeight: '900' },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    marginHorizontal: 20,
+    marginTop: 16,
+    padding: 4,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  tabButtonActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  tabTextActive: {
+    color: '#0F172A',
+  },
+  loanSelectorScroll: {
+    marginVertical: 12,
+    paddingHorizontal: 20,
+  },
+  loanSelectorContent: {
+    gap: 8,
+    paddingRight: 40,
+  },
+  loanSelectorBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 99,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  loanSelectorBadgeActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  loanSelectorText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  loanSelectorTextActive: {
+    color: '#2563EB',
+  },
+  tabEmptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 64,
+    paddingHorizontal: 32,
+  },
+  tabEmptyIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  tabEmptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginBottom: 6,
+  },
+  tabEmptySubtitle: {
+    fontSize: 12,
+    color: COLORS.muted,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  loanDetailsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFC800',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 8,
+  },
+  loanDetailsLinkIcon: {
+    fontSize: 16,
+  },
+  loanDetailsLinkText: {
+    flex: 1,
+    color: '#111827',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  loanDetailsLinkArrow: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '900',
+  },
 });

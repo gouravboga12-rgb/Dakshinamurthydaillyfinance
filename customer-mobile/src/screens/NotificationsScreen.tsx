@@ -86,6 +86,8 @@ export default function NotificationsScreen() {
         return { emoji: '💰', color: '#10B981', label: 'Payment' };
       case 'status':
         return { emoji: '🔔', color: '#F59E0B', label: 'Status' };
+      case 'alert':
+        return { emoji: '🚨', color: '#EF4444', label: 'Alert' };
       case 'system':
       default:
         return { emoji: '⚙️', color: '#6B7280', label: 'System' };

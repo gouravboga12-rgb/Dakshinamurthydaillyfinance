@@ -121,7 +121,7 @@ export default function ProfileScreen() {
 
       const response = await api.put('/auth/profile', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': Platform.OS === 'web' ? undefined : 'multipart/form-data',
         },
       });
 

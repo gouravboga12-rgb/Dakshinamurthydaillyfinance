@@ -54,6 +54,7 @@ export default function DashboardScreen({ navigation }: any) {
   const [applyModalVisible, setApplyModalVisible] = useState(false);
   const [selectedLoanType, setSelectedLoanType] = useState('Daily Finance Loan');
   const [requestAmount, setRequestAmount] = useState('10000');
+  const [defaultDuration, setDefaultDuration] = useState('50');
   const [requestDuration, setRequestDuration] = useState('50');
   const [requestLoading, setRequestLoading] = useState(false);
   const [isCustomAmount, setIsCustomAmount] = useState(false);
@@ -62,6 +63,14 @@ export default function DashboardScreen({ navigation }: any) {
     try {
       const response = await api.get('/customer/dashboard');
       setSummary(response.data.summary);
+
+      // Fetch dynamic defaults from settings
+      const settingsResponse = await api.get('/customer/settings');
+      if (settingsResponse.data.settings?.default_duration) {
+        const defDur = String(settingsResponse.data.settings.default_duration);
+        setDefaultDuration(defDur);
+        setRequestDuration(defDur);
+      }
     } catch (err) {
       console.error('Dashboard fetch error:', err);
     } finally {
@@ -112,6 +121,7 @@ export default function DashboardScreen({ navigation }: any) {
     setSelectedLoanType(loanType);
     setRequestAmount('10000');
     setIsCustomAmount(false);
+    setRequestDuration(defaultDuration);
     setApplyModalVisible(true);
   };
 
@@ -203,7 +213,7 @@ export default function DashboardScreen({ navigation }: any) {
           <Image 
             source={require('../../assets/logo.png')} 
             style={styles.logoImageHeader as any} 
-            resizeMode="contain"
+            resizeMode="cover"
           />
           <View style={styles.logoTextContainer}>
             <Text style={styles.logoTextBrand}>DAKSHINAMURTHY</Text>
@@ -242,7 +252,37 @@ export default function DashboardScreen({ navigation }: any) {
         </View>
       </View>
 
-
+      {/* Zomato style urgent warning banner for overdue installments */}
+      {summary?.hasActiveLoan && (summary as any).overdueCount > 0 && (
+        <TouchableOpacity
+          style={styles.overdueBanner}
+          onPress={() => {
+            if ((summary as any).unpaidInstallments && (summary as any).unpaidInstallments.length > 0) {
+              const oldestUnpaid = (summary as any).unpaidInstallments.find((i: any) => i.status === 'Unpaid');
+              if (oldestUnpaid) {
+                navigation.navigate('Payment', {
+                  installmentId: oldestUnpaid.id,
+                  amount: loan?.daily_installment || 0
+                });
+              } else {
+                Alert.alert('Info', 'All missed installments are currently pending admin verification.');
+              }
+            }
+          }}
+          activeOpacity={0.95}
+        >
+          <View style={styles.overdueBannerLeft}>
+            <Text style={styles.overdueBannerIcon}>🚨</Text>
+            <View style={styles.overdueBannerTextContainer}>
+              <Text style={styles.overdueBannerTitle}>Repayment Overdue Alert!</Text>
+              <Text style={styles.overdueBannerSubtitle}>
+                Missed {(summary as any).overdueCount} installment{(summary as any).overdueCount > 1 ? 's' : ''} (Total: ₹{(summary as any).overdueAmount.toLocaleString('en-IN')}). Clear today to protect your profile.
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.overdueBannerBtnText}>Pay Now →</Text>
+        </TouchableOpacity>
+      )}
 
       {/* 2. Repayment Due Card (KreditBee Yellow Button style) */}
       {summary?.hasActiveLoan && loan && (
@@ -307,8 +347,71 @@ export default function DashboardScreen({ navigation }: any) {
                   <Text style={styles.dueDateText}>on {summary.nextDue || 'today'}</Text>
                 </View>
               </View>
+
+              {/* Loan Details Quick Link */}
+              <TouchableOpacity
+                style={styles.loanDetailsQuickLink}
+                onPress={() => navigation.navigate('LoanDetails', { loanId: loan.id })}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.loanDetailsQuickLinkText}>📋 View Loan Details</Text>
+                <Text style={styles.loanDetailsQuickLinkArrow}> →</Text>
+              </TouchableOpacity>
             </>
           )}
+        </View>
+      )}
+
+      {/* 2.5 Quick pay list of unpaid installments */}
+      {summary?.hasActiveLoan && (summary as any).unpaidInstallments && (summary as any).unpaidInstallments.length > 0 && (
+        <View style={styles.unpaidSection}>
+          <Text style={styles.unpaidSectionHeader}>⚠️ Missed / Upcoming Dues</Text>
+          <View style={styles.unpaidListContainer}>
+            {(summary as any).unpaidInstallments.map((inst: any, idx: number) => {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const isOverdue = inst.status === 'Unpaid' && inst.due_date < todayStr;
+              
+              return (
+                <View key={inst.id} style={[styles.unpaidItemRow, isOverdue && styles.overdueItemRow]}>
+                  <View style={styles.unpaidItemLeft}>
+                    <View style={[styles.unpaidIndicator, isOverdue ? styles.overdueIndicator : styles.upcomingIndicator]}>
+                      <Text style={styles.indicatorText}>{isOverdue ? '🚨' : '⏳'}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.unpaidItemTitle}>
+                        {isOverdue ? 'Overdue Installment' : 'Upcoming Installment'}
+                      </Text>
+                      <Text style={styles.unpaidItemDate}>Due Date: {inst.due_date}</Text>
+                      {inst.status === 'Pending' && (
+                        <Text style={styles.pendingText}>Verification Pending...</Text>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.unpaidItemRight}>
+                    <Text style={styles.unpaidItemAmount}>₹{loan?.daily_installment || 0}</Text>
+                    {inst.status === 'Pending' ? (
+                      <View style={styles.pendingLabelBadge}>
+                        <Text style={styles.pendingLabelBadgeText}>Pending</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.unpaidPayBtn}
+                        onPress={() => {
+                          navigation.navigate('Payment', {
+                            installmentId: inst.id,
+                            amount: loan?.daily_installment || 0
+                          });
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.unpaidPayBtnText}>Pay</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
         </View>
       )}
 
@@ -499,11 +602,12 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logoImageHeader: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     borderWidth: 1.5,
     borderColor: COLORS.secondary,
+    backgroundColor: '#FFFFFF',
   },
   logoTextContainer: {
     flexDirection: 'column',
@@ -861,5 +965,187 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     paddingHorizontal: 8,
+  },
+  loanDetailsQuickLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  loanDetailsQuickLinkText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  loanDetailsQuickLinkArrow: {
+    color: '#FFC800',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  overdueBanner: {
+    backgroundColor: '#EF4444',
+    marginHorizontal: 24,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 10px rgba(239, 68, 68, 0.2)',
+      },
+    }),
+  },
+  overdueBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  overdueBannerIcon: {
+    fontSize: 20,
+  },
+  overdueBannerTextContainer: {
+    flex: 1,
+  },
+  overdueBannerTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  overdueBannerSubtitle: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
+    lineHeight: 14,
+  },
+  overdueBannerBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+    marginLeft: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  unpaidSection: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+  },
+  unpaidSectionHeader: {
+    color: COLORS.heading,
+    fontSize: 14,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  unpaidListContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 12,
+    gap: 10,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.02)',
+      },
+    }),
+  },
+  unpaidItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  overdueItemRow: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FEE2E2',
+  },
+  unpaidItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  unpaidIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overdueIndicator: {
+    backgroundColor: '#FEE2E2',
+  },
+  upcomingIndicator: {
+    backgroundColor: '#EFF6FF',
+  },
+  indicatorText: {
+    fontSize: 14,
+  },
+  unpaidItemTitle: {
+    color: COLORS.heading,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  unpaidItemDate: {
+    color: COLORS.muted,
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  pendingText: {
+    color: '#F59E0B',
+    fontSize: 9,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  unpaidItemRight: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  unpaidItemAmount: {
+    color: COLORS.heading,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  pendingLabelBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 0.5,
+    borderColor: '#FDE68A',
+  },
+  pendingLabelBadgeText: {
+    color: '#D97706',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  unpaidPayBtn: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  unpaidPayBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
   },
 });
