@@ -11,15 +11,15 @@ const getBaseUrl = () => {
 
   if (Platform.OS === 'web') {
     // When served from the unified backend, use relative URL (same origin)
-    // If opened on the Expo dev server (port 8082), route API calls to Express backend (port 8081)
+    // If opened on the Expo dev server (port 8082), route API calls to Express backend (port 8081) on localhost
     if (typeof window !== 'undefined' && window.location.port === '8082') {
-      return 'http://192.168.1.6:8081/api';
+      return 'http://localhost:8081/api';
     }
     return '/api';
   }
   
-  // Use the PC's local IP address (192.168.1.6) so physical phones on the same Wi-Fi can connect to the backend
-  return 'http://192.168.1.6:8081/api';
+  // Use the public secure tunnel URL so physical phones can connect to the local backend without firewall/Wi-Fi restrictions
+  return 'https://afraid-games-leave.loca.lt/api';
 };
 
 // --- In-Memory Mock Database State ---
