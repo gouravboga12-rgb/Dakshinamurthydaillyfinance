@@ -47,5 +47,5 @@ backend/uploads/
 # Stray screenshot / image files in root
 image copy*.png
 image copy*.jpg
-*.png
-*.jpg
+/*.png
+/*.jpg

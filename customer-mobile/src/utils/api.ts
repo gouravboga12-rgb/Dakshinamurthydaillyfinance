@@ -3,23 +3,23 @@ import { Platform } from 'react-native';
 import { store } from '../store';
 
 const getBaseUrl = () => {
+  // Check if a custom API URL is defined in the environment variables
+  const envUrl = (process.env as any).EXPO_PUBLIC_API_URL || (process.env as any).REACT_APP_API_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+
   if (Platform.OS === 'web') {
     // When served from the unified backend, use relative URL (same origin)
     // If opened on the Expo dev server (port 8082), route API calls to Express backend (port 8081)
-    if (typeof window !== 'undefined') {
-      if ((process.env as any).EXPO_PUBLIC_API_URL) {
-        return (process.env as any).EXPO_PUBLIC_API_URL;
-      }
-      if (window.location.port === '8082') {
-        return 'http://localhost:8081/api';
-      }
+    if (typeof window !== 'undefined' && window.location.port === '8082') {
+      return 'http://192.168.1.6:8081/api';
     }
     return '/api';
   }
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8081/api';
-  }
-  return 'http://localhost:8081/api';
+  
+  // Use the PC's local IP address (192.168.1.6) so physical phones on the same Wi-Fi can connect to the backend
+  return 'http://192.168.1.6:8081/api';
 };
 
 // --- In-Memory Mock Database State ---

@@ -12,6 +12,7 @@ import {
   Modal,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
+import * as DocumentPicker from 'expo-document-picker';
 import { loginSuccess } from '../store/authSlice';
 import api from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
@@ -318,11 +319,30 @@ export default function RegisterScreen({ navigation }: any) {
             <Text style={COMMON_STYLES.label}>Aadhaar Card Upload (PDF, PNG, JPG) *</Text>
             <TouchableOpacity
               style={[styles.uploadButton, aadhaarFile && styles.uploadButtonSuccess]}
-              onPress={() => {
+              onPress={async () => {
                 if (Platform.OS === 'web') {
                   fileInputRef.current?.click();
                 } else {
-                  Alert.alert('Upload Document', 'Document picker is supported on web.');
+                  try {
+                    const result = await DocumentPicker.getDocumentAsync({
+                      type: ['image/*', 'application/pdf'],
+                      copyToCacheDirectory: true,
+                    });
+                    
+                    if (!result.canceled && result.assets && result.assets.length > 0) {
+                      const asset = result.assets[0];
+                      setAadhaarFile({
+                        uri: asset.uri,
+                        name: asset.name || 'aadhaar.jpg',
+                        type: asset.mimeType || 'image/jpeg',
+                        fileObj: null,
+                        size: asset.size
+                      } as any);
+                    }
+                  } catch (err) {
+                    console.log('Error picking document:', err);
+                    Alert.alert('Error', 'Failed to pick Aadhaar document.');
+                  }
                 }
               }}
               activeOpacity={0.8}
@@ -333,7 +353,7 @@ export default function RegisterScreen({ navigation }: any) {
             </TouchableOpacity>
             {aadhaarFile && (
               <Text style={styles.uploadSuccessDetail}>
-                Size: {Math.round(aadhaarFile.fileObj?.size ? (aadhaarFile.fileObj.size / 1024) : 0)} KB
+                Size: {Math.round((aadhaarFile as any).size ? ((aadhaarFile as any).size / 1024) : (aadhaarFile.fileObj?.size ? (aadhaarFile.fileObj.size / 1024) : 0))} KB
               </Text>
             )}
           </View>

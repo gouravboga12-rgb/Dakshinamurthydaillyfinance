@@ -28,6 +28,12 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "port": 8082
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1ece53de-d115-4596-b53a-400f4fec44e1"
+      }
+    },
+    "owner": "gouravboga"
   }
 }
