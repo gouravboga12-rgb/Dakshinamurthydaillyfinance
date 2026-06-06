@@ -49,6 +49,14 @@ export const sendOtp = async (req: Request, res: Response) => {
     // Send OTP via Email
     const emailSent = await sendOtpEmail(trimmedEmail, otp);
     if (!emailSent) {
+      console.warn(`[SMTP Warning] Failed to send email to ${trimmedEmail}. Falling back to console OTP in development: ${otp}`);
+      const isLocal = process.env.NODE_ENV === 'development' || !process.env.VERCEL;
+      if (isLocal) {
+        return res.status(200).json({ 
+          message: `[Dev Mode] SMTP Failed. Your verification code is: ${otp}`, 
+          otp 
+        });
+      }
       return res.status(500).json({ error: 'Failed to send OTP email. Please verify SMTP settings.' });
     }
 
