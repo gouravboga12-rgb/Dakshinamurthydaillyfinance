@@ -23,16 +23,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.dailyfinance.customer",
-      "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "READ_CONTACTS",
-        "READ_SMS",
-        "RECEIVE_SMS",
-        "CALL_PHONE"
-      ]
+      "package": "com.dailyfinance.customer"
     },
     "web": {
       "favicon": "./assets/favicon.png",
