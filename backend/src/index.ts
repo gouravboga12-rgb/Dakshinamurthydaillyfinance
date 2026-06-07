@@ -202,7 +202,7 @@ function buildNotReadyHtml(name: string, dir: string, cmd: string): string {
 
 // ─── Error Handler ────────────────────────────────────────────────────────────
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('Server Error:', err.message || err);
+  console.error('Server Error Stack:', err.stack || err);
   res.status(err.status || 500).json({ error: err.message || 'Internal server error.' });
 });
 

@@ -282,7 +282,6 @@ const api = axios.create({
   baseURL: getBaseUrl(),
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
     'Bypass-Tunnel-Reminder': 'true',
   },
   // adapter: mockAdapter, // Disabled mock adapter to connect to real backend server
