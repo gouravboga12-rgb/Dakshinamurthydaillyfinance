@@ -6,6 +6,16 @@ import { store } from './src/store';
 import AppNavigator from './src/navigation/AppNavigator';
 import { NavigationContainer } from '@react-navigation/native';
 import { View, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import * as Notifications from 'expo-notifications';
+
+// Configure foreground notifications handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export default function App() {
   const { width } = useWindowDimensions();

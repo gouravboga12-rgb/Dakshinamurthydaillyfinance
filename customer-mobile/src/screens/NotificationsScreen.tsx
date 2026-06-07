@@ -17,7 +17,7 @@ interface Notification {
   user_id: string;
   title: string;
   message: string;
-  type: 'loan' | 'payment' | 'status' | 'system';
+  type: 'loan' | 'payment' | 'status' | 'system' | 'alert';
   is_read: number; // 0 or 1
   created_at: string;
 }

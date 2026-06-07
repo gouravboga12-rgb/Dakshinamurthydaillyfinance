@@ -48,19 +48,19 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
       if (overdueCount > 0 && activeLoan.status === 'Active') {
         const recentNotif = notifications.find(
           (n: any) => (n.title.includes('Alert') || n.title.includes('Reminder') || n.type === 'alert') && 
-                      (new Date().getTime() - new Date(n.created_at).getTime()) < 24 * 60 * 60 * 1000
+                      (new Date().getTime() - new Date(n.created_at).getTime()) < 1 * 60 * 60 * 1000 // 1 hour threshold to avoid spam
         );
         if (!recentNotif) {
           const titles = [
             "⚠️ Missed Installment Alert!",
-            "⏳ Repayment Reminder: Don't lose your standing!",
-            "🚨 Action Required: Settle Outstanding Dues",
-            "💳 Settle your unpaid dues!"
+            "⏳ Repayment Reminder: Profile Status At Risk!",
+            "🚨 Action Required: Lending Score Impact Warning",
+            "💳 Settle your overdue installments!"
           ];
           const messages = [
-            `Hey! You have ${overdueCount} missed daily installment${overdueCount > 1 ? 's' : ''} (Total: ₹${overdueAmount}). Please pay immediately to prevent affecting your lending score profile!`,
-            `Avoid late penalty fees! You have ₹${overdueAmount} overdue for your active loan. Clear it quickly.`,
-            `Urgent: Your loan profile status is at risk. Settle your ₹${overdueAmount} unpaid dues to maintain a healthy repayment profile.`
+            `Hey! You have ${overdueCount} missed daily installment${overdueCount > 1 ? 's' : ''} (Total: ₹${overdueAmount}). Your lending profile score will be affected if you do not pay on time. Settle immediately!`,
+            `Avoid profile deactivation! You have ₹${overdueAmount} overdue. Your lending history will be affected if you do not pay on time.`,
+            `Urgent: Settle your ₹${overdueAmount} unpaid dues to prevent your credit score profile from being negatively affected.`
           ];
           // Pick based on overdue count or random
           const selectedTitle = titles[Math.min(overdueCount - 1, titles.length - 1)];
@@ -87,9 +87,13 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
       };
     }
 
+    // Embed unread count in summary for Dashboard typescript compatibility
+    const unreadNotificationsCount = notifications.filter((n: any) => n.is_read === 0).length;
+    summary.unreadNotificationsCount = unreadNotificationsCount;
+
     return res.status(200).json({
       summary,
-      unreadNotificationsCount: notifications.filter((n: any) => n.is_read === 0).length
+      unreadNotificationsCount
     });
   } catch (error: any) {
     console.error('Customer dashboard error:', error);

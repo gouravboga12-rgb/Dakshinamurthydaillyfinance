@@ -18,6 +18,7 @@ import { RootState } from '../store';
 import api from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 
 interface DashboardSummary {
   hasActiveLoan: boolean;
@@ -64,7 +65,65 @@ export default function DashboardScreen({ navigation }: any) {
   const fetchDashboard = async () => {
     try {
       const response = await api.get('/customer/dashboard');
-      setSummary(response.data.summary);
+      const dashboardSummary = response.data.summary;
+      setSummary(dashboardSummary);
+
+      // Trigger local push notification and Alert dialog if overdue or due today
+      if (Platform.OS !== 'web' && dashboardSummary) {
+        const loan = dashboardSummary.loan;
+        if (dashboardSummary.overdueCount > 0) {
+          // Trigger local push notification tray alert
+          try {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: '⚠️ Repayment Overdue Warning!',
+                body: `You have missed ${dashboardSummary.overdueCount} installment(s). Your lending profile score is at risk. Please clear dues immediately!`,
+                sound: true,
+                priority: Notifications.AndroidNotificationPriority.HIGH,
+              },
+              trigger: null, // immediate
+            });
+          } catch (notifErr) {
+            console.error('Failed to schedule overdue push notification:', notifErr);
+          }
+
+          // Trigger explicit Alert Dialog popup
+          Alert.alert(
+            '⚠️ Repayment Overdue Alert!',
+            `You have missed ${dashboardSummary.overdueCount} daily installment(s) (Total Overdue: ₹${dashboardSummary.overdueAmount.toLocaleString('en-IN')}).\n\nCRITICAL: Your lending profile score and future loan eligibility will be negatively affected if you do not pay on time. Please clear your dues immediately!`,
+            [
+              {
+                text: 'Pay Now',
+                onPress: () => {
+                  const oldestUnpaid = dashboardSummary.unpaidInstallments?.find((i: any) => i.status === 'Unpaid');
+                  if (oldestUnpaid) {
+                    navigation.navigate('Payment', {
+                      installmentId: oldestUnpaid.id,
+                      amount: loan?.daily_installment || 0,
+                    });
+                  }
+                },
+              },
+              { text: 'Dismiss', style: 'cancel' },
+            ]
+          );
+        } else if (dashboardSummary.dueTodayAmount > 0) {
+          // Trigger local push notification reminder
+          try {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: '📅 Daily Repayment Due Today',
+                body: `Your daily installment of ₹${dashboardSummary.dueTodayAmount} is due today. Settle today to keep your lending score healthy!`,
+                sound: true,
+                priority: Notifications.AndroidNotificationPriority.DEFAULT,
+              },
+              trigger: null, // immediate
+            });
+          } catch (notifErr) {
+            console.error('Failed to schedule daily push notification:', notifErr);
+          }
+        }
+      }
 
       // Fetch dynamic defaults from settings
       const settingsResponse = await api.get('/customer/settings');
@@ -82,6 +141,20 @@ export default function DashboardScreen({ navigation }: any) {
   };
 
   useEffect(() => {
+    async function requestPermissions() {
+      if (Platform.OS !== 'web') {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== 'granted') {
+          console.warn('Failed to get permissions for notifications!');
+        }
+      }
+    }
+    requestPermissions();
     fetchDashboard();
   }, []);
 
@@ -276,9 +349,9 @@ export default function DashboardScreen({ navigation }: any) {
           <View style={styles.overdueBannerLeft}>
             <Text style={styles.overdueBannerIcon}>🚨</Text>
             <View style={styles.overdueBannerTextContainer}>
-              <Text style={styles.overdueBannerTitle}>Repayment Overdue Alert!</Text>
+              <Text style={styles.overdueBannerTitle}>⚠️ Repayment Overdue Alert!</Text>
               <Text style={styles.overdueBannerSubtitle}>
-                Missed {(summary as any).overdueCount} installment{(summary as any).overdueCount > 1 ? 's' : ''} (Total: ₹{(summary as any).overdueAmount.toLocaleString('en-IN')}). Clear today to protect your profile.
+                Missed {(summary as any).overdueCount} installment{(summary as any).overdueCount > 1 ? 's' : ''}. Your lending profile score will be affected if you do not pay on time. Please clear today!
               </Text>
             </View>
           </View>
