@@ -144,11 +144,7 @@ export default function RegisterScreen({ navigation }: any) {
         } as any);
       }
 
-      await api.post('/auth/register', formData, {
-        headers: {
-          'Content-Type': Platform.OS === 'web' ? undefined : 'multipart/form-data',
-        },
-      });
+      await api.post('/auth/register', formData);
 
       setOtpModalVisible(false);
       setOtp('');

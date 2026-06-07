@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import * as DocumentPicker from 'expo-document-picker';
 import { RootState } from '../store';
 import { logout, updateProfile } from '../store/authSlice';
 import api, { getBaseUrl } from '../utils/api';
@@ -75,11 +76,29 @@ export default function ProfileScreen() {
     setAvatarPreviewUri(null);
   };
 
-  const handleSelectAvatar = () => {
+  const handleSelectAvatar = async () => {
     if (Platform.OS === 'web') {
       fileInputRef.current?.click();
     } else {
-      Alert.alert('Upload Photo', 'Photo uploads are supported on the web platform.');
+      try {
+        const result = await DocumentPicker.getDocumentAsync({
+          type: 'image/*',
+          copyToCacheDirectory: true,
+        });
+        
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          setAvatarFile({
+            uri: asset.uri,
+            name: asset.name || 'avatar.jpg',
+            type: asset.mimeType || 'image/jpeg',
+          });
+          setAvatarPreviewUri(asset.uri);
+        }
+      } catch (err) {
+        console.log('Error picking avatar image:', err);
+        Alert.alert('Error', 'Failed to pick photo.');
+      }
     }
   };
 
@@ -112,18 +131,14 @@ export default function ProfileScreen() {
           formData.append('avatar', avatarFile);
         } else {
           formData.append('avatar', {
-            uri: avatarPreviewUri,
-            name: 'avatar.jpg',
-            type: 'image/jpeg',
+            uri: avatarFile.uri,
+            name: avatarFile.name || 'avatar.jpg',
+            type: avatarFile.type || 'image/jpeg',
           } as any);
         }
       }
 
-      const response = await api.put('/auth/profile', formData, {
-        headers: {
-          'Content-Type': Platform.OS === 'web' ? undefined : 'multipart/form-data',
-        },
-      });
+      const response = await api.put('/auth/profile', formData);
 
       const updatedUser = response.data.user;
       dispatch(updateProfile(updatedUser));

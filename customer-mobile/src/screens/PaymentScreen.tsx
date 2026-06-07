@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import api, { getBaseUrl } from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
 
@@ -46,11 +47,29 @@ export default function PaymentScreen({ route, navigation }: any) {
     fetchSettings();
   }, []);
 
-  const handleSelectProof = () => {
+  const handleSelectProof = async () => {
     if (Platform.OS === 'web') {
       fileInputRef.current?.click();
     } else {
-      Alert.alert('Upload Proof', 'Proof screenshot upload is supported on the web platform.');
+      try {
+        const result = await DocumentPicker.getDocumentAsync({
+          type: 'image/*',
+          copyToCacheDirectory: true,
+        });
+        
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          setProofFile({
+            uri: asset.uri,
+            name: asset.name || 'proof.jpg',
+            type: asset.mimeType || 'image/jpeg',
+          });
+          setProofPreviewUri(asset.uri);
+        }
+      } catch (err) {
+        console.log('Error picking payment proof screenshot:', err);
+        Alert.alert('Error', 'Failed to pick screenshot.');
+      }
     }
   };
 
@@ -91,14 +110,12 @@ export default function PaymentScreen({ route, navigation }: any) {
           formData.append('proof', proofFile);
         } else {
           formData.append('proof', {
-            uri: proofPreviewUri,
-            name: 'proof.jpg',
-            type: 'image/jpeg',
+            uri: proofFile.uri,
+            name: proofFile.name || 'proof.jpg',
+            type: proofFile.type || 'image/jpeg',
           } as any);
         }
-        await api.post(`/customer/loans/${loanId}/foreclose-proof`, formData, {
-          headers: { 'Content-Type': Platform.OS === 'web' ? undefined : 'multipart/form-data' },
-        });
+        await api.post(`/customer/loans/${loanId}/foreclose-proof`, formData);
         if (Platform.OS === 'web') {
           alert('Foreclosure Request Submitted! 🎉\n\nYour full outstanding payment proof has been submitted to the administrator for review. Your loan will be closed once the admin verifies the payment.');
         } else {
@@ -115,14 +132,12 @@ export default function PaymentScreen({ route, navigation }: any) {
           formData.append('proof', proofFile);
         } else {
           formData.append('proof', {
-            uri: proofPreviewUri,
-            name: 'proof.jpg',
-            type: 'image/jpeg',
+            uri: proofFile.uri,
+            name: proofFile.name || 'proof.jpg',
+            type: proofFile.type || 'image/jpeg',
           } as any);
         }
-        await api.post('/customer/pay-proof', formData, {
-          headers: { 'Content-Type': Platform.OS === 'web' ? undefined : 'multipart/form-data' },
-        });
+        await api.post('/customer/pay-proof', formData);
         if (Platform.OS === 'web') {
           alert('Repayment Submitted! 🎉\n\nYour repayment proof has been successfully submitted to the administrator for review.');
         } else {
