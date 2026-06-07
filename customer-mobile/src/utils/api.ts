@@ -19,7 +19,7 @@ const getBaseUrl = () => {
   }
   
   // Use the public secure tunnel URL so physical phones can connect to the local backend without firewall/Wi-Fi restrictions
-  return 'https://dakshinamurthy-finance-dev.loca.lt/api';
+  return 'https://daily-finance-dev.loca.lt/api';
 };
 
 // --- In-Memory Mock Database State ---
