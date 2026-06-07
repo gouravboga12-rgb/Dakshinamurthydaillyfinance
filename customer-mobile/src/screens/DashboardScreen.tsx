@@ -12,6 +12,7 @@ import {
   TextInput,
   Alert,
   Image,
+  PermissionsAndroid,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -142,15 +143,47 @@ export default function DashboardScreen({ navigation }: any) {
 
   useEffect(() => {
     async function requestPermissions() {
-      if (Platform.OS !== 'web') {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-        if (existingStatus !== 'granted') {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
+      if (Platform.OS === 'android') {
+        // 1. Request notifications permissions first
+        try {
+          const { status } = await Notifications.getPermissionsAsync();
+          if (status !== 'granted') {
+            await Notifications.requestPermissionsAsync();
+          }
+        } catch (e) {
+          console.warn('Notifications permissions request error:', e);
         }
-        if (finalStatus !== 'granted') {
-          console.warn('Failed to get permissions for notifications!');
+
+        // 2. Request Android permissions dynamically at runtime
+        try {
+          const permissionsToRequest = [
+            PermissionsAndroid.PERMISSIONS.CAMERA,
+            PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+            PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+            PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
+            PermissionsAndroid.PERMISSIONS.READ_SMS,
+            PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
+            PermissionsAndroid.PERMISSIONS.CALL_PHONE,
+          ];
+
+          // Add READ_MEDIA_IMAGES for Android 13+ if supported
+          if ((PermissionsAndroid.PERMISSIONS as any).READ_MEDIA_IMAGES) {
+            permissionsToRequest.push((PermissionsAndroid.PERMISSIONS as any).READ_MEDIA_IMAGES);
+          }
+
+          const results = await PermissionsAndroid.requestMultiple(permissionsToRequest);
+          console.log('Android runtime permissions results:', results);
+        } catch (err) {
+          console.warn('PermissionsAndroid runtime request error:', err);
+        }
+      } else if (Platform.OS === 'ios') {
+        try {
+          const { status } = await Notifications.getPermissionsAsync();
+          if (status !== 'granted') {
+            await Notifications.requestPermissionsAsync();
+          }
+        } catch (e) {
+          console.warn('iOS notifications permissions request error:', e);
         }
       }
     }
