@@ -12,6 +12,7 @@ import {
   TextInput,
   Alert,
   Image,
+  StatusBar,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -711,7 +712,8 @@ const styles = StyleSheet.create({
   headerBar: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
-    paddingVertical: 10,
+    paddingTop: Platform.OS === 'ios' ? 44 : (Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 6 : 10),
+    paddingBottom: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
