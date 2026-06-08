@@ -17,6 +17,7 @@ export default function Settings({ token }: SettingsProps) {
   const [defaultDuration, setDefaultDuration] = useState('50');
   const [defaultInstallment, setDefaultInstallment] = useState('200');
   const [upiMobileNumber, setUpiMobileNumber] = useState('9999999999');
+  const [officialUpiId, setOfficialUpiId] = useState('dakshinamurthy@ybl');
   const [saved, setSaved] = useState(false);
 
   // QR config states
@@ -38,6 +39,7 @@ export default function Settings({ token }: SettingsProps) {
         if (s.platform_fee) setPlatformFee(s.platform_fee);
         if (s.default_duration) setDefaultDuration(s.default_duration);
         if (s.default_installment) setDefaultInstallment(s.default_installment);
+        if (s.official_upi_id) setOfficialUpiId(s.official_upi_id);
       }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
@@ -55,7 +57,8 @@ export default function Settings({ token }: SettingsProps) {
         upi_mobile_number: upiMobileNumber,
         platform_fee: platformFee,
         default_duration: defaultDuration,
-        default_installment: defaultInstallment
+        default_installment: defaultInstallment,
+        official_upi_id: officialUpiId
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -167,6 +170,19 @@ export default function Settings({ token }: SettingsProps) {
                     onChange={(e) => setUpiMobileNumber(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
                     placeholder="e.g. 9999999999"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Official UPI ID</label>
+                  <input
+                    type="text"
+                    value={officialUpiId}
+                    onChange={(e) => setOfficialUpiId(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                    placeholder="e.g. dakshinamurthy@ybl"
                   />
                 </div>
               </div>

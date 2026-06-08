@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,13 @@ import {
   StyleSheet,
   Linking,
   Platform,
+  Clipboard,
+  Alert,
 } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import COLORS from '../utils/theme';
+import api from '../utils/api';
 
-const UPI_ID = 'dakshinamurthy@ybl';
 const WHATSAPP_NUMBER = '917659934261';
 
 const upiApps = [
@@ -21,47 +23,68 @@ const upiApps = [
   { name: 'BHIM UPI', icon: '🇮🇳', color: '#138808' },
 ];
 
-const steps = [
-  {
-    step: 1,
-    title: 'Open any UPI app',
-    desc: 'Launch Google Pay, PhonePe, Paytm or any BHIM UPI enabled app on your phone.',
-    icon: 'phone-portrait-outline' as const,
-  },
-  {
-    step: 2,
-    title: 'Tap "Pay via UPI ID"',
-    desc: 'Choose the "Send Money" or "Pay" option and select "UPI ID / VPA" as payment mode.',
-    icon: 'wallet-outline' as const,
-  },
-  {
-    step: 3,
-    title: 'Enter the UPI ID',
-    desc: `Type the UPI ID exactly:\n${UPI_ID}\nVerify the name "Dakshinamurthy Finance" appears before proceeding.`,
-    icon: 'create-outline' as const,
-    highlight: UPI_ID,
-  },
-  {
-    step: 4,
-    title: 'Enter installment amount',
-    desc: 'Enter your daily installment amount (shown on your dashboard) and proceed to pay.',
-    icon: 'cash-outline' as const,
-  },
-  {
-    step: 5,
-    title: 'Complete & note the UTR',
-    desc: 'Confirm payment with your UPI PIN. Note the 12-digit UTR / Transaction Reference ID from the success screen.',
-    icon: 'checkmark-circle-outline' as const,
-  },
-  {
-    step: 6,
-    title: 'Submit proof on the app',
-    desc: 'On your Dashboard, tap "Pay Installment", enter the UTR number and upload the payment screenshot.',
-    icon: 'cloud-upload-outline' as const,
-  },
-];
-
 export default function HowToRepayScreen({ navigation }: any) {
+  const [upiId, setUpiId] = useState('dakshinamurthy@ybl');
+
+  useEffect(() => {
+    let active = true;
+    const fetchSettings = async () => {
+      try {
+        const response = await api.get('/customer/settings');
+        const settings = response.data?.settings;
+        if (settings?.official_upi_id && active) {
+          setUpiId(settings.official_upi_id);
+        }
+      } catch (err) {
+        console.error('Failed to fetch settings in HowToRepayScreen:', err);
+      }
+    };
+    fetchSettings();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const steps = [
+    {
+      step: 1,
+      title: 'Open any UPI app',
+      desc: 'Launch Google Pay, PhonePe, Paytm or any BHIM UPI enabled app on your phone.',
+      icon: 'phone-portrait-outline' as const,
+    },
+    {
+      step: 2,
+      title: 'Tap "Pay via UPI ID"',
+      desc: 'Choose the "Send Money" or "Pay" option and select "UPI ID / VPA" as payment mode.',
+      icon: 'wallet-outline' as const,
+    },
+    {
+      step: 3,
+      title: 'Enter the UPI ID',
+      desc: `Type the UPI ID exactly:\n${upiId}\nVerify the name "Dakshinamurthy Finance" appears before proceeding.`,
+      icon: 'create-outline' as const,
+      highlight: upiId,
+    },
+    {
+      step: 4,
+      title: 'Enter installment amount',
+      desc: 'Enter your daily installment amount (shown on your dashboard) and proceed to pay.',
+      icon: 'cash-outline' as const,
+    },
+    {
+      step: 5,
+      title: 'Complete & note the UTR',
+      desc: 'Confirm payment with your UPI PIN. Note the 12-digit UTR / Transaction Reference ID from the success screen.',
+      icon: 'checkmark-circle-outline' as const,
+    },
+    {
+      step: 6,
+      title: 'Submit proof on the app',
+      desc: 'On your Dashboard, tap "Pay Installment", enter the UTR number and upload the payment screenshot.',
+      icon: 'cloud-upload-outline' as const,
+    },
+  ];
+
   const handleWhatsApp = () => {
     Linking.openURL(
       `https://wa.me/${WHATSAPP_NUMBER}?text=Hello%20Dakshinamurthy%20Finance,%20I%20need%20help%20with%20my%20repayment.`
@@ -70,7 +93,10 @@ export default function HowToRepayScreen({ navigation }: any) {
 
   const handleCopyUPI = () => {
     if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
-      navigator.clipboard?.writeText(UPI_ID).catch(() => {});
+      navigator.clipboard?.writeText(upiId).catch(() => {});
+    } else {
+      Clipboard.setString(upiId);
+      Alert.alert('Copied', 'UPI ID copied to clipboard!');
     }
   };
 
@@ -129,7 +155,7 @@ export default function HowToRepayScreen({ navigation }: any) {
       <View style={styles.upiIdCard}>
         <View style={styles.upiIdLeft}>
           <Text style={styles.upiIdLabel}>Official UPI ID</Text>
-          <Text style={styles.upiIdValue}>{UPI_ID}</Text>
+          <Text style={styles.upiIdValue}>{upiId}</Text>
           <Text style={styles.upiIdVerify}>
             ✓ Verify name: <Text style={styles.upiIdVerifyName}>Dakshinamurthy Finance</Text>
           </Text>

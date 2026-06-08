@@ -309,11 +309,13 @@ export const getSettings = async (req: Request, res: Response) => {
     const upiQrUrl = await db.getSetting('upi_qr_url', 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=dakshinamurthy@ybl%26pn=Dakshinamurthy%20Daily%20Finance');
     const upiMobileNumber = await db.getSetting('upi_mobile_number', '9999999999');
     const defaultDuration = await db.getSetting('default_duration', '50');
+    const officialUpiId = await db.getSetting('official_upi_id', 'dakshinamurthy@ybl');
     return res.status(200).json({ 
       settings: { 
         upi_qr_url: upiQrUrl,
         upi_mobile_number: upiMobileNumber,
-        default_duration: defaultDuration
+        default_duration: defaultDuration,
+        official_upi_id: officialUpiId
       } 
     });
   } catch (error: any) {

@@ -774,6 +774,7 @@ export const getSettings = async (req: Request, res: Response) => {
     const platformFee = await db.getSetting('platform_fee', '1000');
     const defaultDuration = await db.getSetting('default_duration', '50');
     const defaultInstallment = await db.getSetting('default_installment', '200');
+    const officialUpiId = await db.getSetting('official_upi_id', 'dakshinamurthy@ybl');
     
     return res.status(200).json({ 
       settings: { 
@@ -781,7 +782,8 @@ export const getSettings = async (req: Request, res: Response) => {
         upi_mobile_number: upiMobileNumber,
         platform_fee: platformFee,
         default_duration: defaultDuration,
-        default_installment: defaultInstallment
+        default_installment: defaultInstallment,
+        official_upi_id: officialUpiId
       } 
     });
   } catch (error: any) {
@@ -792,7 +794,7 @@ export const getSettings = async (req: Request, res: Response) => {
 
 export const updateSettings = async (req: Request, res: Response) => {
   try {
-    const { upi_mobile_number, platform_fee, default_duration, default_installment } = req.body;
+    const { upi_mobile_number, platform_fee, default_duration, default_installment, official_upi_id } = req.body;
     
     if (upi_mobile_number !== undefined) {
       await db.updateSetting('upi_mobile_number', String(upi_mobile_number));
@@ -805,6 +807,16 @@ export const updateSettings = async (req: Request, res: Response) => {
     }
     if (default_installment !== undefined) {
       await db.updateSetting('default_installment', String(default_installment));
+    }
+    if (official_upi_id !== undefined) {
+      await db.updateSetting('official_upi_id', String(official_upi_id));
+
+      // Auto-sync upi_qr_url if it's currently using the default qrserver API URL or is empty
+      const currentQr = await db.getSetting('upi_qr_url', '');
+      if (!currentQr || currentQr.includes('api.qrserver.com')) {
+        const newQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=${encodeURIComponent(String(official_upi_id))}%26pn=Dakshinamurthy%20Daily%20Finance`;
+        await db.updateSetting('upi_qr_url', newQrUrl);
+      }
     }
 
     return res.status(200).json({ message: 'Settings updated successfully.' });
