@@ -2,27 +2,14 @@
   "version": 2,
   "installCommand": "npm install && cd admin-panel && npm install",
   "buildCommand": "cd admin-panel && npm run build",
-  "builds": [
-    {
-      "src": "api/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": [
-          "backend/src/**",
-          "admin-panel/dist/**"
-        ]
-      }
-    }
-  ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/index.ts" },
-    { "src": "/uploads/(.*)", "dest": "/api/index.ts" },
-    { "src": "/(.*)", "dest": "/api/index.ts" }
-  ],
   "functions": {
     "api/index.ts": {
       "maxDuration": 30,
-      "memory": 512
+      "memory": 512,
+      "includeFiles": "admin-panel/dist/**"
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index.ts" }
+  ]
 }
