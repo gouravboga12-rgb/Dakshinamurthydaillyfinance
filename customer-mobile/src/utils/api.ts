@@ -48,9 +48,9 @@ const getBaseUrl = () => {
     return '/api';
   }
   
-  // Use the public secure tunnel URL so physical phones can connect to the local backend
-  // IMPORTANT: Update EXPO_PUBLIC_API_URL in customer-mobile/.env when tunnel URL changes
-  return 'https://dakshinamurthy-daily-finance-app-v3.loca.lt/api';
+  // Use the permanent Vercel deployment URL for all physical devices
+  // No tunnel needed — the backend is live at the Vercel URL
+  return 'https://dakshinamurthydaillyfinance.vercel.app/api';
 };
 
 // --- In-Memory Mock Database State ---
