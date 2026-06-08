@@ -17,6 +17,7 @@ import { RootState } from '../store';
 import { logout, updateProfile } from '../store/authSlice';
 import api, { getBaseUrl } from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
+import { fileUriToBase64 } from '../utils/file';
 
 export default function ProfileScreen() {
   const user = useSelector((state: RootState) => state.auth.user);
@@ -88,6 +89,10 @@ export default function ProfileScreen() {
         
         if (!result.canceled && result.assets && result.assets.length > 0) {
           const asset = result.assets[0];
+          if (asset.size && asset.size > 2.5 * 1024 * 1024) {
+            Alert.alert('File Too Large', 'Avatar photo size exceeds the 2.5 MB limit. Please select a smaller photo.');
+            return;
+          }
           setAvatarFile({
             uri: asset.uri,
             name: asset.name || 'avatar.jpg',
@@ -121,24 +126,23 @@ export default function ProfileScreen() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const formData = new FormData();
-      formData.append('occupation', occupation.trim());
-      formData.append('shop_name', shopName.trim());
-      formData.append('address', address.trim());
-
+      let response;
       if (avatarFile) {
-        if (Platform.OS === 'web') {
-          formData.append('avatar', avatarFile);
-        } else {
-          formData.append('avatar', {
-            uri: avatarFile.uri,
-            name: avatarFile.name || 'avatar.jpg',
-            type: avatarFile.type || 'image/jpeg',
-          } as any);
-        }
+        const base64Data = await fileUriToBase64(avatarFile.uri);
+        response = await api.put('/auth/profile', {
+          occupation: occupation.trim(),
+          shop_name: shopName.trim(),
+          address: address.trim(),
+          avatar_base64: base64Data,
+        });
+      } else {
+        // Send as standard JSON if no file is selected (avoiding empty FormData formatting issues on native)
+        response = await api.put('/auth/profile', {
+          occupation: occupation.trim(),
+          shop_name: shopName.trim(),
+          address: address.trim(),
+        });
       }
-
-      const response = await api.put('/auth/profile', formData);
 
       const updatedUser = response.data.user;
       dispatch(updateProfile(updatedUser));
@@ -151,7 +155,7 @@ export default function ProfileScreen() {
       setIsEditing(false);
     } catch (err: any) {
       console.error(err);
-      const message = err.response?.data?.error || 'Failed to update profile. Please try again.';
+      const message = err.response?.data?.error || err.message || 'Failed to update profile. Please try again.';
       if (Platform.OS === 'web') {
         alert(`Error: ${message}`);
       } else {
@@ -201,6 +205,9 @@ export default function ProfileScreen() {
         <View style={styles.verifiedBadge}>
           <Text style={styles.verifiedText}>✓ Verified Customer</Text>
         </View>
+        {isEditing && (
+          <Text style={styles.avatarHelperText}>Max avatar size: 2.5 MB (PNG, JPG)</Text>
+        )}
       </View>
 
       {/* Hidden file input for web */}
@@ -213,6 +220,10 @@ export default function ProfileScreen() {
           onChange={(e: any) => {
             const file = e.target.files?.[0];
             if (file) {
+              if (file.size > 2.5 * 1024 * 1024) {
+                alert('File size exceeds the 2.5 MB limit. Please select a smaller photo.');
+                return;
+              }
               setAvatarFile(file);
               setAvatarPreviewUri(URL.createObjectURL(file));
             }
@@ -370,7 +381,7 @@ export default function ProfileScreen() {
         <Text style={styles.logoutText}>Sign Out of Account</Text>
       </TouchableOpacity>
 
-      <Text style={styles.footerBrand}>Dakshinamurthy Daily Finance v1.0</Text>
+      <Text style={styles.footerBrand}>Dakshinamurthy Daily Finance v1.4 (Multi-EMI & Size Enforced)</Text>
     </ScrollView>
   );
 }
@@ -442,6 +453,12 @@ const styles = StyleSheet.create({
     borderRadius: 99,
   },
   verifiedText: { color: '#10B981', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  avatarHelperText: {
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontSize: 11,
+    marginTop: 8,
+    fontWeight: '600',
+  },
 
   sectionTitle: {
     fontSize: 12,

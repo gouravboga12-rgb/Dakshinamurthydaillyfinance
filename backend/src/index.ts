@@ -28,12 +28,24 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// --- Request Logging (Before CORS to capture preflights) ---
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  console.log(`[Request Log In] ${req.method} ${req.originalUrl || req.url} - Content-Length: ${req.headers['content-length'] || 'N/A'} - Content-Type: ${req.headers['content-type'] || 'N/A'}`);
+  
+  res.on('finish', () => {
+    console.log(`[Request Log Out] ${req.method} ${req.originalUrl || req.url} -> Status: ${res.statusCode} (${Date.now() - startTime}ms)`);
+  });
+  
+  next();
+});
+
 // ─── CORS ────────────────────────────────────────────────────────────────────
 app.use(cors());
 
 // ─── Body Parsers ─────────────────────────────────────────────────────────────
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ─── File Uploads ─────────────────────────────────────────────────────────────
 const uploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../uploads');
@@ -201,7 +213,11 @@ function buildNotReadyHtml(name: string, dir: string, cmd: string): string {
 }
 
 // ─── Error Handler ────────────────────────────────────────────────────────────
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err instanceof SyntaxError && 'status' in err && (err as any).status === 400 && 'body' in err) {
+    console.error(`[Body Parser Error] Failed to parse request body for ${req.method} ${req.originalUrl || req.url}`);
+    console.error('Raw body fragment:', (err as any).body);
+  }
   console.error('Server Error Stack:', err.stack || err);
   res.status(err.status || 500).json({ error: err.message || 'Internal server error.' });
 });

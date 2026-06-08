@@ -14,9 +14,10 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import api, { getBaseUrl } from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
+import { fileUriToBase64 } from '../utils/file';
 
 export default function PaymentScreen({ route, navigation }: any) {
-  const { installmentId, amount, isForeclosure = false, loanId } = route.params;
+  const { installmentId, installmentIds, amount, isForeclosure = false, loanId } = route.params;
 
   const [qrUrl, setQrUrl] = useState('');
   const [upiMobileNumber, setUpiMobileNumber] = useState('');
@@ -59,6 +60,10 @@ export default function PaymentScreen({ route, navigation }: any) {
         
         if (!result.canceled && result.assets && result.assets.length > 0) {
           const asset = result.assets[0];
+          if (asset.size && asset.size > 2.5 * 1024 * 1024) {
+            Alert.alert('File Too Large', 'Screenshot proof size exceeds the 2.5 MB limit. Please select a smaller image.');
+            return;
+          }
           setProofFile({
             uri: asset.uri,
             name: asset.name || 'proof.jpg',
@@ -101,21 +106,14 @@ export default function PaymentScreen({ route, navigation }: any) {
 
     setSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append('transaction_id', utr.trim());
+      const base64Data = await fileUriToBase64(proofFile.uri);
 
       if (isForeclosure) {
         // Foreclosure: submit to the loan-level foreclose-proof endpoint
-        if (Platform.OS === 'web') {
-          formData.append('proof', proofFile);
-        } else {
-          formData.append('proof', {
-            uri: proofFile.uri,
-            name: proofFile.name || 'proof.jpg',
-            type: proofFile.type || 'image/jpeg',
-          } as any);
-        }
-        await api.post(`/customer/loans/${loanId}/foreclose-proof`, formData);
+        await api.post(`/customer/loans/${loanId}/foreclose-proof`, {
+          transaction_id: utr.trim(),
+          proof_base64: base64Data,
+        });
         if (Platform.OS === 'web') {
           alert('Foreclosure Request Submitted! 🎉\n\nYour full outstanding payment proof has been submitted to the administrator for review. Your loan will be closed once the admin verifies the payment.');
         } else {
@@ -127,17 +125,12 @@ export default function PaymentScreen({ route, navigation }: any) {
         }
       } else {
         // Regular EMI installment payment
-        formData.append('installmentId', installmentId);
-        if (Platform.OS === 'web') {
-          formData.append('proof', proofFile);
-        } else {
-          formData.append('proof', {
-            uri: proofFile.uri,
-            name: proofFile.name || 'proof.jpg',
-            type: proofFile.type || 'image/jpeg',
-          } as any);
-        }
-        await api.post('/customer/pay-proof', formData);
+        await api.post('/customer/pay-proof', {
+          transaction_id: utr.trim(),
+          installmentId: installmentId,
+          installmentIds: installmentIds,
+          proof_base64: base64Data,
+        });
         if (Platform.OS === 'web') {
           alert('Repayment Submitted! 🎉\n\nYour repayment proof has been successfully submitted to the administrator for review.');
         } else {
@@ -152,7 +145,7 @@ export default function PaymentScreen({ route, navigation }: any) {
       navigation.goBack();
     } catch (err: any) {
       console.error(err);
-      const message = err.response?.data?.error || 'Failed to submit payment proof. Please try again.';
+      const message = err.response?.data?.error || err.message || 'Failed to submit payment proof. Please try again.';
       if (Platform.OS === 'web') {
         alert(`Error: ${message}`);
       } else {
@@ -193,7 +186,10 @@ export default function PaymentScreen({ route, navigation }: any) {
           </View>
         )}
         <Text style={styles.amountLabel}>
-          {isForeclosure ? 'TOTAL OUTSTANDING BALANCE' : 'INSTALLMENT DUE AMOUNT'}
+          {isForeclosure 
+            ? 'TOTAL OUTSTANDING BALANCE' 
+            : (installmentIds && installmentIds.length > 1 ? 'TOTAL PENDING AMOUNT' : 'INSTALLMENT DUE AMOUNT')
+          }
         </Text>
         <Text style={styles.amountText}>₹{Number(amount).toLocaleString('en-IN')}</Text>
         {isForeclosure && (
@@ -253,6 +249,10 @@ export default function PaymentScreen({ route, navigation }: any) {
             onChange={(e: any) => {
               const file = e.target.files?.[0];
               if (file) {
+                if (file.size > 2.5 * 1024 * 1024) {
+                  alert('File size exceeds the 2.5 MB limit. Please select a smaller image.');
+                  return;
+                }
                 setProofFile(file);
                 setProofPreviewUri(URL.createObjectURL(file));
               }
@@ -271,6 +271,10 @@ export default function PaymentScreen({ route, navigation }: any) {
               {proofFile ? `✓ Proof Attached: ${proofFile.name.slice(0, 20)}...` : '📸 Choose screenshot'}
             </Text>
           </TouchableOpacity>
+          
+          <Text style={styles.uploadHelperText}>
+            Max allowed file size: 2.5 MB (PNG, JPG)
+          </Text>
           
           {proofPreviewUri && (
             <View style={styles.previewImageContainer}>
@@ -411,6 +415,12 @@ const styles = StyleSheet.create({
 
   uploadContainer: {
     marginBottom: 20,
+  },
+  uploadHelperText: {
+    color: COLORS.muted,
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '600',
   },
   uploadButton: {
     backgroundColor: '#F8FAFC',

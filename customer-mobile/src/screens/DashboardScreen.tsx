@@ -44,6 +44,9 @@ interface DashboardSummary {
   nextDueInstallmentId?: string | null;
   dueTodayAmount: number;
   unreadNotificationsCount: number;
+  overdueCount?: number;
+  overdueAmount?: number;
+  pendingInstallmentIds?: string[];
 }
 
 export default function DashboardScreen({ navigation }: any) {
@@ -332,7 +335,12 @@ export default function DashboardScreen({ navigation }: any) {
         <TouchableOpacity
           style={styles.overdueBanner}
           onPress={() => {
-            if ((summary as any).unpaidInstallments && (summary as any).unpaidInstallments.length > 0) {
+            if (summary.pendingInstallmentIds && summary.pendingInstallmentIds.length > 0) {
+              navigation.navigate('Payment', {
+                installmentIds: summary.pendingInstallmentIds,
+                amount: summary.pendingInstallmentIds.length * (loan?.daily_installment || 0)
+              });
+            } else if ((summary as any).unpaidInstallments && (summary as any).unpaidInstallments.length > 0) {
               const oldestUnpaid = (summary as any).unpaidInstallments.find((i: any) => i.status === 'Unpaid');
               if (oldestUnpaid) {
                 navigation.navigate('Payment', {
@@ -421,7 +429,12 @@ export default function DashboardScreen({ navigation }: any) {
                 <TouchableOpacity
                   style={styles.payYellowButton}
                   onPress={() => {
-                    if (summary.nextDueInstallmentId) {
+                    if (summary.pendingInstallmentIds && summary.pendingInstallmentIds.length > 0) {
+                      navigation.navigate('Payment', {
+                        installmentIds: summary.pendingInstallmentIds,
+                        amount: summary.pendingInstallmentIds.length * loan.daily_installment
+                      });
+                    } else if (summary.nextDueInstallmentId) {
                       navigation.navigate('Payment', {
                         installmentId: summary.nextDueInstallmentId,
                         amount: loan.daily_installment
@@ -436,7 +449,12 @@ export default function DashboardScreen({ navigation }: any) {
                   {paying ? (
                     <ActivityIndicator color={COLORS.primary} />
                   ) : (
-                    <Text style={styles.payButtonText}>Pay Installment: ₹{loan.daily_installment}</Text>
+                    <Text style={styles.payButtonText}>
+                      {summary.pendingInstallmentIds && summary.pendingInstallmentIds.length > 0
+                        ? `Pay Pending Installments: ₹${(summary.pendingInstallmentIds.length * loan.daily_installment).toLocaleString('en-IN')}`
+                        : `Pay Installment: ₹${loan.daily_installment.toLocaleString('en-IN')}`
+                      }
+                    </Text>
                   )}
                 </TouchableOpacity>
               )}

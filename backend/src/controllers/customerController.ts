@@ -3,6 +3,7 @@ import { db } from '../config/db';
 import { AuthRequest } from '../middleware/auth';
 import fs from 'fs';
 import { uploadToCloudinary } from '../config/cloudinary';
+import { saveBase64File } from '../utils/file';
 
 export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
   try {
@@ -69,6 +70,9 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
         }
       }
 
+      const dueTodayInstallment = unpaid.find((i: any) => i.due_date === todayStr);
+      const pendingInstallmentsList = overdueInstallments.concat(dueTodayInstallment ? [dueTodayInstallment] : []);
+
       summary = {
         hasActiveLoan: true,
         loan: activeLoan,
@@ -83,7 +87,8 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
         dueTodayAmount: activeLoan.status === 'Active' ? activeLoan.daily_installment : 0,
         overdueCount,
         overdueAmount,
-        unpaidInstallments: installments.filter((i: any) => i.status !== 'Paid').slice(0, 5)
+        unpaidInstallments: installments.filter((i: any) => i.status !== 'Paid').slice(0, 5),
+        pendingInstallmentIds: pendingInstallmentsList.map((i: any) => i.id)
       };
     }
 
@@ -323,57 +328,88 @@ export const submitPaymentProof = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized.' });
     }
     const customerId = req.user.id;
-    const { installmentId, transaction_id } = req.body;
-
-    if (!installmentId || !transaction_id) {
-      return res.status(400).json({ error: 'Installment ID and UTR/Transaction ID are required.' });
+    let { installmentId, installmentIds, transaction_id } = req.body;
+    if (installmentId && !installmentIds) {
+      installmentIds = [installmentId];
     }
 
-    if (!req.file) {
+    if (!installmentIds || !Array.isArray(installmentIds) || installmentIds.length === 0 || !transaction_id) {
+      return res.status(400).json({ error: 'Installment ID(s) and UTR/Transaction ID are required.' });
+    }
+
+    if (!req.file && !req.body.proof_base64) {
       return res.status(400).json({ error: 'Please upload a payment screenshot proof.' });
     }
 
-    // Get installment to verify it exists and belongs to user
-    const installment = await db.getInstallmentById(installmentId);
-    if (!installment) {
-      return res.status(404).json({ error: 'Installment record not found.' });
+    // Validate all installments first
+    const validatedInstallments = [];
+    for (const instId of installmentIds) {
+      const installment = await db.getInstallmentById(instId);
+      if (!installment) {
+        return res.status(404).json({ error: `Installment record not found for ID: ${instId}` });
+      }
+
+      const loan = await db.getLoanById(installment.loan_id);
+      if (!loan || loan.customer_id !== customerId) {
+        return res.status(403).json({ error: `Unauthorized access to loan installment ID: ${instId}` });
+      }
+
+      if (installment.status === 'Paid') {
+        return res.status(400).json({ error: `Installment due on ${installment.due_date} is already paid.` });
+      }
+      validatedInstallments.push(installment);
     }
 
-    const loan = await db.getLoanById(installment.loan_id);
-    if (!loan || loan.customer_id !== customerId) {
-      return res.status(403).json({ error: 'Unauthorized access to this loan installment.' });
+    // Process file (file upload or base64)
+    let fileToProcess: { path: string; filename: string; originalname: string } | null = null;
+    if (req.file) {
+      fileToProcess = {
+        path: req.file.path,
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+      };
+    } else if (req.body.proof_base64) {
+      try {
+        fileToProcess = saveBase64File(req.body.proof_base64, 'proof', 'proof');
+      } catch (err: any) {
+        return res.status(400).json({ error: 'Failed to process uploaded base64 screenshot proof: ' + err.message });
+      }
     }
 
-    if (installment.status === 'Paid') {
-      return res.status(400).json({ error: 'Installment is already paid.' });
+    if (!fileToProcess) {
+      return res.status(400).json({ error: 'Please upload a payment screenshot proof.' });
     }
 
     // Upload screenshot to Cloudinary
     let proof_url = '';
     try {
-      proof_url = await uploadToCloudinary(req.file.path);
-      if (fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
+      proof_url = await uploadToCloudinary(fileToProcess.path);
+      if (fs.existsSync(fileToProcess.path)) {
+        fs.unlinkSync(fileToProcess.path);
       }
     } catch (err) {
       console.error('Cloudinary upload error, using local fallback:', err);
-      proof_url = `/uploads/proof/${req.file.filename}`;
+      proof_url = `/uploads/proof/${fileToProcess.filename}`;
     }
 
-    // Submit payment proof (sets status to 'Pending')
-    const updatedInstallment = await db.submitInstallmentProof(installmentId, transaction_id, proof_url);
+    // Submit payment proof (sets status to 'Pending') for all installments
+    const updatedInstallments = [];
+    for (const inst of validatedInstallments) {
+      const updated = await db.submitInstallmentProof(inst.id, transaction_id, proof_url);
+      updatedInstallments.push(updated);
+    }
 
     // Notify customer
     await db.createNotification(
       customerId,
       'Payment Proof Submitted',
-      `Your payment proof for UTR: ${transaction_id} is submitted and is pending verification.`,
+      `Your payment proof for UTR: ${transaction_id} (covering ${validatedInstallments.length} installment(s)) is submitted and is pending verification.`,
       'payment'
     );
 
     return res.status(200).json({
       message: 'Payment proof submitted successfully and is pending verification.',
-      installment: updatedInstallment
+      installments: updatedInstallments
     });
   } catch (error: any) {
     console.error('Submit payment proof error:', error);
@@ -451,7 +487,7 @@ export const submitForeclosureProof = async (req: AuthRequest, res: Response) =>
     if (!transaction_id) {
       return res.status(400).json({ error: 'UTR/Transaction ID is required.' });
     }
-    if (!req.file) {
+    if (!req.file && !req.body.proof_base64) {
       return res.status(400).json({ error: 'Please upload a payment screenshot proof.' });
     }
 
@@ -467,18 +503,38 @@ export const submitForeclosureProof = async (req: AuthRequest, res: Response) =>
       return res.status(400).json({ error: 'Only active loans can be foreclosed.' });
     }
 
+    // Process file (file upload or base64)
+    let fileToProcess: { path: string; filename: string; originalname: string } | null = null;
+    if (req.file) {
+      fileToProcess = {
+        path: req.file.path,
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+      };
+    } else if (req.body.proof_base64) {
+      try {
+        fileToProcess = saveBase64File(req.body.proof_base64, 'foreclose-proof', 'proof');
+      } catch (err: any) {
+        return res.status(400).json({ error: 'Failed to process uploaded base64 screenshot proof: ' + err.message });
+      }
+    }
+
+    if (!fileToProcess) {
+      return res.status(400).json({ error: 'Please upload a payment screenshot proof.' });
+    }
+
     // Upload proof screenshot
     let proof_url = '';
     try {
       const { uploadToCloudinary } = await import('../config/cloudinary');
-      proof_url = await uploadToCloudinary(req.file.path);
+      proof_url = await uploadToCloudinary(fileToProcess.path);
       const fs = await import('fs');
-      if (fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
+      if (fs.existsSync(fileToProcess.path)) {
+        fs.unlinkSync(fileToProcess.path);
       }
     } catch (err) {
       console.error('Cloudinary upload error, using local fallback:', err);
-      proof_url = `/uploads/proof/${req.file.filename}`;
+      proof_url = `/uploads/proof/${fileToProcess.filename}`;
     }
 
     // Mark all unpaid installments as Pending with the proof

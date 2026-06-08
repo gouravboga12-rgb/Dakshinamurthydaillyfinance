@@ -1,12 +1,42 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 import { store } from '../store';
+const SUPABASE_URL = (process.env as any).EXPO_PUBLIC_SUPABASE_URL || 'https://mfnbnpbuktgfqfcymtaz.supabase.co';
+const SUPABASE_KEY = (process.env as any).EXPO_PUBLIC_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mbmJucGJ1a3RnZnFmY3ltdGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxOTM1MzIsImV4cCI6MjA5NTc2OTUzMn0.jRSLtfH_pEU6XDEY6UHsKNw52dn_B_jyqPOQYSecviI';
+
+let activeTunnelUrl = '';
+
+const resolveBaseUrl = async () => {
+  if (activeTunnelUrl) return activeTunnelUrl;
+
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/settings?key=eq.api_tunnel_url&select=value`,
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+        },
+      }
+    );
+    const json = await response.json();
+    if (json && json.length > 0 && json[0].value) {
+      activeTunnelUrl = `${json[0].value}/api`;
+      console.log('[API] Dynamically resolved tunnel URL via Supabase REST API:', activeTunnelUrl);
+      return activeTunnelUrl;
+    }
+  } catch (err) {
+    console.warn('[API] Failed to fetch dynamic tunnel URL via Supabase REST API, using hardcoded fallback.', err);
+  }
+
+  return getBaseUrl();
+};
 
 const getBaseUrl = () => {
-  // Check if a custom API URL is defined in the environment variables
+  // Check if a custom API URL is defined in the environment variables (set from tunnel-url.json via .env)
   const envUrl = (process.env as any).EXPO_PUBLIC_API_URL || (process.env as any).REACT_APP_API_URL;
   if (envUrl) {
-    return envUrl;
+    return `${envUrl}/api`;
   }
 
   if (Platform.OS === 'web') {
@@ -18,8 +48,9 @@ const getBaseUrl = () => {
     return '/api';
   }
   
-  // Use the public secure tunnel URL so physical phones can connect to the local backend without firewall/Wi-Fi restrictions
-  return 'https://dakshinamurthy-daily-finance-app.loca.lt/api';
+  // Use the public secure tunnel URL so physical phones can connect to the local backend
+  // IMPORTANT: Update EXPO_PUBLIC_API_URL in customer-mobile/.env when tunnel URL changes
+  return 'https://dakshinamurthy-daily-finance-app-v3.loca.lt/api';
 };
 
 // --- In-Memory Mock Database State ---
@@ -280,20 +311,79 @@ const mockAdapter = (config: any): Promise<any> => {
 
 const api = axios.create({
   baseURL: getBaseUrl(),
-  timeout: 10000,
+  timeout: 30000, // 30s default — covers slow tunnel connections
   headers: {
     'Bypass-Tunnel-Reminder': 'true',
   },
+  transformRequest: [
+    (data, headers) => {
+      // Check if data is FormData (duck-typing safe for React Native/Hermes contexts)
+      const isFormData = data && (data instanceof FormData || typeof data.append === 'function');
+      if (isFormData) {
+        if (headers) {
+          // Remove manually set or defaulted Content-Type headers in Axios 1.x AxiosHeaders instance
+          // Native XMLHttpRequest / Fetch needs to set multipart/form-data WITH the correct boundary parameter
+          if (typeof headers.delete === 'function') {
+            headers.delete('Content-Type');
+            headers.delete('content-type');
+          } else {
+            delete headers['Content-Type'];
+            delete headers['content-type'];
+          }
+        }
+        return data;
+      }
+
+      // If data is a plain JS object, serialize to JSON
+      if (data && typeof data === 'object') {
+        if (headers) {
+          if (typeof headers.set === 'function') {
+            headers.set('Content-Type', 'application/json;charset=utf-8');
+          } else {
+            headers['Content-Type'] = 'application/json;charset=utf-8';
+          }
+        }
+        return JSON.stringify(data);
+      }
+
+      return data;
+    }
+  ]
   // adapter: mockAdapter, // Disabled mock adapter to connect to real backend server
 });
 
 // Attach JWT token from store to requests
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
+    // Dynamically resolve and override baseURL on physical devices
+    if (Platform.OS !== 'web') {
+      try {
+        const dynamicBase = await resolveBaseUrl();
+        config.baseURL = dynamicBase;
+      } catch (err) {
+        // Fallback already handled inside resolveBaseUrl, but keep as safety net
+      }
+    }
+
+    // Prevent sending literal 'null' string for requests without data (Axios defaults config.data to null for some methods)
+    if (config.data === null || config.data === undefined) {
+      if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {
+        config.data = {};
+      }
+    }
+    // Give file uploads (FormData) a longer timeout — localtunnel can be slow for large payloads
+    const isFormData = config.data && (config.data instanceof FormData || typeof config.data.append === 'function');
+    if (isFormData) {
+      config.timeout = 60000; // 60s for file uploads
+    }
     const state = store.getState();
     const token = state.auth.token;
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      if (typeof config.headers.set === 'function') {
+        config.headers.set('Authorization', `Bearer ${token}`);
+      } else {
+        config.headers['Authorization'] = `Bearer ${token}`;
+      }
     }
     return config;
   },

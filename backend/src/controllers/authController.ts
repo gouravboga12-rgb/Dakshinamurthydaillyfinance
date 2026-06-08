@@ -2,10 +2,12 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
+import path from 'path';
 import { db } from '../config/db';
 import { AuthRequest } from '../middleware/auth';
 import { uploadToCloudinary } from '../config/cloudinary';
 import { sendOtpEmail } from '../config/emailService';
+import { saveBase64File } from '../utils/file';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'madur_foods_771892348_purity_secure';
 const JWT_EXPIRE = process.env.JWT_EXPIRE || '24h';
@@ -122,16 +124,32 @@ export const register = async (req: Request, res: Response) => {
 
     // Upload Aadhaar to Cloudinary if provided
     let aadhaar_url = null;
+    let aadhaarFileToProcess: { path: string; filename: string; originalname: string } | null = null;
+
     if (req.file) {
+      aadhaarFileToProcess = {
+        path: req.file.path,
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+      };
+    } else if (req.body.aadhaar_base64) {
       try {
-        aadhaar_url = await uploadToCloudinary(req.file.path);
+        aadhaarFileToProcess = saveBase64File(req.body.aadhaar_base64, 'aadhaar', 'aadhaar');
+      } catch (err: any) {
+        return res.status(400).json({ error: 'Failed to process Aadhaar document: ' + err.message });
+      }
+    }
+
+    if (aadhaarFileToProcess) {
+      try {
+        aadhaar_url = await uploadToCloudinary(aadhaarFileToProcess.path);
         // Delete local temp file
-        if (fs.existsSync(req.file.path)) {
-          fs.unlinkSync(req.file.path);
+        if (fs.existsSync(aadhaarFileToProcess.path)) {
+          fs.unlinkSync(aadhaarFileToProcess.path);
         }
       } catch (err) {
         console.error('Error uploading to Cloudinary, falling back to local storage:', err);
-        aadhaar_url = `/uploads/aadhaar/${req.file.filename}`;
+        aadhaar_url = `/uploads/aadhaar/${aadhaarFileToProcess.filename}`;
       }
     }
 
@@ -223,7 +241,8 @@ export const login = async (req: Request, res: Response) => {
         status: user.status,
         occupation: user.occupation,
         shop_name: user.shop_name,
-        address: user.address
+        address: user.address,
+        avatar_url: user.avatar_url
       }
     });
   } catch (error: any) {
@@ -314,17 +333,32 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
     if (address !== undefined) updateFields.address = address;
 
     // Handle avatar upload if present
+    let avatarFileToProcess: { path: string; filename: string; originalname: string } | null = null;
     if (req.file) {
+      avatarFileToProcess = {
+        path: req.file.path,
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+      };
+    } else if (req.body.avatar_base64) {
       try {
-        const avatar_url = await uploadToCloudinary(req.file.path);
+        avatarFileToProcess = saveBase64File(req.body.avatar_base64, 'avatar', 'avatar');
+      } catch (err: any) {
+        return res.status(400).json({ error: 'Failed to process avatar photo: ' + err.message });
+      }
+    }
+
+    if (avatarFileToProcess) {
+      try {
+        const avatar_url = await uploadToCloudinary(avatarFileToProcess.path);
         updateFields.avatar_url = avatar_url;
         // Delete local temp file
-        if (fs.existsSync(req.file.path)) {
-          fs.unlinkSync(req.file.path);
+        if (fs.existsSync(avatarFileToProcess.path)) {
+          fs.unlinkSync(avatarFileToProcess.path);
         }
       } catch (err) {
         console.error('Error uploading avatar to Cloudinary, falling back to local storage:', err);
-        updateFields.avatar_url = `/uploads/avatar/${req.file.filename}`;
+        updateFields.avatar_url = `/uploads/avatar/${avatarFileToProcess.filename}`;
       }
     }
 

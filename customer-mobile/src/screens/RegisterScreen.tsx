@@ -10,12 +10,14 @@ import {
   Alert,
   Platform,
   Modal,
+  Image,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import * as DocumentPicker from 'expo-document-picker';
 import { loginSuccess } from '../store/authSlice';
 import api from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
+import { fileUriToBase64 } from '../utils/file';
 
 export default function RegisterScreen({ navigation }: any) {
   const dispatch = useDispatch();
@@ -123,28 +125,22 @@ export default function RegisterScreen({ navigation }: any) {
 
     setOtpLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('full_name', fullName.trim());
-      formData.append('mobile_number', mobile.trim());
-      formData.append('email', email.trim());
-      if (occupation.trim()) formData.append('occupation', occupation.trim());
-      if (shopName.trim()) formData.append('shop_name', shopName.trim());
-      if (address.trim()) formData.append('address', address.trim());
-      formData.append('password', password.trim());
-      formData.append('confirm_password', confirmPassword.trim());
-      formData.append('otp', otp.trim());
+      const base64Data = await fileUriToBase64(aadhaarFile.uri);
+      
+      const payload = {
+        full_name: fullName.trim(),
+        mobile_number: mobile.trim(),
+        email: email.trim(),
+        occupation: occupation.trim(),
+        shop_name: shopName.trim(),
+        address: address.trim(),
+        password: password.trim(),
+        confirm_password: confirmPassword.trim(),
+        otp: otp.trim(),
+        aadhaar_base64: base64Data,
+      };
 
-      if (Platform.OS === 'web') {
-        formData.append('aadhaar', aadhaarFile.fileObj);
-      } else {
-        formData.append('aadhaar', {
-          uri: aadhaarFile.uri,
-          name: aadhaarFile.name,
-          type: aadhaarFile.type
-        } as any);
-      }
-
-      await api.post('/auth/register', formData);
+      await api.post('/auth/register', payload);
 
       setOtpModalVisible(false);
       setOtp('');
@@ -160,7 +156,7 @@ export default function RegisterScreen({ navigation }: any) {
         );
       }
     } catch (err: any) {
-      const message = err.response?.data?.error || 'Registration failed. Please try again.';
+      const message = err.response?.data?.error || err.message || 'Registration failed. Please try again.';
       if (Platform.OS === 'web') {
         alert(`Registration Failed: ${message}`);
       } else {
@@ -180,6 +176,11 @@ export default function RegisterScreen({ navigation }: any) {
       >
         {/* Header */}
         <View style={styles.headerContainer}>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.brandName}>DAKSHINAMURTHY</Text>
           <Text style={styles.brandSub}>Daily Finance</Text>
           <Text style={styles.headerSubtitle}>New Customer Registration</Text>
@@ -300,6 +301,10 @@ export default function RegisterScreen({ navigation }: any) {
               onChange={(e: any) => {
                 const file = e.target.files?.[0];
                 if (file) {
+                  if (file.size > 2.5 * 1024 * 1024) {
+                    alert('File size exceeds the 2.5 MB limit. Please select a smaller document.');
+                    return;
+                  }
                   setAadhaarFile({
                     uri: URL.createObjectURL(file),
                     name: file.name,
@@ -327,6 +332,10 @@ export default function RegisterScreen({ navigation }: any) {
                     
                     if (!result.canceled && result.assets && result.assets.length > 0) {
                       const asset = result.assets[0];
+                      if (asset.size && asset.size > 2.5 * 1024 * 1024) {
+                        Alert.alert('File Too Large', 'Aadhaar document size exceeds the 2.5 MB limit. Please select a smaller document.');
+                        return;
+                      }
                       setAadhaarFile({
                         uri: asset.uri,
                         name: asset.name || 'aadhaar.jpg',
@@ -347,6 +356,11 @@ export default function RegisterScreen({ navigation }: any) {
                 {aadhaarFile ? `✓ Selected: ${aadhaarFile.name}` : '📁 Choose Aadhaar File'}
               </Text>
             </TouchableOpacity>
+            
+            <Text style={styles.uploadHelperText}>
+              Max allowed file size: 2.5 MB (PDF, PNG, JPG)
+            </Text>
+
             {aadhaarFile && (
               <Text style={styles.uploadSuccessDetail}>
                 Size: {Math.round((aadhaarFile as any).size ? ((aadhaarFile as any).size / 1024) : (aadhaarFile.fileObj?.size ? (aadhaarFile.fileObj.size / 1024) : 0))} KB
@@ -452,6 +466,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 28,
   },
+  logoImage: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    borderWidth: 3,
+    borderColor: '#D4A017',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 14,
+    shadowColor: '#D4A017',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    elevation: 14,
+  },
   brandName: {
     fontSize: 15,
     fontWeight: '800',
@@ -502,6 +530,12 @@ const styles = StyleSheet.create({
   },
   uploadContainer: {
     marginBottom: 20,
+  },
+  uploadHelperText: {
+    color: COLORS.muted,
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '600',
   },
   uploadButton: {
     backgroundColor: '#F3F4F6',

@@ -23,6 +23,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
+      "permissions": [],
       "package": "com.dailyfinance.customer"
     },
     "web": {
@@ -31,9 +32,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "1ece53de-d115-4596-b53a-400f4fec44e1"
+        "projectId": "29bc684f-41be-4b54-9642-61751023334e"
       }
     },
-    "owner": "gouravboga"
+    "owner": "mrspysoal"
   }
 }

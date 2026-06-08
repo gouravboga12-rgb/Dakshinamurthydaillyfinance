@@ -67,7 +67,7 @@ export default function LoginScreen({ navigation }: any) {
 
       dispatch(loginSuccess({ token, user }));
     } catch (err: any) {
-      const message = err.response?.data?.error || 'Login failed. Please check your credentials.';
+      const message = err.response?.data?.error || err.message || 'Login failed. Please check your credentials.';
       dispatch(loginFailure(message));
       if (Platform.OS === 'web') {
         alert(`Login Failed: ${message}`);
@@ -103,7 +103,7 @@ export default function LoginScreen({ navigation }: any) {
         Alert.alert('Verification Code Sent! ✉️', msg);
       }
     } catch (err: any) {
-      const message = err.response?.data?.error || 'Failed to send verification code. Please try again.';
+      const message = err.response?.data?.error || err.message || 'Failed to send verification code. Please try again.';
       if (Platform.OS === 'web') {
         alert(`Request Failed: ${message}`);
       } else {
@@ -167,7 +167,7 @@ export default function LoginScreen({ navigation }: any) {
       setNewPassword('');
       setConfirmNewPassword('');
     } catch (err: any) {
-      const message = err.response?.data?.error || 'Failed to reset password. Please try again.';
+      const message = err.response?.data?.error || err.message || 'Failed to reset password. Please try again.';
       if (Platform.OS === 'web') {
         alert(`Reset Failed: ${message}`);
       } else {
@@ -199,7 +199,7 @@ export default function LoginScreen({ navigation }: any) {
             <Image
               source={require('../../assets/logo.png')}
               style={styles.logoImage}
-              resizeMode="cover"
+              resizeMode="contain"
             />
             <Text style={styles.brandName}>DAKSHINAMURTHY</Text>
             <Text style={styles.brandSub}>Daily Finance</Text>
@@ -412,13 +412,18 @@ const styles = StyleSheet.create({
     marginBottom: 36,
   },
   logoImage: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    borderWidth: 2,
-    borderColor: '#10B981',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    borderWidth: 3,
+    borderColor: '#D4A017',
     backgroundColor: '#FFFFFF',
-    marginBottom: 16,
+    marginBottom: 18,
+    shadowColor: '#D4A017',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    elevation: 14,
   },
   brandName: {
     fontSize: 16,

@@ -49,3 +49,12 @@ image copy*.png
 image copy*.jpg
 /*.png
 /*.jpg
+
+# Binary executables
+*.exe
+
+# Tunnel runtime files
+run_tunnel.js
+tunnel-url.json
+customer-mobile/tunnel-url.json
+test_supabase_read.js
