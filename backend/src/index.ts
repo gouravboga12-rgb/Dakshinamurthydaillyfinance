@@ -184,10 +184,15 @@ if (IS_DEV) {
     });
     console.log(`✅ Customer web build found at ${customerDist} and will be served at /`);
   } else {
+    // On Vercel: the customer app is an APK, not a web app.
+    // Redirect root to the admin panel, and return a clean status for API pings.
     app.get('/', (_req, res) => {
-      res.status(503).send(buildNotReadyHtml('Customer Mobile Web App', 'customer-mobile/', 'npx expo export --platform web'));
+      res.redirect(301, '/admin');
     });
-    console.warn('⚠️ Customer web-build not found. Run: cd customer-mobile && npx expo export --platform web');
+    app.get('*', (_req, res) => {
+      res.redirect(301, '/admin');
+    });
+    console.log('ℹ️ No customer web build found. Root (/) redirects to /admin on Vercel.');
   }
 }
 
