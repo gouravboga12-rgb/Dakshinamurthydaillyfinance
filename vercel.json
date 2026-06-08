@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "installCommand": "npm install && cd admin-panel && npm install",
+  "buildCommand": "cd admin-panel && npm run build",
   "builds": [
     {
       "src": "api/index.ts",
@@ -7,32 +9,15 @@
       "config": {
         "includeFiles": [
           "backend/src/**",
-          "backend/src/utils/**"
+          "admin-panel/dist/**"
         ]
       }
-    },
-    {
-      "src": "admin-panel/dist/**",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.ts"
-    },
-    {
-      "src": "/admin/(.*)",
-      "dest": "/admin-panel/dist/$1"
-    },
-    {
-      "src": "/uploads/(.*)",
-      "dest": "/api/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.ts"
-    }
+    { "src": "/api/(.*)", "dest": "/api/index.ts" },
+    { "src": "/uploads/(.*)", "dest": "/api/index.ts" },
+    { "src": "/(.*)", "dest": "/api/index.ts" }
   ],
   "functions": {
     "api/index.ts": {
