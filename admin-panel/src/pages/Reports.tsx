@@ -267,24 +267,26 @@ export default function Reports({ token }: ReportsProps) {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      <th className="py-3 px-2">Installment ID</th>
-                      <th className="py-3 px-2">Loan Reference</th>
+                      <th className="py-3 px-2">Customer</th>
+                      <th className="py-3 px-2">Phone Number</th>
+                      <th className="py-3 px-2">Email ID</th>
                       <th className="py-3 px-2">Verification Date</th>
                       <th className="py-3 px-2 text-right">Amount Collected</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+                  <tbody className="divide-y divide-slate-100 text-sm text-slate-700 font-medium">
                     {reportData.data?.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="py-8 text-center text-xs text-slate-400">No daily collection repayments recorded today yet.</td>
+                        <td colSpan={5} className="py-8 text-center text-xs text-slate-400">No daily collection repayments recorded today yet.</td>
                       </tr>
                     ) : (
                       (reportData.data || []).map((item: any) => (
                         <tr key={item.id}>
-                          <td className="py-3.5 px-2 font-mono text-xs">{item.id.slice(0, 8)}...</td>
-                          <td className="py-3.5 px-2 font-mono text-xs text-blue-600">{item.loan_id.slice(0, 8)}...</td>
-                          <td className="py-3.5 px-2">{new Date(item.payment_date).toLocaleTimeString('en-IN')}</td>
-                          <td className="py-3.5 px-2 text-right font-bold text-emerald-600">₹{item.loan?.daily_installment ?? item.daily_installment ?? 200}</td>
+                          <td className="py-3.5 px-2 font-bold text-slate-800">{item.loan?.customer?.full_name || 'Unknown'}</td>
+                          <td className="py-3.5 px-2 font-mono text-xs text-slate-500">{item.loan?.customer?.mobile_number || 'N/A'}</td>
+                          <td className="py-3.5 px-2 text-slate-500">{item.loan?.customer?.email || 'N/A'}</td>
+                          <td className="py-3.5 px-2 font-mono text-xs text-slate-500">{new Date(item.payment_date).toLocaleTimeString('en-IN')}</td>
+                          <td className="py-3.5 px-2 text-right font-black text-emerald-600">₹{(item.loan?.daily_installment ?? item.daily_installment ?? 200).toLocaleString('en-IN')}</td>
                         </tr>
                       ))
                     )}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { 
   AlertCircle, 
   Loader2, 
@@ -35,7 +35,7 @@ export default function DelayedPayments({ token }: DelayedPaymentsProps) {
     try {
       setLoading(true);
       setError('');
-      const response = await axios.get('/api/admin/overdue-payments', {
+      const response = await api.get('/api/admin/overdue-payments', {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (Array.isArray(response.data)) {
@@ -61,7 +61,7 @@ export default function DelayedPayments({ token }: DelayedPaymentsProps) {
     if (!window.confirm('Verify that you have physically collected the cash/payment for this daily installment?')) return;
     try {
       setActionLoading(installmentId);
-      await axios.post('/api/admin/payments/mark-paid', {
+      await api.post('/api/admin/payments/mark-paid', {
         installmentId
       }, {
         headers: { Authorization: `Bearer ${token}` }

@@ -727,7 +727,7 @@ export const db = {
     if (useSupabase) {
       const tomorrow = new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0];
       const { data, error } = await supabaseClient.from('installments')
-        .select('*, loan:loans(*)')
+        .select('*, loan:loans(*, customer:users(*))')
         .eq('status', 'Paid')
         .gte('payment_date', today)
         .lt('payment_date', tomorrow);
@@ -735,16 +735,22 @@ export const db = {
       return data;
     } else {
       const sql = `
-        SELECT i.*, l.daily_installment
+        SELECT i.*, l.daily_installment, u.full_name as customer_name, u.mobile_number as customer_mobile, u.email as customer_email
         FROM installments i
         JOIN loans l ON i.loan_id = l.id
+        JOIN users u ON l.customer_id = u.id
         WHERE i.status = 'Paid' AND i.payment_date LIKE ?
       `;
       const rows = await allSqlAsync(sql, [`${today}%`]);
       return rows.map((r: any) => ({
         ...r,
         loan: {
-          daily_installment: r.daily_installment
+          daily_installment: r.daily_installment,
+          customer: {
+            full_name: r.customer_name,
+            mobile_number: r.customer_mobile,
+            email: r.customer_email
+          }
         }
       }));
     }

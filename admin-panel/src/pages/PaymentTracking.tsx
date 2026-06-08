@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { 
   Search, 
   Coins, 
@@ -66,7 +66,7 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
   const fetchActiveLoans = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/admin/loans', {
+      const response = await api.get('/api/admin/loans', {
         headers: { Authorization: `Bearer ${token}` },
         params: { status: 'Active', search: search || undefined }
       });
@@ -88,7 +88,7 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
   const fetchInstallments = async (loanId: string) => {
     try {
       setInstallmentsLoading(true);
-      const response = await axios.get(`/api/admin/loans/${loanId}`, {
+      const response = await api.get(`/api/admin/loans/${loanId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setInstallments(response.data.installments);
@@ -111,7 +111,7 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
   const handleMarkPaid = async (installmentId: string) => {
     if (!window.confirm('Verify that you have physically collected the cash/payment for this daily installment?')) return;
     try {
-      const response = await axios.post('/api/admin/payments/mark-paid', {
+      const response = await api.post('/api/admin/payments/mark-paid', {
         installmentId
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -276,7 +276,7 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                       onClick={async () => {
                         if (!window.confirm(`Approve foreclosure? This will mark all ${pendingInsts.length} remaining installments as paid and close the loan permanently.`)) return;
                         try {
-                          await axios.post(`/api/admin/loans/${selectedLoan.id}/approve-foreclosure`, {}, {
+                          await api.post(`/api/admin/loans/${selectedLoan.id}/approve-foreclosure`, {}, {
                             headers: { Authorization: `Bearer ${token}` }
                           });
                           alert('Foreclosure approved! Loan has been successfully settled and closed.');
