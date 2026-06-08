@@ -70,16 +70,16 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/debug-paths', (_req, res) => {
   try {
     const adminDist = path.resolve(__dirname, '../../admin-panel/dist');
-    const alternativeAdminDist = path.join(process.cwd(), 'admin-panel/dist');
+    const assetsDir = path.join(adminDist, 'assets');
     res.json({
       __dirname,
       processCwd: process.cwd(),
       adminDist,
       adminDistExists: fs.existsSync(adminDist),
-      alternativeAdminDist,
-      alternativeAdminDistExists: fs.existsSync(alternativeAdminDist),
       filesInCwd: fs.existsSync(process.cwd()) ? fs.readdirSync(process.cwd()) : [],
       filesInDirname: fs.existsSync(__dirname) ? fs.readdirSync(__dirname) : [],
+      filesInDist: fs.existsSync(adminDist) ? fs.readdirSync(adminDist) : [],
+      filesInAssets: fs.existsSync(assetsDir) ? fs.readdirSync(assetsDir) : [],
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
