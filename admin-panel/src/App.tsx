@@ -8,6 +8,7 @@ import PaymentTracking from './pages/PaymentTracking';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
+import DelayedPayments from './pages/DelayedPayments';
 
 export default function App() {
   // Initial state check from localStorage
@@ -45,6 +46,8 @@ export default function App() {
         return <LoanManagement token={token} />;
       case 'payments':
         return <PaymentTracking token={token} />;
+      case 'delays':
+        return <DelayedPayments token={token} />;
       case 'reports':
         return <Reports token={token} />;
       case 'settings':

@@ -26,7 +26,8 @@ import {
   approveForeclosure,
   updateLoan,
   getPendingPayments,
-  rejectInstallment
+  rejectInstallment,
+  getOverduePayments
 } from '../controllers/adminController';
 
 const uploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/aadhaar');
@@ -144,6 +145,7 @@ router.post('/settings/upi-qr', uploadQr.single('qr'), updateUpiQr);
 // Reports & Statistics
 router.get('/dashboard-stats', getDashboardStats);
 router.get('/pending-payments', getPendingPayments);
+router.get('/overdue-payments', getOverduePayments);
 router.get('/reports', getReports);
 
 export default router;

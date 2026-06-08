@@ -996,3 +996,13 @@ export const rejectInstallment = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getOverduePayments = async (req: AuthRequest, res: Response) => {
+  try {
+    const list = await db.getOverduePayments();
+    return res.status(200).json(list);
+  } catch (error: any) {
+    console.error('Get overdue payments error:', error);
+    return res.status(500).json({ error: 'Failed to load overdue payments.' });
+  }
+};
+

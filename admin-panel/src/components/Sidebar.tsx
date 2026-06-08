@@ -8,6 +8,7 @@ import {
   Settings, 
   LogOut, 
   X,
+  AlertCircle,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -25,6 +26,7 @@ export default function Sidebar({ currentPage, setCurrentPage, adminName, onLogo
     { id: 'customers',  label: 'Customers',            icon: Users           },
     { id: 'loans',      label: 'Loans & Disbursals',   icon: Wallet          },
     { id: 'payments',   label: 'Repayments Tracker',   icon: CheckSquare     },
+    { id: 'delays',     label: 'Delayed Payments',     icon: AlertCircle     },
     { id: 'reports',    label: 'Reports & Analytics',  icon: FileSpreadsheet },
     { id: 'settings',   label: 'Settings',             icon: Settings        },
   ];
