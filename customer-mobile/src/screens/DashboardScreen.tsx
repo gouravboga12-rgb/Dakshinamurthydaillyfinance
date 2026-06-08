@@ -12,7 +12,6 @@ import {
   TextInput,
   Alert,
   Image,
-  StatusBar,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -20,6 +19,7 @@ import api from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface DashboardSummary {
   hasActiveLoan: boolean;
@@ -51,6 +51,7 @@ interface DashboardSummary {
 }
 
 export default function DashboardScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const user = useSelector((state: RootState) => state.auth.user);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -287,7 +288,7 @@ export default function DashboardScreen({ navigation }: any) {
       }
     >
       {/* KreditBee styled Header Bar matching image copy 3.png */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, { paddingTop: Platform.OS === 'web' ? 10 : Math.max(12, insets.top) }]}>
         <View style={styles.headerLeft}>
           <Image 
             source={require('../../assets/logo.png')} 
@@ -712,8 +713,8 @@ const styles = StyleSheet.create({
   headerBar: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 44 : (Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 6 : 10),
     paddingBottom: 10,
+    paddingTop: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

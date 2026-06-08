@@ -67,25 +67,6 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/debug-paths', (_req, res) => {
-  try {
-    const adminDist = path.resolve(__dirname, '../../admin-panel/dist');
-    const assetsDir = path.join(adminDist, 'assets');
-    res.json({
-      __dirname,
-      processCwd: process.cwd(),
-      adminDist,
-      adminDistExists: fs.existsSync(adminDist),
-      filesInCwd: fs.existsSync(process.cwd()) ? fs.readdirSync(process.cwd()) : [],
-      filesInDirname: fs.existsSync(__dirname) ? fs.readdirSync(__dirname) : [],
-      filesInDist: fs.existsSync(adminDist) ? fs.readdirSync(adminDist) : [],
-      filesInAssets: fs.existsSync(assetsDir) ? fs.readdirSync(assetsDir) : [],
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 app.get('/api/test-analytics', async (req, res) => {
   try {
     const stats = await db.getDashboardAnalytics();
@@ -163,7 +144,22 @@ if (IS_DEV) {
 
   // ─── Admin Panel Static Files (/admin/*) ──────────────────────────────────────
   // Vite builds to admin-panel/dist with base: '/admin/'
-  const adminDist = path.resolve(__dirname, '../../admin-panel/dist');
+  //
+  // IMPORTANT: On Vercel, @vercel/node bundles via ncc, so __dirname resolves
+  // to /var/task (the Lambda root). includeFiles copies admin-panel/dist/** to
+  // /var/task/admin-panel/dist/. Locally, __dirname is backend/src/, so we
+  // go ../../ up to reach admin-panel/dist.
+  const adminDistVercel = path.resolve(process.cwd(), 'admin-panel/dist');
+  const adminDistLocal  = path.resolve(__dirname, '../../admin-panel/dist');
+  const adminDist = fs.existsSync(adminDistVercel) ? adminDistVercel
+                  : fs.existsSync(adminDistLocal)  ? adminDistLocal
+                  : adminDistVercel; // fallback so the log message below makes sense
+
+  console.log(`[Paths] __dirname=${__dirname} cwd=${process.cwd()}`);
+  console.log(`[Paths] adminDist candidate (Vercel)=${adminDistVercel} exists=${fs.existsSync(adminDistVercel)}`);
+  console.log(`[Paths] adminDist candidate (Local) =${adminDistLocal}  exists=${fs.existsSync(adminDistLocal)}`);
+  console.log(`[Paths] Using adminDist=${adminDist}`);
+
   if (fs.existsSync(adminDist)) {
     // Serve admin static assets
     app.use('/admin', express.static(adminDist));
@@ -183,15 +179,17 @@ if (IS_DEV) {
     app.get('/admin/*', (_req, res) => {
       res.status(503).send(buildNotReadyHtml('Admin Panel', 'admin-panel/', 'npm run build'));
     });
-    console.warn('⚠️ Admin panel dist not found. Run: cd admin-panel && npm run build');
+    console.warn(`⚠️ Admin panel dist not found at ${adminDist}. Run: cd admin-panel && npm run build`);
   }
 
   // ─── Customer Mobile Web App (/) ──────────────────────────────────────────────
   // Expo exports to customer-mobile/dist or web-build
-  let customerDist = path.resolve(__dirname, '../../customer-mobile/dist');
-  if (!fs.existsSync(customerDist)) {
-    customerDist = path.resolve(__dirname, '../../customer-mobile/web-build');
-  }
+  const customerDistVercel = path.resolve(process.cwd(), 'customer-mobile/dist');
+  const customerDistLocal1 = path.resolve(__dirname, '../../customer-mobile/dist');
+  const customerDistLocal2 = path.resolve(__dirname, '../../customer-mobile/web-build');
+  let customerDist = fs.existsSync(customerDistVercel) ? customerDistVercel
+                   : fs.existsSync(customerDistLocal1)  ? customerDistLocal1
+                   : customerDistLocal2;
 
   if (fs.existsSync(customerDist)) {
     // Serve customer static assets
