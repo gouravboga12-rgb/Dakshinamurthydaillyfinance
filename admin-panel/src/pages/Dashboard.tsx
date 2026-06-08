@@ -29,6 +29,7 @@ interface Stats {
   overduePaymentsCount: number;
   pendingPaymentsCount?: number;
   pendingPaymentsList?: any[];
+  overduePaymentsList?: any[];
 }
 
 interface DashboardProps {
@@ -41,6 +42,7 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [proofModalUrl, setProofModalUrl] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'approvals' | 'overdue'>('approvals');
 
   const fetchStats = async () => {
     try {
@@ -236,84 +238,159 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
 
       {/* Pending Payment Approvals Feed */}
       <div className="card-surface p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <Coins className="text-warning-DEFAULT animate-pulse" size={20} />
-            <h4 className="font-extrabold text-primary text-sm">
-              Pending Payment Approvals ({(stats as any)?.pendingPaymentsCount || 0})
-            </h4>
+        {/* Toggle Tabs Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-0.5">
+          <div className="flex gap-6">
+            <button
+              onClick={() => setActiveTab('approvals')}
+              className={`pb-3 font-extrabold text-sm relative transition-colors ${
+                activeTab === 'approvals' ? 'text-primary border-b-2 border-brand font-black' : 'text-muted hover:text-primary/70'
+              }`}
+            >
+              Pending Approvals ({(stats as any)?.pendingPaymentsCount || 0})
+            </button>
+            <button
+              onClick={() => setActiveTab('overdue')}
+              className={`pb-3 font-extrabold text-sm relative transition-colors ${
+                activeTab === 'overdue' ? 'text-danger-text border-b-2 border-danger-DEFAULT font-black' : 'text-muted hover:text-danger-text/70'
+              }`}
+            >
+              Delayed Payments ({(stats as any)?.overduePaymentsCount || 0})
+            </button>
           </div>
-          <span className="text-[10px] text-muted font-bold uppercase tracking-wider">
-            Live Queue
+          <span className="text-[10px] text-muted font-bold uppercase tracking-wider hidden sm:inline">
+            Live Queue Tracker
           </span>
         </div>
 
-        {!(stats as any)?.pendingPaymentsList || (stats as any).pendingPaymentsList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-            <span className="text-2xl mb-2">✅</span>
-            <h5 className="font-bold text-success-text text-sm">All payments verified!</h5>
-            <p className="text-[10px] text-muted mt-0.5">No pending installment verifications in the queue.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="text-muted border-b border-slate-100 uppercase tracking-widest text-[9px] font-extrabold">
-                  <th className="py-3 px-4">Customer</th>
-                  <th className="py-3 px-4">Installment Amount</th>
-                  <th className="py-3 px-4">UTR/Txn ID</th>
-                  <th className="py-3 px-4">Due Date</th>
-                  <th className="py-3 px-4 text-center">Proof</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                {(stats as any).pendingPaymentsList.map((item: any) => (
-                  <tr key={item.id} className="hover:bg-slate-50/30 transition-colors">
-                    <td className="py-3 px-4 font-bold text-slate-800">{item.customerName}</td>
-                    <td className="py-3 px-4 text-slate-900 font-black">₹{item.amount.toLocaleString('en-IN')}</td>
-                    <td className="py-3 px-4">
-                      <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                        {item.transactionId || 'N/A'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-slate-500">{item.dueDate}</td>
-                    <td className="py-3 px-4 text-center">
-                      {item.proofUrl ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const rawUrl = item.proofUrl;
-                            const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
-                            setProofModalUrl(fullUrl);
-                          }}
-                          className="px-2.5 py-1 text-[10px] font-bold text-brand hover:text-brand-muted bg-brand/10 hover:bg-brand/15 rounded-lg border border-brand/20 transition-all cursor-pointer inline-flex items-center gap-1"
-                        >
-                          👁️ View Proof
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-muted">No screenshot</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right flex justify-end gap-2">
-                      <button
-                        onClick={() => handleApprove(item.id)}
-                        className="px-2.5 py-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all flex items-center gap-0.5"
-                      >
-                        ✅ Approve
-                      </button>
-                      <button
-                        onClick={() => handleReject(item.id)}
-                        className="px-2.5 py-1 text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition-all flex items-center gap-0.5"
-                      >
-                        ❌ Reject
-                      </button>
-                    </td>
+        {/* Pending Payment Approvals Tab */}
+        {activeTab === 'approvals' && (
+          !(stats as any)?.pendingPaymentsList || (stats as any).pendingPaymentsList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+              <span className="text-2xl mb-2">✅</span>
+              <h5 className="font-bold text-success-text text-sm">All payments verified!</h5>
+              <p className="text-[10px] text-muted mt-0.5">No pending installment verifications in the queue.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="text-muted border-b border-slate-100 uppercase tracking-widest text-[9px] font-extrabold">
+                    <th className="py-3 px-4">Customer</th>
+                    <th className="py-3 px-4">Installment Amount</th>
+                    <th className="py-3 px-4">UTR/Txn ID</th>
+                    <th className="py-3 px-4">Due Date</th>
+                    <th className="py-3 px-4 text-center">Proof</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                  {(stats as any).pendingPaymentsList.map((item: any) => (
+                    <tr key={item.id} className="hover:bg-slate-50/30 transition-colors">
+                      <td className="py-3 px-4 font-bold text-slate-800">{item.customerName}</td>
+                      <td className="py-3 px-4 text-slate-900 font-black">₹{item.amount.toLocaleString('en-IN')}</td>
+                      <td className="py-3 px-4">
+                        <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                          {item.transactionId || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-slate-500">{item.dueDate}</td>
+                      <td className="py-3 px-4 text-center">
+                        {item.proofUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const rawUrl = item.proofUrl;
+                              const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
+                              setProofModalUrl(fullUrl);
+                            }}
+                            className="px-2.5 py-1 text-[10px] font-bold text-brand hover:text-brand-muted bg-brand/10 hover:bg-brand/15 rounded-lg border border-brand/20 transition-all cursor-pointer inline-flex items-center gap-1"
+                          >
+                            👁️ View Proof
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-muted">No screenshot</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right flex justify-end gap-2">
+                        <button
+                          onClick={() => handleApprove(item.id)}
+                          className="px-2.5 py-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all flex items-center gap-0.5"
+                        >
+                          ✅ Approve
+                        </button>
+                        <button
+                          onClick={() => handleReject(item.id)}
+                          className="px-2.5 py-1 text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition-all flex items-center gap-0.5"
+                        >
+                          ❌ Reject
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        )}
+
+        {/* Delayed Payments Tab */}
+        {activeTab === 'overdue' && (
+          !(stats as any)?.overduePaymentsList || (stats as any).overduePaymentsList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+              <span className="text-2xl mb-2">🎉</span>
+              <h5 className="font-bold text-success-text text-sm">All collections clear!</h5>
+              <p className="text-[10px] text-muted mt-0.5">There are no overdue installments today.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="text-muted border-b border-slate-100 uppercase tracking-widest text-[9px] font-extrabold">
+                    <th className="py-3 px-4">Customer</th>
+                    <th className="py-3 px-4">Contact</th>
+                    <th className="py-3 px-4">Installment Amount</th>
+                    <th className="py-3 px-4">Due Date</th>
+                    <th className="py-3 px-4 text-center">Delay status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                  {(stats as any).overduePaymentsList.map((item: any) => (
+                    <tr key={item.id} className="hover:bg-slate-50/30 transition-colors">
+                      <td className="py-3 px-4 font-bold text-slate-800">{item.customerName}</td>
+                      <td className="py-3 px-4 text-slate-505 font-mono">{item.mobile || 'N/A'}</td>
+                      <td className="py-3 px-4 text-slate-900 font-black">₹{item.amount.toLocaleString('en-IN')}</td>
+                      <td className="py-3 px-4 font-mono text-slate-500">{item.dueDate}</td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                          ⚠️ {item.daysOverdue} days overdue
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right flex justify-end gap-2">
+                        {item.mobile && (
+                          <a
+                            href={`https://api.whatsapp.com/send?phone=91${item.mobile}&text=Dear%20customer%2C%20your%20daily%20finance%20repayment%20of%20%E2%82%B9${item.amount}%20due%20on%20${item.dueDate}%20is%20pending.%20Please%20pay%20via%20the%20app%20or%20submit%20proof%20as%20soon%20as%20possible.`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            💬 WhatsApp
+                          </a>
+                        )}
+                        <button
+                          onClick={() => setCurrentPage('payments')}
+                          className="px-2.5 py-1 text-[10px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg shadow-sm transition-all"
+                        >
+                          Ledger Sheet
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
       </div>
 

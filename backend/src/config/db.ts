@@ -904,11 +904,26 @@ export const db = {
         // Overdue payments: Active loans where due date is passed and installment is unpaid
         const todayStr = new Date().toISOString().split('T')[0];
         const { data: overdueInst, error: oErr } = await supabaseClient.from('installments')
-          .select('*, loan:loans(*)')
+          .select('*, loan:loans(*, customer:users(*))')
           .eq('status', 'Unpaid')
           .lt('due_date', todayStr);
         if (oErr) throw oErr;
         const overduePaymentsCount = overdueInst?.length || 0;
+        const overduePaymentsList = (overdueInst || []).map((inst: any) => {
+          const dueTime = new Date(inst.due_date).getTime();
+          const todayTime = new Date(todayStr).getTime();
+          const diffTime = todayTime - dueTime;
+          const daysOverdue = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+          return {
+            id: inst.id,
+            loanId: inst.loan_id,
+            customerName: inst.loan?.customer?.full_name || 'Unknown',
+            mobile: inst.loan?.customer?.mobile_number || '',
+            amount: inst.loan?.daily_installment || 0,
+            dueDate: inst.due_date,
+            daysOverdue
+          };
+        });
 
         const pendingPaymentsList = await this.getPendingPayments();
         const pendingPaymentsCount = pendingPaymentsList.length;
@@ -962,6 +977,7 @@ export const db = {
           monthlyProfit: todayCollection * 3.1,
           outstandingAmount: outstanding,
           overduePaymentsCount,
+          overduePaymentsList,
           pendingPaymentsCount,
           pendingPaymentsList: pendingPaymentsList.slice(0, 10),
           collectionRate,
@@ -1014,10 +1030,31 @@ export const db = {
       WHERE i.status = 'Paid' AND i.payment_date LIKE ?
     `, [`${currentMonth}%`])).sum || 0;
 
-    // Overdue payments count
-    const overduePaymentsCount = (await getSqlAsync(`
-      SELECT COUNT(*) as cnt FROM installments WHERE status = 'Unpaid' AND due_date < ?
-    `, [today])).cnt;
+    // Overdue payments count and list
+    const overdueInstList = await allSqlAsync(`
+      SELECT i.id, i.loan_id, i.due_date, l.daily_installment, u.full_name as customer_name, u.mobile_number as customer_mobile
+      FROM installments i
+      JOIN loans l ON i.loan_id = l.id
+      JOIN users u ON l.customer_id = u.id
+      WHERE i.status = 'Unpaid' AND i.due_date < ?
+      ORDER BY i.due_date ASC
+    `, [today]);
+    const overduePaymentsCount = overdueInstList.length;
+    const overduePaymentsList = overdueInstList.map((r: any) => {
+      const dueTime = new Date(r.due_date).getTime();
+      const todayTime = new Date(today).getTime();
+      const diffTime = todayTime - dueTime;
+      const daysOverdue = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+      return {
+        id: r.id,
+        loanId: r.loan_id,
+        customerName: r.customer_name || 'Unknown',
+        mobile: r.customer_mobile || '',
+        amount: r.daily_installment || 0,
+        dueDate: r.due_date,
+        daysOverdue
+      };
+    });
 
     const pendingPaymentsList = await this.getPendingPayments();
     const pendingPaymentsCount = pendingPaymentsList.length;
@@ -1043,13 +1080,7 @@ export const db = {
     const monthlyCollectionTotal = monthlyInstallments;
 
     // 6. NPA Rate
-    const overdueAmtResult = await getSqlAsync(`
-      SELECT SUM(l.daily_installment) as sum
-      FROM installments i
-      JOIN loans l ON i.loan_id = l.id
-      WHERE i.status = 'Unpaid' AND i.due_date < ?
-    `, [today]);
-    const overdueAmount = overdueAmtResult.sum || 0;
+    const overdueAmount = overduePaymentsList.reduce((sum: number, item: any) => sum + item.amount, 0);
     const npaRate = outstandingAmount ? Math.round((overdueAmount / outstandingAmount) * 100) : 0;
 
     return {
@@ -1064,6 +1095,7 @@ export const db = {
       monthlyProfit: monthlyPlatformCharges,
       outstandingAmount,
       overduePaymentsCount,
+      overduePaymentsList,
       pendingPaymentsCount,
       pendingPaymentsList: pendingPaymentsList.slice(0, 10),
       collectionRate,
