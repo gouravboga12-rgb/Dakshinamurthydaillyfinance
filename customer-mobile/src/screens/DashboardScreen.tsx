@@ -288,7 +288,13 @@ export default function DashboardScreen({ navigation }: any) {
       }
     >
       {/* KreditBee styled Header Bar matching image copy 3.png */}
-      <View style={[styles.headerBar, { paddingTop: Platform.OS === 'web' ? 10 : Math.max(12, insets.top) }]}>
+      <View style={[
+        styles.headerBar, 
+        Platform.OS !== 'web' && { 
+          paddingTop: Math.max(insets.top, 20) + 8,
+          paddingBottom: 12
+        }
+      ]}>
         <View style={styles.headerLeft}>
           <Image 
             source={require('../../assets/logo.png')} 
@@ -713,8 +719,7 @@ const styles = StyleSheet.create({
   headerBar: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
-    paddingBottom: 10,
-    paddingTop: 10,
+    paddingVertical: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
