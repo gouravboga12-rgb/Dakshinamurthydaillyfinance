@@ -243,9 +243,19 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
               Pending Payment Approvals ({(stats as any)?.pendingPaymentsCount || 0})
             </h4>
           </div>
-          <span className="text-[10px] text-muted font-bold uppercase tracking-wider">
-            Live Queue
-          </span>
+          {hasPendingPayments ? (
+            <button
+              onClick={() => setCurrentPage('payments')}
+              className="text-[10px] text-brand hover:text-brand-muted font-bold uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer bg-transparent border-none p-0"
+            >
+              <span>View More</span>
+              <ArrowRight size={10} />
+            </button>
+          ) : (
+            <span className="text-[10px] text-muted font-bold uppercase tracking-wider">
+              Live Queue
+            </span>
+          )}
         </div>
 
         {!(stats as any)?.pendingPaymentsList || (stats as any).pendingPaymentsList.length === 0 ? (
@@ -255,64 +265,77 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
             <p className="text-[10px] text-muted mt-0.5">No pending installment verifications in the queue.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="text-muted border-b border-slate-100 uppercase tracking-widest text-[9px] font-extrabold">
-                  <th className="py-3 px-4">Customer</th>
-                  <th className="py-3 px-4">Installment Amount</th>
-                  <th className="py-3 px-4">UTR/Txn ID</th>
-                  <th className="py-3 px-4">Due Date</th>
-                  <th className="py-3 px-4 text-center">Proof</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                {(stats as any).pendingPaymentsList.map((item: any) => (
-                  <tr key={item.id} className="hover:bg-slate-50/30 transition-colors">
-                    <td className="py-3 px-4 font-bold text-slate-800">{item.customerName}</td>
-                    <td className="py-3 px-4 text-slate-900 font-black">₹{item.amount.toLocaleString('en-IN')}</td>
-                    <td className="py-3 px-4">
-                      <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                        {item.transactionId || 'N/A'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-slate-500">{item.dueDate}</td>
-                    <td className="py-3 px-4 text-center">
-                      {item.proofUrl ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const rawUrl = item.proofUrl;
-                            const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
-                            setProofModalUrl(fullUrl);
-                          }}
-                          className="px-2.5 py-1 text-[10px] font-bold text-brand hover:text-brand-muted bg-brand/10 hover:bg-brand/15 rounded-lg border border-brand/20 transition-all cursor-pointer inline-flex items-center gap-1"
-                        >
-                          👁️ View Proof
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-muted">No screenshot</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right flex justify-end gap-2">
-                      <button
-                        onClick={() => handleApprove(item.id)}
-                        className="px-2.5 py-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all flex items-center gap-0.5"
-                      >
-                        ✅ Approve
-                      </button>
-                      <button
-                        onClick={() => handleReject(item.id)}
-                        className="px-2.5 py-1 text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition-all flex items-center gap-0.5"
-                      >
-                        ❌ Reject
-                      </button>
-                    </td>
+          <div className="space-y-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="text-muted border-b border-slate-100 uppercase tracking-widest text-[9px] font-extrabold">
+                    <th className="py-3 px-4">Customer</th>
+                    <th className="py-3 px-4">Installment Amount</th>
+                    <th className="py-3 px-4">UTR/Txn ID</th>
+                    <th className="py-3 px-4">Due Date</th>
+                    <th className="py-3 px-4 text-center">Proof</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                  {(stats as any).pendingPaymentsList.map((item: any) => (
+                    <tr key={item.id} className="hover:bg-slate-50/30 transition-colors">
+                      <td className="py-3 px-4 font-bold text-slate-800">{item.customerName}</td>
+                      <td className="py-3 px-4 text-slate-900 font-black">₹{item.amount.toLocaleString('en-IN')}</td>
+                      <td className="py-3 px-4">
+                        <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                          {item.transactionId || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-slate-500">{item.dueDate}</td>
+                      <td className="py-3 px-4 text-center">
+                        {item.proofUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const rawUrl = item.proofUrl;
+                              const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
+                              setProofModalUrl(fullUrl);
+                            }}
+                            className="px-2.5 py-1 text-[10px] font-bold text-brand hover:text-brand-muted bg-brand/10 hover:bg-brand/15 rounded-lg border border-brand/20 transition-all cursor-pointer inline-flex items-center gap-1"
+                          >
+                            👁️ View Proof
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-muted">No screenshot</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right flex justify-end gap-2">
+                        <button
+                          onClick={() => handleApprove(item.id)}
+                          className="px-2.5 py-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all flex items-center gap-0.5"
+                        >
+                          ✅ Approve
+                        </button>
+                        <button
+                          onClick={() => handleReject(item.id)}
+                          className="px-2.5 py-1 text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition-all flex items-center gap-0.5"
+                        >
+                          ❌ Reject
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {hasPendingPayments && (
+              <div className="pt-2 flex justify-end border-t border-slate-100">
+                <button
+                  onClick={() => setCurrentPage('payments')}
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1 cursor-pointer bg-transparent border-none p-0"
+                >
+                  <span>View all pending verifications in Repayments Tracker</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

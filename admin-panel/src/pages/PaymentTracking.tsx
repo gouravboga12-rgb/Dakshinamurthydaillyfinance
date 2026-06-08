@@ -22,6 +22,7 @@ interface ActiveLoan {
     full_name: string;
     mobile_number: string;
   };
+  pendingCount?: number;
 }
 
 interface Installment {
@@ -122,10 +123,10 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
       // Refresh installments
       if (selectedLoan) {
         fetchInstallments(selectedLoan.id);
+        fetchActiveLoans(); // Auto-refresh left panel counts
         
         // Update local active loan details (like remaining balance)
         const updatedLoan = response.data.loan;
-        setActiveLoans(prev => prev.map(l => l.id === updatedLoan.id ? { ...l, remaining_balance: updatedLoan.remaining_balance } : l));
         setSelectedLoan(prev => prev ? { ...prev, remaining_balance: updatedLoan.remaining_balance } : null);
         
         // If loan was completed, refetch active loans
@@ -133,7 +134,6 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
           alert('Congratulations! This loan is now fully settled and closed.');
           setSelectedLoan(null);
           setInstallments([]);
-          fetchActiveLoans();
         }
       }
     } catch (err: any) {
@@ -187,7 +187,14 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                 }`}
               >
                 <div>
-                  <h4 className="font-bold text-slate-800 text-sm">{l.customer?.full_name}</h4>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-bold text-slate-800 text-sm">{l.customer?.full_name}</h4>
+                    {l.pendingCount && l.pendingCount > 0 ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 border border-amber-200 text-amber-800 animate-pulse">
+                        ⏳ {l.pendingCount} Pending
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="text-[10px] text-slate-400 mt-0.5 font-mono">Loan ID: DMF-{l.id.split('-')[0].toUpperCase()}</p>
                   <div className="flex gap-4 text-xs font-semibold text-slate-500 mt-2">
                     <span className="flex items-center gap-1"><Coins size={12} className="text-emerald-500" /> ₹{l.daily_installment}/day</span>

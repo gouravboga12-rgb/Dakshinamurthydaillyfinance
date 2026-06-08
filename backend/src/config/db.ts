@@ -492,6 +492,18 @@ export const db = {
       const { data, error } = await query;
       if (error) throw error;
 
+      // Fetch pending installments counts grouped by loan_id
+      const { data: pendingInsts, error: piErr } = await supabaseClient
+        .from('installments')
+        .select('loan_id')
+        .eq('status', 'Pending');
+      if (piErr) throw piErr;
+      
+      const pendingCounts: Record<string, number> = {};
+      (pendingInsts || []).forEach((inst: any) => {
+        pendingCounts[inst.loan_id] = (pendingCounts[inst.loan_id] || 0) + 1;
+      });
+
       // Handle search/sorting in memory if database complex bindings are bypassed
       let result = data || [];
       if (filters.search) {
@@ -509,8 +521,22 @@ export const db = {
           result.sort((a: any, b: any) => a.approved_amount - b.approved_amount);
         }
       }
-      return result;
+      return result.map((l: any) => ({
+        ...l,
+        pendingCount: pendingCounts[l.id] || 0
+      }));
     } else {
+      const pendingInsts = await allSqlAsync(`
+        SELECT loan_id, COUNT(*) as cnt
+        FROM installments
+        WHERE status = 'Pending'
+        GROUP BY loan_id
+      `);
+      const pendingCounts: Record<string, number> = {};
+      pendingInsts.forEach((r: any) => {
+        pendingCounts[r.loan_id] = r.cnt;
+      });
+
       let sql = `
         SELECT l.*, u.full_name as customer_name, u.mobile_number as customer_mobile
         FROM loans l
@@ -541,7 +567,8 @@ export const db = {
           id: r.customer_id,
           full_name: r.customer_name,
           mobile_number: r.customer_mobile
-        }
+        },
+        pendingCount: pendingCounts[r.id] || 0
       }));
     }
   },
