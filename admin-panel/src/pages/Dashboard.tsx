@@ -246,13 +246,13 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
           {hasPendingPayments ? (
             <button
               onClick={() => setCurrentPage('payments')}
-              className="text-[10px] text-brand hover:text-brand-muted font-bold uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer bg-transparent border-none p-0"
+              className="px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-[10px] text-brand hover:text-brand-light font-extrabold uppercase tracking-wider rounded-lg flex items-center gap-1.5 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-amber-500/10 active:scale-95"
             >
               <span>View More</span>
               <ArrowRight size={10} />
             </button>
           ) : (
-            <span className="text-[10px] text-muted font-bold uppercase tracking-wider">
+            <span className="px-2.5 py-1 bg-slate-50 border border-slate-200/40 text-[9px] text-muted font-extrabold uppercase tracking-wider rounded-lg">
               Live Queue
             </span>
           )}
@@ -326,13 +326,13 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
               </table>
             </div>
             {hasPendingPayments && (
-              <div className="pt-2 flex justify-end border-t border-slate-100">
+              <div className="pt-3.5 flex justify-end border-t border-slate-100">
                 <button
                   onClick={() => setCurrentPage('payments')}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1 cursor-pointer bg-transparent border-none p-0"
+                  className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/50 text-[11px] font-extrabold text-blue-600 hover:text-blue-700 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-[0.98]"
                 >
                   <span>View all pending verifications in Repayments Tracker</span>
-                  <ArrowRight size={12} />
+                  <ArrowRight size={12} className="text-blue-500" />
                 </button>
               </div>
             )}

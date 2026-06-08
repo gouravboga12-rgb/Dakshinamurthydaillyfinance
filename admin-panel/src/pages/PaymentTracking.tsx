@@ -50,6 +50,8 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
   const [error, setError] = useState('');
   const [proofModalUrl, setProofModalUrl] = useState<string | null>(null);
 
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -122,12 +124,18 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
 
       // Refresh installments
       if (selectedLoan) {
+        // Find if we are updating active loan pendingCount
+        const updatedLoan = response.data.loan;
+        
+        // Refresh local details
         fetchInstallments(selectedLoan.id);
         fetchActiveLoans(); // Auto-refresh left panel counts
         
-        // Update local active loan details (like remaining balance)
-        const updatedLoan = response.data.loan;
-        setSelectedLoan(prev => prev ? { ...prev, remaining_balance: updatedLoan.remaining_balance } : null);
+        setSelectedLoan(prev => prev ? { 
+          ...prev, 
+          remaining_balance: updatedLoan.remaining_balance,
+          pendingCount: Math.max(0, (prev.pendingCount || 0) - 1)
+        } : null);
         
         // If loan was completed, refetch active loans
         if (updatedLoan.status === 'Completed') {
@@ -140,6 +148,13 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
       alert(err.response?.data?.error || 'Failed to record payment verification.');
     }
   };
+
+  const filteredLoans = activeLoans.filter(l => {
+    if (showPendingOnly) {
+      return (l.pendingCount || 0) > 0;
+    }
+    return true;
+  });
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 animate-fade-in">
@@ -157,17 +172,32 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
           </div>
         )}
 
-        <div className="relative">
-          <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-            <Search size={16} />
-          </span>
-          <input
-            type="text"
-            placeholder="Search active accounts..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-          />
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <Search size={16} />
+            </span>
+            <input
+              type="text"
+              placeholder="Search active accounts..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+            />
+          </div>
+          <button
+            onClick={() => setShowPendingOnly(!showPendingOnly)}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+              showPendingOnly
+                ? 'bg-amber-500 border-amber-600 text-white shadow-md shadow-amber-500/20'
+                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <span>⏳ Pending Only</span>
+            {activeLoans.filter(l => (l.pendingCount || 0) > 0).length > 0 && (
+              <span className={`h-2 w-2 rounded-full ${showPendingOnly ? 'bg-white' : 'bg-amber-500 animate-pulse'}`} />
+            )}
+          </button>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
@@ -175,10 +205,12 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
             <div className="p-8 flex justify-center items-center">
               <Loader2 className="animate-spin text-blue-600" size={24} />
             </div>
-          ) : activeLoans.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-xs">No active loan accounts found.</div>
+          ) : filteredLoans.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-xs">
+              {showPendingOnly ? 'No accounts require payment approvals.' : 'No active loan accounts found.'}
+            </div>
           ) : (
-            activeLoans.map((l) => (
+            filteredLoans.map((l) => (
               <button
                 key={l.id}
                 onClick={() => handleSelectLoan(l)}
@@ -190,7 +222,7 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="font-bold text-slate-800 text-sm">{l.customer?.full_name}</h4>
                     {l.pendingCount && l.pendingCount > 0 ? (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 border border-amber-200 text-amber-800 animate-pulse">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 border border-amber-250 text-amber-800 animate-pulse">
                         ⏳ {l.pendingCount} Pending
                       </span>
                     ) : null}
@@ -213,10 +245,20 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
         {selectedLoan ? (
           <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden space-y-6">
             
-            {/* Active Customer details panel */}
-            <div className="bg-slate-900 p-6 text-white flex justify-between items-start">
-              <div>
-                <h4 className="text-base font-bold">{selectedLoan.customer?.full_name}</h4>
+             <div className="bg-slate-900 p-6 text-white flex justify-between items-start relative overflow-hidden">
+              {/* Subtle background glow for pending loans */}
+              {selectedLoan.pendingCount && selectedLoan.pendingCount > 0 ? (
+                <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-amber-500/10 blur-2xl pointer-events-none animate-pulse" />
+              ) : null}
+              <div className="relative z-10 flex-1">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h4 className="text-base font-bold">{selectedLoan.customer?.full_name}</h4>
+                  {selectedLoan.pendingCount && selectedLoan.pendingCount > 0 ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25 border border-amber-400 animate-bounce">
+                      ⏳ {selectedLoan.pendingCount} Action Required
+                    </span>
+                  ) : null}
+                </div>
                 <p className="text-[10px] text-slate-400 font-mono mt-0.5">Mobile: {selectedLoan.customer?.mobile_number}</p>
                 <div className="flex flex-wrap gap-4 sm:gap-6 mt-4 text-xs font-semibold">
                   <div>
