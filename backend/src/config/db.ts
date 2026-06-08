@@ -1,4 +1,6 @@
-import sqlite3 from 'sqlite3';
+// sqlite3 is loaded lazily via require() to avoid Vercel build failures
+// (native binary modules cannot be statically bundled by @vercel/node)
+let sqlite3: typeof import('sqlite3') | null = null;
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -10,7 +12,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 const useSupabase = SUPABASE_URL && SUPABASE_KEY;
 
-let sqliteDb: sqlite3.Database | null = null;
+let sqliteDb: any = null;
 let supabaseClient: any = null;
 
 // Initialize Database connection
@@ -26,8 +28,16 @@ export async function initDatabase() {
       console.error('Error seeding Supabase admins:', err);
     }
   } else {
+    if (process.env.VERCEL) {
+      console.error('FATAL: Running on Vercel without Supabase credentials. SQLite is not supported on Vercel.');
+      return;
+    }
     console.log('No Supabase credentials found. Falling back to local SQLite database...');
-    const dbDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../data');
+    // Dynamically load sqlite3 only in local environments
+    if (!sqlite3) {
+      sqlite3 = require('sqlite3');
+    }
+    const dbDir = path.resolve(__dirname, '../../data');
     try {
       if (!fs.existsSync(dbDir)) {
         fs.mkdirSync(dbDir, { recursive: true });
@@ -35,8 +45,8 @@ export async function initDatabase() {
     } catch (e) {
       console.warn('Could not create SQLite database directory:', e);
     }
-    const dbPath = process.env.VERCEL ? '/tmp/finance.db' : path.join(dbDir, 'finance.db');
-    sqliteDb = new sqlite3.Database(dbPath);
+    const dbPath = path.join(dbDir, 'finance.db');
+    sqliteDb = new (sqlite3 as any).Database(dbPath);
     await setupSQLiteTables();
   }
 }
