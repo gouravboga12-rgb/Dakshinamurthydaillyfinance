@@ -67,6 +67,25 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+app.get('/api/debug-paths', (_req, res) => {
+  try {
+    const adminDist = path.resolve(__dirname, '../../admin-panel/dist');
+    const alternativeAdminDist = path.join(process.cwd(), 'admin-panel/dist');
+    res.json({
+      __dirname,
+      processCwd: process.cwd(),
+      adminDist,
+      adminDistExists: fs.existsSync(adminDist),
+      alternativeAdminDist,
+      alternativeAdminDistExists: fs.existsSync(alternativeAdminDist),
+      filesInCwd: fs.existsSync(process.cwd()) ? fs.readdirSync(process.cwd()) : [],
+      filesInDirname: fs.existsSync(__dirname) ? fs.readdirSync(__dirname) : [],
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/test-analytics', async (req, res) => {
   try {
     const stats = await db.getDashboardAnalytics();
