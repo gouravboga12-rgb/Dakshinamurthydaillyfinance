@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Linking,
   Platform,
-  Clipboard,
+  Share,
   Alert,
 } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
@@ -91,12 +91,21 @@ export default function HowToRepayScreen({ navigation }: any) {
     ).catch(() => {});
   };
 
-  const handleCopyUPI = () => {
+  const handleCopyUPI = async () => {
     if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
-      navigator.clipboard?.writeText(upiId).catch(() => {});
+      try {
+        await navigator.clipboard?.writeText(upiId);
+        // No alert needed on web — clipboard copy is silent
+      } catch {
+        Alert.alert('Official UPI ID', upiId);
+      }
     } else {
-      Clipboard.setString(upiId);
-      Alert.alert('Copied', 'UPI ID copied to clipboard!');
+      // Use Share on Android/iOS — lets user copy/send the UPI ID directly
+      try {
+        await Share.share({ message: `Official UPI ID: ${upiId}` });
+      } catch {
+        Alert.alert('Official UPI ID', upiId);
+      }
     }
   };
 
