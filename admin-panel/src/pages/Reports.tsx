@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   FileSpreadsheet, 
@@ -25,6 +25,26 @@ export default function Reports({ token }: ReportsProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [proofModalUrl, setProofModalUrl] = useState<string | null>(null);
+  const [kpis, setKpis] = useState<any>(null);
+  const [kpisLoading, setKpisLoading] = useState(true);
+
+  const fetchKpis = async () => {
+    try {
+      setKpisLoading(true);
+      const response = await axios.get('/api/admin/dashboard-stats', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setKpis(response.data);
+    } catch (err) {
+      console.error('Failed to load KPIs:', err);
+    } finally {
+      setKpisLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchKpis();
+  }, [token]);
 
   const generateReport = async () => {
     setLoading(true);
@@ -45,6 +65,34 @@ export default function Reports({ token }: ReportsProps) {
       setError('Failed to generate selected report.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApprove = async (installmentId: string) => {
+    if (!window.confirm('Approve this payment installment?')) return;
+    try {
+      await axios.post('/api/admin/payments/mark-paid', { installmentId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('Payment approved and verified successfully!');
+      generateReport();
+      fetchKpis(); // Refresh KPIs too!
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to approve payment.');
+    }
+  };
+
+  const handleReject = async (installmentId: string) => {
+    if (!window.confirm('Reject this payment proof? This will mark the installment status back to Unpaid.')) return;
+    try {
+      await axios.post('/api/admin/payments/reject', { installmentId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('Payment proof rejected and reverted to Unpaid.');
+      generateReport();
+      fetchKpis(); // Refresh KPIs too!
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to reject payment.');
     }
   };
 
@@ -75,6 +123,60 @@ export default function Reports({ token }: ReportsProps) {
         )}
       </div>
 
+      {/* KPI Overview Panel */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print:hidden">
+        {kpisLoading ? (
+          <div className="col-span-full py-8 text-center text-xs font-semibold text-slate-400 flex justify-center items-center gap-2">
+            <Loader2 className="animate-spin" size={16} />
+            <span>Loading analytics summary...</span>
+          </div>
+        ) : (
+          <>
+            {/* KPI 1: Collection Rate */}
+            <div className="bg-emerald-50/45 border border-emerald-100 p-4 rounded-xl space-y-1">
+              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Collection Rate</span>
+              <span className="text-xl font-black text-emerald-800 block">{kpis?.collectionRate ?? 0}%</span>
+              <span className="text-[9px] font-semibold text-emerald-600/70 block">Cleared vs total due</span>
+            </div>
+
+            {/* KPI 2: Awaiting Verification */}
+            <div className="bg-amber-50/45 border border-amber-100 p-4 rounded-xl space-y-1">
+              <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Pending Approval</span>
+              <span className="text-xl font-black text-amber-800 block">₹{(kpis?.pendingApprovalAmount ?? 0).toLocaleString('en-IN')}</span>
+              <span className="text-[9px] font-semibold text-amber-600/70 block">{kpis?.pendingPaymentsCount ?? 0} payments submitted</span>
+            </div>
+
+            {/* KPI 3: Average Loan Size */}
+            <div className="bg-indigo-50/45 border border-indigo-100 p-4 rounded-xl space-y-1">
+              <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">Avg Loan Size</span>
+              <span className="text-xl font-black text-indigo-800 block">₹{(kpis?.averageLoanSize ?? 0).toLocaleString('en-IN')}</span>
+              <span className="text-[9px] font-semibold text-indigo-600/70 block">Per-customer capital</span>
+            </div>
+
+            {/* KPI 4: Average Repayment Days */}
+            <div className="bg-blue-50/45 border border-blue-100 p-4 rounded-xl space-y-1">
+              <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Avg Days to Repay</span>
+              <span className="text-xl font-black text-blue-800 block">{kpis?.avgDaysToRepay ?? 0} days</span>
+              <span className="text-[9px] font-semibold text-blue-600/70 block">Installments cleared per loan</span>
+            </div>
+
+            {/* KPI 5: Monthly Collection Total */}
+            <div className="bg-teal-50/45 border border-teal-100 p-4 rounded-xl space-y-1">
+              <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">Monthly Collections</span>
+              <span className="text-xl font-black text-teal-800 block">₹{(kpis?.monthlyCollectionTotal ?? 0).toLocaleString('en-IN')}</span>
+              <span className="text-[9px] font-semibold text-teal-600/70 block">This month total payments</span>
+            </div>
+
+            {/* KPI 6: NPA Rate */}
+            <div className="bg-rose-50/45 border border-rose-100 p-4 rounded-xl space-y-1">
+              <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">NPA % (Risk)</span>
+              <span className="text-xl font-black text-rose-800 block">{kpis?.npaRate ?? 0}%</span>
+              <span className="text-[9px] font-semibold text-rose-600/70 block">Overdue vs outstanding</span>
+            </div>
+          </>
+        )}
+      </div>
+
       {/* Control Selector Panel */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col md:flex-row gap-6 items-end justify-between print:hidden">
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
@@ -89,6 +191,8 @@ export default function Reports({ token }: ReportsProps) {
               <option value="daily_profit">Daily Platform Profit Report</option>
               <option value="loan_performance">Loan Performance Summary</option>
               <option value="portfolio_outstanding">Portfolio Risk & Outstanding Balance</option>
+              <option value="pending_approvals">Pending Payment Approvals</option>
+              <option value="monthly_summary">Monthly Financial Summary</option>
             </select>
           </div>
           <div className="space-y-1">
@@ -472,6 +576,119 @@ export default function Reports({ token }: ReportsProps) {
                   </div>
                 </div>
 
+              </div>
+            </div>
+          )}
+
+          {/* Pending Payment Approvals Report */}
+          {reportType === 'pending_approvals' && (
+            <div className="space-y-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="py-3 px-3">Customer</th>
+                      <th className="py-3 px-3">Daily Installment</th>
+                      <th className="py-3 px-3">UTR/Txn ID</th>
+                      <th className="py-3 px-3">Due Date</th>
+                      <th className="py-3 px-3 text-center">Receipt Proof</th>
+                      <th className="py-3 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-semibold">
+                    {!reportData.data || reportData.data.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-xs text-slate-400">All pending payments have been cleared.</td>
+                      </tr>
+                    ) : (
+                      (reportData.data || []).map((item: any) => (
+                        <tr key={item.id} className="hover:bg-slate-50/30 transition-colors">
+                          <td className="py-3.5 px-3">
+                            <div className="font-bold text-slate-800">{item.customerName}</div>
+                          </td>
+                          <td className="py-3.5 px-3 font-bold text-slate-900">₹{item.amount.toLocaleString('en-IN')}</td>
+                          <td className="py-3.5 px-3">
+                            <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">{item.transactionId || 'N/A'}</span>
+                          </td>
+                          <td className="py-3.5 px-3 font-mono text-slate-500">{item.dueDate}</td>
+                          <td className="py-3.5 px-3 text-center">
+                            {item.proofUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const rawUrl = item.proofUrl;
+                                  const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
+                                  setProofModalUrl(fullUrl);
+                                }}
+                                className="px-2.5 py-1 text-[10px] font-bold text-brand hover:text-brand-muted bg-brand/10 hover:bg-brand/15 rounded-lg border border-brand/20 transition-all cursor-pointer inline-flex items-center gap-1 mx-auto"
+                              >
+                                <Eye size={12} />
+                                <span>View Proof</span>
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-muted">No screenshot</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-3 text-right flex justify-end gap-2">
+                            <button
+                              onClick={() => handleApprove(item.id)}
+                              className="px-2.5 py-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all"
+                            >
+                              ✅ Approve
+                            </button>
+                            <button
+                              onClick={() => handleReject(item.id)}
+                              className="px-2.5 py-1 text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition-all"
+                            >
+                              ❌ Reject
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Monthly Financial Summary Report */}
+          {reportType === 'monthly_summary' && (
+            <div className="space-y-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="py-3 px-3">Month</th>
+                      <th className="py-3 px-3 text-center">Loans Disbursed</th>
+                      <th className="py-3 px-3 text-right">Disbursed Volume</th>
+                      <th className="py-3 px-3 text-right">Platform Fee Earnings</th>
+                      <th className="py-3 px-3 text-right">Repayment Collections</th>
+                      <th className="py-3 px-3 text-right">Total Net Cashflow</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-semibold">
+                    {!reportData.data || reportData.data.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-xs text-slate-400">No monthly summary data available.</td>
+                      </tr>
+                    ) : (
+                      (reportData.data || []).map((item: any) => {
+                        const totalCashflow = item.platformCharges + item.totalCollected;
+                        return (
+                          <tr key={item.month} className="hover:bg-slate-50/30 transition-colors">
+                            <td className="py-3.5 px-3 font-bold text-slate-800">{item.month}</td>
+                            <td className="py-3.5 px-3 text-center">{item.loansCount} loans</td>
+                            <td className="py-3.5 px-3 text-right">₹{item.totalDisbursed.toLocaleString('en-IN')}</td>
+                            <td className="py-3.5 px-3 text-right text-emerald-600 font-bold">₹{item.platformCharges.toLocaleString('en-IN')}</td>
+                            <td className="py-3.5 px-3 text-right text-blue-600 font-bold">₹{item.totalCollected.toLocaleString('en-IN')}</td>
+                            <td className="py-3.5 px-3 text-right text-slate-900 font-black">₹{totalCashflow.toLocaleString('en-IN')}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

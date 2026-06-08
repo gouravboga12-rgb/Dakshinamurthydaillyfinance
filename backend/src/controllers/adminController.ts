@@ -563,6 +563,62 @@ export const getReports = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    if (type === 'pending_approvals') {
+      const list = await db.getPendingPayments();
+      return res.status(200).json({
+        reportName: 'Pending Payment Approvals Report',
+        date: today,
+        data: list
+      });
+    }
+
+    if (type === 'monthly_summary') {
+      const currentYear = new Date().getFullYear();
+      const allLoans = await db.getLoans();
+      const paidInstallments = await db.getPaidInstallments();
+
+      const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+
+      const data = months.map((monthName, index) => {
+        const monthNum = index + 1;
+        const monthPrefix = `${currentYear}-${String(monthNum).padStart(2, '0')}`;
+
+        // Loans disbursed in this month
+        const disbursedLoans = allLoans.filter((l: any) => 
+          l.approval_date && l.approval_date.startsWith(monthPrefix)
+        );
+        const loansCount = disbursedLoans.length;
+        const totalDisbursed = disbursedLoans.reduce((sum: number, l: any) => sum + (l.approved_amount || 0), 0);
+        const platformCharges = disbursedLoans.reduce((sum: number, l: any) => sum + (l.platform_charges || 0), 0);
+
+        // Collections in this month
+        const collections = paidInstallments.filter((inst: any) => 
+          inst.payment_date && inst.payment_date.startsWith(monthPrefix)
+        );
+        const totalCollected = collections.reduce((sum: number, inst: any) => 
+          sum + (inst.loan?.daily_installment || inst.amount || 0), 0
+        );
+
+        return {
+          month: monthName,
+          monthKey: monthPrefix,
+          loansCount,
+          totalDisbursed,
+          platformCharges,
+          totalCollected
+        };
+      });
+
+      return res.status(200).json({
+        reportName: `Monthly Financial Summary (${currentYear})`,
+        year: currentYear,
+        data
+      });
+    }
+
     if (type === 'daily_profit') {
       // In our model: Profit = Sum of Platform charges of active loans approved today
       const loans = await db.getLoans();
@@ -889,6 +945,54 @@ export const updateLoan = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Update loan error:', error);
     return res.status(500).json({ error: 'Failed to update loan details.' });
+  }
+};
+
+export const getPendingPayments = async (req: AuthRequest, res: Response) => {
+  try {
+    const list = await db.getPendingPayments();
+    return res.status(200).json(list);
+  } catch (error: any) {
+    console.error('Get pending payments error:', error);
+    return res.status(500).json({ error: 'Failed to load pending payments.' });
+  }
+};
+
+export const rejectInstallment = async (req: AuthRequest, res: Response) => {
+  try {
+    const { installmentId } = req.body;
+    if (!installmentId) {
+      return res.status(400).json({ error: 'Installment ID is required.' });
+    }
+
+    const installment = await db.getInstallmentById(installmentId);
+    if (!installment) {
+      return res.status(404).json({ error: 'Installment not found.' });
+    }
+
+    const loan = await db.getLoanById(installment.loan_id);
+    if (!loan) {
+      return res.status(404).json({ error: 'Associated loan not found.' });
+    }
+
+    // Revert status to Unpaid
+    const updatedInst = await db.rejectInstallmentProof(installmentId);
+
+    // Notify customer
+    await db.createNotification(
+      loan.customer_id,
+      'Payment Proof Rejected',
+      `Your payment proof for installment due on ${installment.due_date} of ₹${loan.daily_installment} was rejected. Please submit a valid transaction ID or contact admin.`,
+      'payment'
+    );
+
+    return res.status(200).json({
+      message: 'Installment payment proof rejected.',
+      installment: updatedInst
+    });
+  } catch (error: any) {
+    console.error('Reject installment error:', error);
+    return res.status(500).json({ error: 'Failed to reject installment payment proof.' });
   }
 };
 

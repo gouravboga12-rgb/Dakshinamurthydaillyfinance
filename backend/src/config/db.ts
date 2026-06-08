@@ -128,7 +128,7 @@ async function seedSupabaseAdmins() {
 function runSqlAsync(sql: string, params: any[] = []): Promise<any> {
   return new Promise((resolve, reject) => {
     if (!sqliteDb) return reject(new Error('SQLite database not initialized'));
-    sqliteDb.run(sql, params, function (err) {
+    sqliteDb.run(sql, params, function (this: any, err: any) {
       if (err) reject(err);
       else resolve({ lastID: this.lastID, changes: this.changes });
     });
@@ -138,7 +138,7 @@ function runSqlAsync(sql: string, params: any[] = []): Promise<any> {
 function getSqlAsync(sql: string, params: any[] = []): Promise<any> {
   return new Promise((resolve, reject) => {
     if (!sqliteDb) return reject(new Error('SQLite database not initialized'));
-    sqliteDb.get(sql, params, (err, row) => {
+    sqliteDb.get(sql, params, (err: any, row: any) => {
       if (err) reject(err);
       else resolve(row);
     });
@@ -148,7 +148,7 @@ function getSqlAsync(sql: string, params: any[] = []): Promise<any> {
 function allSqlAsync(sql: string, params: any[] = []): Promise<any[]> {
   return new Promise((resolve, reject) => {
     if (!sqliteDb) return reject(new Error('SQLite database not initialized'));
-    sqliteDb.all(sql, params, (err, rows) => {
+    sqliteDb.all(sql, params, (err: any, rows: any) => {
       if (err) reject(err);
       else resolve(rows);
     });
@@ -649,6 +649,37 @@ export const db = {
     }
   },
 
+  async rejectInstallmentProof(id: string) {
+    if (useSupabase) {
+      try {
+        const { data, error } = await supabaseClient.from('installments')
+          .update({ status: 'Unpaid', transaction_id: null, proof_url: null })
+          .eq('id', id)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      } catch (err: any) {
+        console.warn('Supabase rejectInstallmentProof failed, trying status-only revert:', err.message || err);
+        const { data, error: fallbackError } = await supabaseClient.from('installments')
+          .update({ status: 'Unpaid' })
+          .eq('id', id)
+          .select()
+          .single();
+        if (fallbackError) throw fallbackError;
+        return data;
+      }
+    } else {
+      try {
+        await runSqlAsync("UPDATE installments SET status = 'Unpaid', transaction_id = NULL, proof_url = NULL WHERE id = ?", [id]);
+      } catch (err: any) {
+        console.warn('SQLite rejectInstallmentProof failed, falling back to status-only revert:', err.message);
+        await runSqlAsync("UPDATE installments SET status = 'Unpaid' WHERE id = ?", [id]);
+      }
+      return await this.getInstallmentById(id);
+    }
+  },
+
 
   async getSetting(key: string, defaultValue: string = '') {
     if (useSupabase) {
@@ -719,6 +750,41 @@ export const db = {
     }
   },
 
+  async getPaidInstallments() {
+    if (useSupabase) {
+      try {
+        const { data, error } = await supabaseClient.from('installments')
+          .select('*, loan:loans(*)')
+          .eq('status', 'Paid');
+        if (error) throw error;
+        return data;
+      } catch (err: any) {
+        console.warn('Supabase fetch paid installments failed:', err.message || err);
+        return [];
+      }
+    } else {
+      try {
+        const sql = `
+          SELECT i.*, l.daily_installment
+          FROM installments i
+          JOIN loans l ON i.loan_id = l.id
+          WHERE i.status = 'Paid'
+        `;
+        const rows = await allSqlAsync(sql);
+        return rows.map((r: any) => ({
+          ...r,
+          loan: {
+            id: r.loan_id,
+            daily_installment: r.daily_installment
+          }
+        }));
+      } catch (err: any) {
+        console.warn('SQLite fetch paid installments failed:', err.message || err);
+        return [];
+      }
+    }
+  },
+
   // --- NOTIFICATIONS ---
   async getNotificationsByUserId(userId: string) {
     if (useSupabase) {
@@ -768,6 +834,56 @@ export const db = {
   },
 
   // --- ANALYTICS ---
+  async getPendingPayments() {
+    if (useSupabase) {
+      try {
+        const { data: pendingInst, error: pErr } = await supabaseClient.from('installments')
+          .select('*, loan:loans(*, customer:users(*))')
+          .eq('status', 'Pending')
+          .order('created_at', { ascending: false });
+        if (pErr) throw pErr;
+        return (pendingInst || []).map((inst: any) => ({
+          id: inst.id,
+          loanId: inst.loan_id,
+          customerName: inst.loan?.customer?.full_name || 'Unknown',
+          amount: inst.loan?.daily_installment || 0,
+          transactionId: inst.transaction_id || '',
+          proofUrl: inst.proof_url || '',
+          dueDate: inst.due_date,
+          createdAt: inst.created_at
+        }));
+      } catch (err: any) {
+        console.warn('Supabase fetch pending payments failed:', err.message || err);
+        return [];
+      }
+    } else {
+      try {
+        const pendingInstList = await allSqlAsync(`
+          SELECT i.id, i.loan_id, i.transaction_id, i.proof_url, i.due_date, i.created_at,
+                 l.daily_installment, u.full_name as customer_name
+          FROM installments i
+          JOIN loans l ON i.loan_id = l.id
+          JOIN users u ON l.customer_id = u.id
+          WHERE i.status = 'Pending'
+          ORDER BY i.created_at DESC
+        `);
+        return pendingInstList.map((r: any) => ({
+          id: r.id,
+          loanId: r.loan_id,
+          customerName: r.customer_name || 'Unknown',
+          amount: r.daily_installment || 0,
+          transactionId: r.transaction_id || '',
+          proofUrl: r.proof_url || '',
+          dueDate: r.due_date,
+          createdAt: r.created_at
+        }));
+      } catch (err: any) {
+        console.warn('SQLite fetch pending payments failed:', err.message || err);
+        return [];
+      }
+    }
+  },
+
   async getDashboardAnalytics() {
     if (useSupabase) {
       try {
@@ -794,6 +910,46 @@ export const db = {
         if (oErr) throw oErr;
         const overduePaymentsCount = overdueInst?.length || 0;
 
+        const pendingPaymentsList = await this.getPendingPayments();
+        const pendingPaymentsCount = pendingPaymentsList.length;
+
+        // KPI additions:
+        // 1. Collection Rate
+        const { count: paidCount, error: paidErr } = await supabaseClient.from('installments')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'Paid');
+        if (paidErr) throw paidErr;
+        const { count: totalCount, error: totalErr } = await supabaseClient.from('installments')
+          .select('*', { count: 'exact', head: true });
+        if (totalErr) throw totalErr;
+        const collectionRate = totalCount ? Math.round((paidCount / totalCount) * 100) : 100;
+
+        // 2. Pending Approval Amount
+        const pendingApprovalAmount = pendingPaymentsList.reduce((sum: number, item: any) => sum + item.amount, 0);
+
+        // 3. Average Loan Size
+        const averageLoanSize = activeLoans.length ? Math.round(activeLoans.reduce((sum: number, l: any) => sum + l.approved_amount, 0) / activeLoans.length) : 0;
+
+        // 4. Avg Days to Repay
+        const paidInsts = await supabaseClient.from('installments').select('loan_id').eq('status', 'Paid');
+        const paidInstsData = paidInsts.data || [];
+        const loanIdsWithPaid = new Set(paidInstsData.map((x: any) => x.loan_id));
+        const avgDaysToRepay = loanIdsWithPaid.size ? Math.round(paidInstsData.length / loanIdsWithPaid.size) : 0;
+
+        // 5. Monthly Collection Total
+        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+        const tomorrow = new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0];
+        const { data: monthlyPaidInst } = await supabaseClient.from('installments')
+          .select('*, loan:loans(daily_installment)')
+          .eq('status', 'Paid')
+          .gte('payment_date', `${currentMonth}-01`)
+          .lt('payment_date', tomorrow);
+        const monthlyCollectionTotal = monthlyPaidInst?.reduce((sum: number, i: any) => sum + (i.loan?.daily_installment || 0), 0) || 0;
+
+        // 6. NPA Rate
+        const overdueAmount = overdueInst?.reduce((sum: number, i: any) => sum + (i.loan?.daily_installment || 0), 0) || 0;
+        const npaRate = outstanding ? Math.round((overdueAmount / outstanding) * 100) : 0;
+
         return {
           totalCustomers,
           activeLoansCount: activeLoans.length,
@@ -805,7 +961,15 @@ export const db = {
           monthlyRevenue: todayCollection * 3.1, // mock projection
           monthlyProfit: todayCollection * 3.1,
           outstandingAmount: outstanding,
-          overduePaymentsCount
+          overduePaymentsCount,
+          pendingPaymentsCount,
+          pendingPaymentsList: pendingPaymentsList.slice(0, 10),
+          collectionRate,
+          pendingApprovalAmount,
+          averageLoanSize,
+          avgDaysToRepay,
+          monthlyCollectionTotal,
+          npaRate
         };
       } catch (err: any) {
         console.warn('Supabase analytics fetch failed, falling back to local SQLite database:', err.message || err);
@@ -855,6 +1019,39 @@ export const db = {
       SELECT COUNT(*) as cnt FROM installments WHERE status = 'Unpaid' AND due_date < ?
     `, [today])).cnt;
 
+    const pendingPaymentsList = await this.getPendingPayments();
+    const pendingPaymentsCount = pendingPaymentsList.length;
+
+    // KPI additions:
+    // 1. Collection Rate
+    const paidCount = (await getSqlAsync("SELECT COUNT(*) as cnt FROM installments WHERE status = 'Paid'")).cnt;
+    const totalInstCount = (await getSqlAsync("SELECT COUNT(*) as cnt FROM installments")).cnt;
+    const collectionRate = totalInstCount ? Math.round((paidCount / totalInstCount) * 100) : 100;
+
+    // 2. Pending Approval Amount
+    const pendingApprovalAmount = pendingPaymentsList.reduce((sum: number, item: any) => sum + item.amount, 0);
+
+    // 3. Average Loan Size
+    const avgLoanResult = await getSqlAsync("SELECT AVG(approved_amount) as avg FROM loans WHERE status = 'Active'");
+    const averageLoanSize = Math.round(avgLoanResult.avg || 0);
+
+    // 4. Avg Days to Repay
+    const avgPaidInstResult = await getSqlAsync("SELECT AVG(paid_count) as avg FROM (SELECT COUNT(*) as paid_count FROM installments WHERE status = 'Paid' GROUP BY loan_id)");
+    const avgDaysToRepay = Math.round(avgPaidInstResult.avg || 0);
+
+    // 5. Monthly Collection Total
+    const monthlyCollectionTotal = monthlyInstallments;
+
+    // 6. NPA Rate
+    const overdueAmtResult = await getSqlAsync(`
+      SELECT SUM(l.daily_installment) as sum
+      FROM installments i
+      JOIN loans l ON i.loan_id = l.id
+      WHERE i.status = 'Unpaid' AND i.due_date < ?
+    `, [today]);
+    const overdueAmount = overdueAmtResult.sum || 0;
+    const npaRate = outstandingAmount ? Math.round((overdueAmount / outstandingAmount) * 100) : 0;
+
     return {
       totalCustomers,
       activeLoansCount,
@@ -866,7 +1063,15 @@ export const db = {
       monthlyRevenue: monthlyPlatformCharges + monthlyInstallments,
       monthlyProfit: monthlyPlatformCharges,
       outstandingAmount,
-      overduePaymentsCount
+      overduePaymentsCount,
+      pendingPaymentsCount,
+      pendingPaymentsList: pendingPaymentsList.slice(0, 10),
+      collectionRate,
+      pendingApprovalAmount,
+      averageLoanSize,
+      avgDaysToRepay,
+      monthlyCollectionTotal,
+      npaRate
     };
   },
 

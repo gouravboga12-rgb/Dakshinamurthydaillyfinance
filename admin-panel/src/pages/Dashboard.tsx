@@ -10,6 +10,9 @@ import {
   ArrowRight,
   Loader2,
   IndianRupee,
+  X,
+  Check,
+  Eye
 } from 'lucide-react';
 
 interface Stats {
@@ -24,6 +27,8 @@ interface Stats {
   monthlyProfit: number;
   outstandingAmount: number;
   overduePaymentsCount: number;
+  pendingPaymentsCount?: number;
+  pendingPaymentsList?: any[];
 }
 
 interface DashboardProps {
@@ -35,23 +40,68 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [proofModalUrl, setProofModalUrl] = useState<string | null>(null);
+
+  const fetchStats = async () => {
+    try {
+      const response = await api.get('/api/admin/dashboard-stats', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStats(response.data);
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to load dashboard statistics.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await api.get('/api/admin/dashboard-stats', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setStats(response.data);
-      } catch (err: any) {
-        console.error(err);
-        setError('Failed to load dashboard statistics.');
-      } finally {
-        setLoading(false);
+    fetchStats();
+    // Auto-refresh every 60 seconds
+    const interval = setInterval(fetchStats, 60000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setProofModalUrl(null);
       }
     };
-    fetchStats();
-  }, [token]);
+    if (proofModalUrl) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [proofModalUrl]);
+
+  const handleApprove = async (installmentId: string) => {
+    if (!window.confirm('Approve this payment installment?')) return;
+    try {
+      await api.post('/api/admin/payments/mark-paid', { installmentId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('Payment approved and verified successfully!');
+      fetchStats();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to approve payment.');
+    }
+  };
+
+  const handleReject = async (installmentId: string) => {
+    if (!window.confirm('Reject this payment proof? This will mark the installment status back to Unpaid.')) return;
+    try {
+      await api.post('/api/admin/payments/reject', { installmentId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('Payment proof rejected and reverted to Unpaid.');
+      fetchStats();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to reject payment.');
+    }
+  };
 
   if (loading) {
     return (
@@ -74,6 +124,8 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
     );
   }
 
+  const hasPendingPayments = (stats?.pendingPaymentsCount || 0) > 0;
+
   const metricCards = [
     {
       label: 'Total Customers',
@@ -82,7 +134,7 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
       iconBg: 'bg-info-light',
       iconColor: 'text-info-DEFAULT',
       link: 'customers',
-      trend: '+2 this week',
+      trend: 'Registered members',
     },
     {
       label: 'Active Loans',
@@ -91,16 +143,16 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
       iconBg: 'bg-success-light',
       iconColor: 'text-success-DEFAULT',
       link: 'loans',
-      trend: 'Running',
+      trend: 'Earning interest',
     },
     {
-      label: 'Pending Requests',
-      value: stats?.pendingLoansCount || 0,
+      label: 'Awaiting Approvals',
+      value: stats?.pendingPaymentsCount || 0,
       icon: Coins,
-      iconBg: 'bg-warning-light',
+      iconBg: hasPendingPayments ? 'bg-amber-100 animate-pulse' : 'bg-warning-light',
       iconColor: 'text-warning-DEFAULT',
-      link: 'loans',
-      trend: 'Awaiting review',
+      link: 'payments',
+      trend: hasPendingPayments ? 'Action required' : 'All clear',
     },
     {
       label: 'Overdue Payments',
@@ -180,6 +232,89 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
             </div>
           );
         })}
+      </div>
+
+      {/* Pending Payment Approvals Feed */}
+      <div className="card-surface p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <Coins className="text-warning-DEFAULT animate-pulse" size={20} />
+            <h4 className="font-extrabold text-primary text-sm">
+              Pending Payment Approvals ({(stats as any)?.pendingPaymentsCount || 0})
+            </h4>
+          </div>
+          <span className="text-[10px] text-muted font-bold uppercase tracking-wider">
+            Live Queue
+          </span>
+        </div>
+
+        {!(stats as any)?.pendingPaymentsList || (stats as any).pendingPaymentsList.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+            <span className="text-2xl mb-2">✅</span>
+            <h5 className="font-bold text-success-text text-sm">All payments verified!</h5>
+            <p className="text-[10px] text-muted mt-0.5">No pending installment verifications in the queue.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="text-muted border-b border-slate-100 uppercase tracking-widest text-[9px] font-extrabold">
+                  <th className="py-3 px-4">Customer</th>
+                  <th className="py-3 px-4">Installment Amount</th>
+                  <th className="py-3 px-4">UTR/Txn ID</th>
+                  <th className="py-3 px-4">Due Date</th>
+                  <th className="py-3 px-4 text-center">Proof</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                {(stats as any).pendingPaymentsList.map((item: any) => (
+                  <tr key={item.id} className="hover:bg-slate-50/30 transition-colors">
+                    <td className="py-3 px-4 font-bold text-slate-800">{item.customerName}</td>
+                    <td className="py-3 px-4 text-slate-900 font-black">₹{item.amount.toLocaleString('en-IN')}</td>
+                    <td className="py-3 px-4">
+                      <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                        {item.transactionId || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 font-mono text-slate-500">{item.dueDate}</td>
+                    <td className="py-3 px-4 text-center">
+                      {item.proofUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const rawUrl = item.proofUrl;
+                            const fullUrl = rawUrl.startsWith('http') ? rawUrl : `http://localhost:8081${rawUrl}`;
+                            setProofModalUrl(fullUrl);
+                          }}
+                          className="px-2.5 py-1 text-[10px] font-bold text-brand hover:text-brand-muted bg-brand/10 hover:bg-brand/15 rounded-lg border border-brand/20 transition-all cursor-pointer inline-flex items-center gap-1"
+                        >
+                          👁️ View Proof
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-muted">No screenshot</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-right flex justify-end gap-2">
+                      <button
+                        onClick={() => handleApprove(item.id)}
+                        className="px-2.5 py-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all flex items-center gap-0.5"
+                      >
+                        ✅ Approve
+                      </button>
+                      <button
+                        onClick={() => handleReject(item.id)}
+                        className="px-2.5 py-1 text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition-all flex items-center gap-0.5"
+                      >
+                        ❌ Reject
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Financial Grid */}
@@ -319,6 +454,52 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
         </div>
 
       </div>
+
+      {/* Proof Modal */}
+      {proofModalUrl && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 cursor-pointer"
+          onClick={() => setProofModalUrl(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh] cursor-default animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-950 text-sm sm:text-base">Payment Proof Screenshot</h3>
+              <button 
+                type="button"
+                onClick={() => setProofModalUrl(null)} 
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {/* Modal Content */}
+            <div className="p-4 sm:p-6 overflow-y-auto flex items-center justify-center bg-slate-50 min-h-[250px] sm:min-h-[300px]">
+              <img 
+                src={proofModalUrl} 
+                alt="Payment Proof" 
+                className="max-w-full max-h-[55vh] object-contain rounded-lg border border-slate-200"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Failed+to+load+image';
+                }}
+              />
+            </div>
+            {/* Modal Footer */}
+            <div className="p-3 sm:p-4 border-t border-slate-100 flex justify-end">
+              <button 
+                type="button"
+                onClick={() => setProofModalUrl(null)} 
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
