@@ -185,6 +185,17 @@ export default function LenderDetailsScreen() {
           ))}
         </View>
       </View>
+
+      {/* Developer Credit Footer */}
+      <TouchableOpacity 
+        onPress={() => Linking.openURL('https://www.codtechitsolutions.com/')}
+        activeOpacity={0.7}
+        style={styles.developerFooter}
+      >
+        <Text style={styles.developerText}>
+          Developed by <Text style={styles.developerLinkText}>CODTECH IT SOLUTIONS</Text>
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -300,4 +311,21 @@ const styles = StyleSheet.create({
   },
   stepNumberText: { color: COLORS.secondary, fontSize: 11, fontWeight: '800' },
   stepText: { color: '#78350F', fontSize: 13, lineHeight: 18, flex: 1, fontWeight: '600', opacity: 0.8 },
+  developerFooter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 28,
+    marginBottom: 16,
+  },
+  developerText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  developerLinkText: {
+    color: '#3B82F6',
+    fontWeight: '800',
+    textDecorationLine: 'underline',
+  },
 });
