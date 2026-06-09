@@ -172,15 +172,22 @@ if (IS_DEV) {
   // Vite builds to admin-panel/dist with base: '/admin/'
   const adminDist = path.resolve(__dirname, '../../admin-panel/dist');
   if (fs.existsSync(adminDist)) {
-    // Serve admin static assets
-    app.use('/admin', express.static(adminDist));
+    // Serve admin static assets (excluding index.html automatically)
+    app.use('/admin', express.static(adminDist, { index: false }));
+
+    const serveAdminIndex = (req: express.Request, res: express.Response) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.sendFile(path.join(adminDist, 'index.html'));
+    };
 
     // SPA fallback: any /admin/* route that doesn't match a file → serve index.html
-    app.get('/admin', (_req, res) => {
-      res.sendFile(path.join(adminDist, 'index.html'));
-    });
-    app.get('/admin/*', (_req, res) => {
-      res.sendFile(path.join(adminDist, 'index.html'));
+    app.get('/admin', serveAdminIndex);
+    app.get('/admin/*', (req, res, next) => {
+      // If the request path points to an asset or has a file extension, do not serve index.html (return 404)
+      if (req.path.includes('.') || req.path.includes('/assets/')) {
+        return res.status(404).send('Asset not found');
+      }
+      serveAdminIndex(req, res);
     });
     console.log('✅ Admin panel build found and will be served at /admin');
   } else {
