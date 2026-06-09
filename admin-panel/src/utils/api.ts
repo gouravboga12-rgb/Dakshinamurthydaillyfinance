@@ -18,4 +18,19 @@ const api = axios.create({
   timeout: 30000,
 });
 
+// Auto logout if token is expired/invalid
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      // Clear credentials
+      localStorage.removeItem('admin-token');
+      localStorage.removeItem('admin-name');
+      // Reload page to redirect to Login screen
+      window.location.reload();
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
