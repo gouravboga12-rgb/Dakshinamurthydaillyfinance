@@ -1272,7 +1272,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Profile Photo (PNG, JPG, JPEG)</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Profile Photo (Optional) (PNG, JPG, JPEG)</label>
                     <input
                       type="file"
                       accept=".png,.jpg,.jpeg"
