@@ -137,6 +137,17 @@ export default function PaymentHistoryDetailScreen({ route, navigation }: any) {
               const dateToShow = inst.payment_date
                 ? formatDate(inst.payment_date)
                 : formatDate(inst.due_date);
+              
+              const isPaid = inst.status === 'Paid';
+              const payDateOnly = inst.payment_date ? inst.payment_date.substring(0, 10) : '';
+              const isPaidLate = !!(isPaid && payDateOnly && payDateOnly > inst.due_date);
+              
+              let delayDays = 0;
+              if (isPaidLate) {
+                const dueTime = new Date(inst.due_date).getTime();
+                const payTime = new Date(payDateOnly).getTime();
+                delayDays = Math.max(1, Math.ceil((payTime - dueTime) / (1000 * 60 * 60 * 24)));
+              }
 
               return (
                 <View key={inst.id} style={styles.timelineRow}>
@@ -148,12 +159,16 @@ export default function PaymentHistoryDetailScreen({ route, navigation }: any) {
                     {/* Status icon */}
                     <View style={[
                       styles.iconCircle,
-                      isFailed ? styles.iconCircleFailed : styles.iconCircleSuccess
+                      isFailed 
+                        ? styles.iconCircleFailed 
+                        : isPaidLate 
+                        ? styles.iconCirclePaidLate 
+                        : styles.iconCircleSuccess
                     ]}>
                       {isFailed ? (
                         <Text style={styles.iconTextFailed}>⚠</Text>
                       ) : (
-                        <Text style={styles.iconTextSuccess}>✓</Text>
+                        <Text style={isPaidLate ? styles.iconTextPaidLate : styles.iconTextSuccess}>✓</Text>
                       )}
                     </View>
 
@@ -165,6 +180,7 @@ export default function PaymentHistoryDetailScreen({ route, navigation }: any) {
                   <View style={[
                     styles.paymentCard,
                     isFailed && styles.paymentCardFailed,
+                    isPaidLate && styles.paymentCardPaidLate,
                   ]}>
                     {/* Top row: amount + badge + date */}
                     <View style={styles.cardTopRow}>
@@ -177,13 +193,21 @@ export default function PaymentHistoryDetailScreen({ route, navigation }: any) {
                         </Text>
                         <View style={[
                           styles.statusBadge,
-                          isFailed ? styles.badgeFailed : styles.badgeSuccess
+                          isFailed 
+                            ? styles.badgeFailed 
+                            : isPaidLate 
+                            ? styles.badgePaidLate 
+                            : styles.badgeSuccess
                         ]}>
                           <Text style={[
                             styles.statusBadgeText,
-                            isFailed ? styles.badgeTextFailed : styles.badgeTextSuccess
+                            isFailed 
+                              ? styles.badgeTextFailed 
+                              : isPaidLate 
+                              ? styles.badgeTextPaidLate 
+                              : styles.badgeTextSuccess
                           ]}>
-                            {isFailed ? 'Failed' : 'Success'}
+                            {isFailed ? 'Failed' : isPaidLate ? 'Paid Late' : 'Success'}
                           </Text>
                         </View>
                       </View>
@@ -191,6 +215,14 @@ export default function PaymentHistoryDetailScreen({ route, navigation }: any) {
                         <Text style={styles.dateText}>{dateToShow}</Text>
                         <Text style={styles.methodText}>{inst.method || 'Cash'}</Text>
                       </View>
+                    </View>
+
+                    {/* Due Date & Delay Details */}
+                    <View style={styles.dateDetailsRow}>
+                      <Text style={styles.detailsLabel}>Due: {formatDate(inst.due_date)}</Text>
+                      {isPaidLate && (
+                        <Text style={styles.delayText}>⚠️ {delayDays} day(s) late</Text>
+                      )}
                     </View>
 
                     {/* Failed message */}
@@ -437,6 +469,46 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#9CA3AF',
     marginTop: 2,
+  },
+  iconCirclePaidLate: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 2,
+    borderColor: '#D97706',
+  },
+  iconTextPaidLate: {
+    color: '#D97706',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  badgePaidLate: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE047',
+  },
+  badgeTextPaidLate: {
+    color: '#D97706',
+  },
+  paymentCardPaidLate: {
+    borderColor: '#FDE047',
+    backgroundColor: '#FFFDF9',
+  },
+  dateDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  detailsLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  delayText: {
+    fontSize: 11,
+    color: '#D97706',
+    fontWeight: '700',
   },
 
   /* Failed message */

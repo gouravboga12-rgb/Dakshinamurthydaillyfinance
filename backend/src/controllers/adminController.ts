@@ -157,14 +157,25 @@ export const updateCustomerStatus = async (req: AuthRequest, res: Response) => {
 export const editCustomerDetails = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { full_name, email, occupation, shop_name, address } = req.body;
+    const { full_name, email, occupation, shop_name, address, manual_late_payments_count, manual_late_payments_amount, manual_late_payments_dates } = req.body;
     
     const user = await db.getUserById(id);
     if (!user) {
       return res.status(404).json({ error: 'Customer not found.' });
     }
 
-    const updated = await db.updateUser(id, { full_name, email, occupation, shop_name, address });
+    const updateFields: any = { full_name, email, occupation, shop_name, address };
+    if (manual_late_payments_count !== undefined) {
+      updateFields.manual_late_payments_count = Number(manual_late_payments_count);
+    }
+    if (manual_late_payments_amount !== undefined) {
+      updateFields.manual_late_payments_amount = Number(manual_late_payments_amount);
+    }
+    if (manual_late_payments_dates !== undefined) {
+      updateFields.manual_late_payments_dates = manual_late_payments_dates;
+    }
+
+    const updated = await db.updateUser(id, updateFields);
     return res.status(200).json({ message: 'Customer details updated.', user: updated });
   } catch (error: any) {
     console.error('Edit customer details error:', error);
@@ -181,8 +192,61 @@ export const getCustomerDetails = async (req: AuthRequest, res: Response) => {
     }
     const loans = await db.getLoansByCustomerId(id);
     
+    let totalInstallments = 0;
+    let paidOnTime = 0;
+    let paidLate = 0;
+    let overdueUnpaid = 0;
+    const todayStr = db.getISTDateString();
+    const latePaymentsList = [];
+    const loansWithInstallments = [];
+
+    for (const loan of loans) {
+      const installments = await db.getInstallmentsByLoanId(loan.id);
+      totalInstallments += installments.length;
+      for (const inst of installments) {
+        if (inst.status === 'Paid') {
+          const payDateOnly = inst.payment_date ? inst.payment_date.substring(0, 10) : '';
+          if (payDateOnly && payDateOnly > inst.due_date) {
+            paidLate++;
+            // Calculate delay in days
+            const dueTime = new Date(inst.due_date).getTime();
+            const payTime = new Date(payDateOnly).getTime();
+            const daysLate = Math.max(1, Math.ceil((payTime - dueTime) / (1000 * 60 * 60 * 24)));
+            latePaymentsList.push({
+              loanId: loan.id,
+              dueDate: inst.due_date,
+              paymentDate: payDateOnly,
+              amount: loan.daily_installment,
+              daysLate
+            });
+          } else {
+            paidOnTime++;
+          }
+        } else {
+          if (inst.due_date < todayStr) {
+            overdueUnpaid++;
+          }
+        }
+      }
+      loansWithInstallments.push({
+        ...loan,
+        installments
+      });
+    }
+
     const { password_hash, ...profile } = user;
-    return res.status(200).json({ profile, loans });
+    const paymentStats = {
+      totalInstallments,
+      paidOnTime,
+      paidLate: paidLate + Number(profile.manual_late_payments_count || 0),
+      overdueUnpaid,
+      autoPaidLate: paidLate,
+      manualLateCount: Number(profile.manual_late_payments_count || 0),
+      manualLateAmount: Number(profile.manual_late_payments_amount || 0),
+      manualLateDates: profile.manual_late_payments_dates || '',
+    };
+
+    return res.status(200).json({ profile, loans: loansWithInstallments, paymentStats, latePaymentsList });
   } catch (error: any) {
     console.error('Get customer details error:', error);
     return res.status(500).json({ error: 'Failed to fetch customer profile.' });
@@ -323,12 +387,12 @@ export const approveLoan = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: `Cannot approve loan in '${loan.status}' status.` });
     }
 
-    const { approved_amount, platform_charges, amount_disbursed, daily_installment, duration_days, total_repayment } = req.body;
+    const { approved_amount, platform_charges, amount_disbursed, daily_installment, duration_days, total_repayment, approval_date } = req.body;
 
     // Update status to Active
-    const now = new Date().toISOString();
+    const now = db.getISTDateTimeString();
     const additionalFields: any = {
-      approval_date: now
+      approval_date: approval_date || now
     };
 
     if (approved_amount !== undefined) {
@@ -358,7 +422,7 @@ export const approveLoan = async (req: AuthRequest, res: Response) => {
 
     // Automatically generate daily installments
     const installments = [];
-    const startDate = new Date(); // Start tomorrow.
+    const startDate = approval_date ? new Date(approval_date) : new Date(); // Start from the approval date base.
     for (let i = 1; i <= updatedLoan.duration_days; i++) {
       const dueDate = new Date(startDate);
       dueDate.setDate(startDate.getDate() + i);
@@ -418,7 +482,7 @@ export const closeLoan = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Loan not found.' });
     }
 
-    const now = new Date().toISOString();
+    const now = db.getISTDateTimeString();
     const updated = await db.updateLoanStatus(id, 'Completed', {
       completion_date: now,
       remaining_balance: 0
@@ -483,7 +547,7 @@ export const markInstallmentPaid = async (req: AuthRequest, res: Response) => {
     }
 
     // Mark paid
-    const now = new Date().toISOString();
+    const now = db.getISTDateTimeString();
     await db.markInstallmentPaid(installmentId, now);
 
     // Calculate new balance
@@ -552,7 +616,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 export const getReports = async (req: AuthRequest, res: Response) => {
   try {
     const { type } = req.query; // 'daily_collection' | 'daily_profit' | 'outstanding' | 'efficiency'
-    const today = new Date().toISOString().split('T')[0];
+    const today = db.getISTDateString();
 
     if (type === 'daily_collection') {
       const collections = await db.getInstallmentsPaidToday();
@@ -864,7 +928,7 @@ export const approveForeclosure = async (req: AuthRequest, res: Response) => {
     }
 
     const installments = await db.getInstallmentsByLoanId(id);
-    const now = new Date().toISOString();
+    const now = db.getISTDateTimeString();
     
     // Mark all unpaid/pending installments as Paid
     for (const inst of installments) {
@@ -904,7 +968,7 @@ export const updateLoan = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Loan request not found.' });
     }
 
-    const { approved_amount, platform_charges, daily_installment, duration_days, total_repayment, remaining_balance } = req.body;
+    const { approved_amount, platform_charges, daily_installment, duration_days, total_repayment, remaining_balance, approval_date } = req.body;
 
     const updates: any = {};
     if (approved_amount !== undefined) updates.approved_amount = Number(approved_amount);
@@ -917,8 +981,24 @@ export const updateLoan = async (req: AuthRequest, res: Response) => {
     if (duration_days !== undefined) updates.duration_days = Number(duration_days);
     if (total_repayment !== undefined) updates.total_repayment = Number(total_repayment);
     if (remaining_balance !== undefined) updates.remaining_balance = Number(remaining_balance);
+    if (approval_date !== undefined) updates.approval_date = approval_date;
 
     const updatedLoan = await db.updateLoanStatus(id, loan.status, updates);
+
+    // If approval_date was updated, shift installment due dates
+    if (approval_date !== undefined) {
+      const existingInstallments = await db.getInstallmentsByLoanId(id);
+      existingInstallments.sort((a: any, b: any) => a.due_date.localeCompare(b.due_date));
+      
+      const newStartDate = new Date(approval_date);
+      for (let i = 0; i < existingInstallments.length; i++) {
+        const nextDueDate = new Date(newStartDate);
+        nextDueDate.setDate(newStartDate.getDate() + (i + 1));
+        const newDueDateStr = nextDueDate.toISOString().split('T')[0];
+        
+        await db.updateInstallmentDueDate(existingInstallments[i].id, newDueDateStr);
+      }
+    }
 
     // If active and duration/daily_installment was updated, regenerate the unpaid installments
     if (loan.status === 'Active' && (duration_days !== undefined || daily_installment !== undefined)) {
@@ -932,11 +1012,11 @@ export const updateLoan = async (req: AuthRequest, res: Response) => {
       const remainingCount = Math.max(0, updatedLoan.duration_days - paidOrPending.length);
       if (remainingCount > 0) {
         const newInstallments = [];
-        const now = new Date().toISOString();
-        const startDate = new Date();
+        const now = db.getISTDateTimeString();
+        const startBaseDate = new Date(updatedLoan.approval_date || new Date());
         for (let i = 1; i <= remainingCount; i++) {
-          const dueDate = new Date(startDate);
-          dueDate.setDate(startDate.getDate() + i);
+          const dueDate = new Date(startBaseDate);
+          dueDate.setDate(startBaseDate.getDate() + paidOrPending.length + i);
           newInstallments.push({
             id: crypto.randomUUID(),
             loan_id: id,
@@ -1015,6 +1095,61 @@ export const getOverduePayments = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Get overdue payments error:', error);
     return res.status(500).json({ error: 'Failed to load overdue payments.' });
+  }
+};
+
+export const getPaidLatePayments = async (req: AuthRequest, res: Response) => {
+  try {
+    const list = await db.getPaidLatePayments();
+    return res.status(200).json(list);
+  } catch (error: any) {
+    console.error('Get paid late payments error:', error);
+    return res.status(500).json({ error: 'Failed to load paid late payments.' });
+  }
+};
+
+export const updateInstallment = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { due_date, payment_date, status } = req.body;
+    
+    const installment = await db.getInstallmentById(id);
+    if (!installment) {
+      return res.status(404).json({ error: 'Installment not found.' });
+    }
+    
+    const updates: any = {};
+    if (due_date !== undefined) updates.due_date = due_date;
+    if (payment_date !== undefined) updates.payment_date = payment_date || null;
+    if (status !== undefined) updates.status = status;
+    
+    // Check if status changed to adjust loan remaining balance
+    if (status !== undefined && status !== installment.status) {
+      const loan = await db.getLoanById(installment.loan_id);
+      if (loan) {
+        let newBalance = loan.remaining_balance;
+        if (status === 'Paid' && installment.status !== 'Paid') {
+          newBalance = Math.max(0, loan.remaining_balance - loan.daily_installment);
+        } else if (status !== 'Paid' && installment.status === 'Paid') {
+          newBalance = Math.min(loan.total_repayment, loan.remaining_balance + loan.daily_installment);
+        }
+        
+        let newLoanStatus = loan.status;
+        if (newBalance <= 0) {
+          newLoanStatus = 'Completed';
+        } else if (loan.status === 'Completed' && newBalance > 0) {
+          newLoanStatus = 'Active';
+        }
+        
+        await db.updateLoanStatus(loan.id, newLoanStatus, { remaining_balance: newBalance });
+      }
+    }
+    
+    const updated = await db.updateInstallmentFields(id, updates);
+    return res.status(200).json({ message: 'Installment updated successfully.', installment: updated });
+  } catch (error: any) {
+    console.error('Update installment error:', error);
+    return res.status(500).json({ error: 'Failed to update installment.' });
   }
 };
 

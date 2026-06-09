@@ -12,7 +12,11 @@ import {
   IndianRupee,
   X,
   Check,
-  Eye
+  Eye,
+  Clock,
+  CheckCircle2,
+  CircleDollarSign,
+  CalendarDays
 } from 'lucide-react';
 
 interface Stats {
@@ -29,6 +33,9 @@ interface Stats {
   overduePaymentsCount: number;
   pendingPaymentsCount?: number;
   pendingPaymentsList?: any[];
+  totalDisbursedAmount?: number;
+  todayDisbursedAmount?: number;
+  todayDisbursedCount?: number;
 }
 
 interface DashboardProps {
@@ -165,6 +172,45 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
     },
   ];
 
+  const disbursalCards = [
+    {
+      label: 'Pending Requests',
+      value: stats?.pendingLoansCount || 0,
+      icon: Clock,
+      iconBg: 'bg-indigo-50',
+      iconColor: 'text-indigo-600',
+      link: 'loans',
+      trend: 'Awaiting disbursal',
+    },
+    {
+      label: 'Completed Loans',
+      value: stats?.completedLoansCount || 0,
+      icon: CheckCircle2,
+      iconBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
+      link: 'loans',
+      trend: 'Fully repaid & closed',
+    },
+    {
+      label: 'Total Capital Disbursed',
+      value: `₹${(stats?.totalDisbursedAmount || 0).toLocaleString('en-IN')}`,
+      icon: CircleDollarSign,
+      iconBg: 'bg-violet-50',
+      iconColor: 'text-violet-600',
+      link: 'loans',
+      trend: 'Total loan volume',
+    },
+    {
+      label: "Today's Disbursals",
+      value: `${stats?.todayDisbursedCount || 0} (₹${(stats?.todayDisbursedAmount || 0).toLocaleString('en-IN')})`,
+      icon: CalendarDays,
+      iconBg: 'bg-sky-50',
+      iconColor: 'text-sky-600',
+      link: 'loans',
+      trend: 'Disbursals approved today',
+    },
+  ];
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in">
 
@@ -207,31 +253,64 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
         </div>
       </div>
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {metricCards.map((card, i) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={i}
-              className="card-surface p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
-              onClick={() => setCurrentPage(card.link)}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-xl ${card.iconBg}`}>
-                  <Icon size={20} className={card.iconColor} />
+      {/* Metric Cards - Primary Operations */}
+      <div>
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Primary Operations</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {metricCards.map((card, i) => {
+            const Icon = card.icon;
+            return (
+              <div
+                key={i}
+                className="card-surface p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+                onClick={() => setCurrentPage(card.link)}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`p-3 rounded-xl ${card.iconBg}`}>
+                    <Icon size={20} className={card.iconColor} />
+                  </div>
+                  <ArrowRight
+                    size={14}
+                    className="text-muted opacity-0 group-hover:opacity-100 group-hover:text-brand transition-all"
+                  />
                 </div>
-                <ArrowRight
-                  size={14}
-                  className="text-muted opacity-0 group-hover:opacity-100 group-hover:text-brand transition-all"
-                />
+                <p className="text-[10px] font-extrabold text-muted uppercase tracking-widest mb-1">{card.label}</p>
+                <p className="text-3xl font-black text-primary mb-2">{card.value}</p>
+                <p className="text-[11px] font-semibold text-muted">{card.trend}</p>
               </div>
-              <p className="text-[10px] font-extrabold text-muted uppercase tracking-widest mb-1">{card.label}</p>
-              <p className="text-3xl font-black text-primary mb-2">{card.value}</p>
-              <p className="text-[11px] font-semibold text-muted">{card.trend}</p>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Metric Cards - Disbursals & Pipeline Overview */}
+      <div>
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Disbursals & Pipeline Overview</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {disbursalCards.map((card, i) => {
+            const Icon = card.icon;
+            return (
+              <div
+                key={i}
+                className="card-surface p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+                onClick={() => setCurrentPage(card.link)}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`p-3 rounded-xl ${card.iconBg}`}>
+                    <Icon size={20} className={card.iconColor} />
+                  </div>
+                  <ArrowRight
+                    size={14}
+                    className="text-muted opacity-0 group-hover:opacity-100 group-hover:text-brand transition-all"
+                  />
+                </div>
+                <p className="text-[10px] font-extrabold text-muted uppercase tracking-widest mb-1">{card.label}</p>
+                <p className="text-3xl font-black text-primary mb-2">{card.value}</p>
+                <p className="text-[11px] font-semibold text-muted">{card.trend}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Pending Payment Approvals Feed */}

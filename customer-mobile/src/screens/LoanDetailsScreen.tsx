@@ -151,6 +151,11 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
           <Text style={styles.refValue}>DMF-{(loan.id || '').split('-')[0].toUpperCase()}</Text>
         </View>
 
+        <View style={styles.row}>
+          <Text style={styles.refLabel}>Loan Given Date</Text>
+          <Text style={styles.refValue}>{loan.approval_date ? formatDueDate(loan.approval_date.split('T')[0]) : 'Pending'}</Text>
+        </View>
+
         <View style={styles.amountDivider} />
 
         <View style={styles.row}>
@@ -214,29 +219,39 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
       <View style={styles.scheduleCard}>
         {installments.map((inst, idx) => {
           const isOverdue = inst.status === 'Unpaid' && inst.due_date < new Date().toISOString().split('T')[0];
+          const isPaidLate = !!(inst.status === 'Paid' && inst.payment_date && inst.payment_date.substring(0, 10) > inst.due_date);
+          
           return (
             <View key={inst.id} style={[styles.instRow, idx < installments.length - 1 && styles.instRowBorder]}>
               <View>
                 <Text style={styles.instLabel}>{getOrdinal(idx + 1)} Installment</Text>
                 <Text style={styles.instDate}>{formatDueDate(inst.due_date)}</Text>
                 {inst.payment_date && (
-                  <Text style={styles.instPayDate}>Paid on: {formatDueDate(inst.payment_date.split('T')[0])}</Text>
+                  <Text style={[
+                    styles.instPayDate,
+                    isPaidLate ? { color: '#F59E0B' } : null
+                  ]}>
+                    {isPaidLate ? 'Paid Late on: ' : 'Paid on: '}{formatDueDate(inst.payment_date.split('T')[0])}
+                  </Text>
                 )}
               </View>
               <View style={styles.instRight}>
                 <Text style={styles.instAmount}>₹{loan.daily_installment.toLocaleString('en-IN')}</Text>
                 <View style={[
                   styles.badgeSmall,
-                  inst.status === 'Paid' ? styles.badgePaid :
-                    isOverdue ? styles.badgeOverdue : styles.badgeUnpaid
+                  inst.status === 'Paid' 
+                    ? (isPaidLate ? styles.badgePaidLate : styles.badgePaid) 
+                    : (isOverdue ? styles.badgeOverdue : styles.badgeUnpaid)
                 ]}>
                   <Text style={[
                     styles.badgeTextSmall,
-                    inst.status === 'Paid' && { color: '#10B981' },
-                    isOverdue && { color: '#EF4444' },
-                    inst.status === 'Unpaid' && !isOverdue && { color: '#6B7280' },
+                    inst.status === 'Paid' 
+                      ? (isPaidLate ? { color: '#F59E0B' } : { color: '#10B981' }) 
+                      : (isOverdue ? { color: '#EF4444' } : { color: '#6B7280' }),
                   ]}>
-                    {inst.status === 'Paid' ? 'PAID' : isOverdue ? 'LATE' : 'PENDING'}
+                    {inst.status === 'Paid' 
+                      ? (isPaidLate ? 'PAID LATE' : 'PAID') 
+                      : (isOverdue ? 'FAILED TO PAY' : 'PENDING')}
                   </Text>
                 </View>
               </View>
@@ -454,6 +469,7 @@ const styles = StyleSheet.create({
   badgePaid: { backgroundColor: 'rgba(16, 185, 129, 0.1)' },
   badgeUnpaid: { backgroundColor: '#F3F4F6' },
   badgeOverdue: { backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+  badgePaidLate: { backgroundColor: 'rgba(245, 158, 11, 0.1)' },
   badgeTextSmall: {
     fontSize: 9,
     fontWeight: '800',

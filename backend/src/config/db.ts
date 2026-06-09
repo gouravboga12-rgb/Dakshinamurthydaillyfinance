@@ -7,6 +7,17 @@ import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
 
+// Helper functions for Indian Standard Time (IST) offset (+05:30)
+export function getISTDate() {
+  return new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+}
+export function getISTDateString() {
+  return getISTDate().toISOString().split('T')[0];
+}
+export function getISTDateTimeString() {
+  return getISTDate().toISOString();
+}
+
 // Load environment variables (done in index.ts, but let's make sure we have access)
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
@@ -181,6 +192,18 @@ async function setupSQLiteTables() {
     // Ignore error if column already exists
   }
 
+  try {
+    await runSqlAsync('ALTER TABLE users ADD COLUMN manual_late_payments_count INTEGER DEFAULT 0');
+  } catch (err) {}
+
+  try {
+    await runSqlAsync('ALTER TABLE users ADD COLUMN manual_late_payments_amount REAL DEFAULT 0.0');
+  } catch (err) {}
+
+  try {
+    await runSqlAsync('ALTER TABLE users ADD COLUMN manual_late_payments_dates TEXT');
+  } catch (err) {}
+
   // Loans Table
   await runSqlAsync(`
     CREATE TABLE IF NOT EXISTS loans (
@@ -295,6 +318,10 @@ async function setupSQLiteTables() {
 
 // Unified DB Repository Functions
 export const db = {
+  getISTDate,
+  getISTDateString,
+  getISTDateTimeString,
+
   // --- USERS ---
   async getUserByMobile(mobile: string) {
     if (useSupabase) {
@@ -626,6 +653,22 @@ export const db = {
       return data;
     } else {
       await runSqlAsync("UPDATE installments SET status = 'Paid', payment_date = ? WHERE id = ?", [paymentDate, id]);
+      return await this.getInstallmentById(id);
+    }
+  },
+
+  async updateInstallmentFields(id: string, fields: any) {
+    if (useSupabase) {
+      const { data, error } = await supabaseClient.from('installments').update(fields).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    } else {
+      const keys = Object.keys(fields);
+      if (keys.length === 0) return this.getInstallmentById(id);
+      const sets = keys.map(k => `${k} = ?`).join(', ');
+      const params = Object.values(fields);
+      params.push(id);
+      await runSqlAsync(`UPDATE installments SET ${sets} WHERE id = ?`, params);
       return await this.getInstallmentById(id);
     }
   },
@@ -983,6 +1026,13 @@ export const db = {
         const overdueAmount = overdueInst?.reduce((sum: number, i: any) => sum + (i.loan?.daily_installment || 0), 0) || 0;
         const npaRate = outstanding ? Math.round((overdueAmount / outstanding) * 100) : 0;
 
+        const nonPendingLoans = loans?.filter((l: any) => l.status === 'Active' || l.status === 'Completed') || [];
+        const totalDisbursedAmount = nonPendingLoans.reduce((sum: number, l: any) => sum + (l.approved_amount || 0), 0);
+        
+        const approvedToday = loans?.filter((l: any) => (l.status === 'Active' || l.status === 'Completed') && l.approval_date && l.approval_date.startsWith(todayStr)) || [];
+        const todayDisbursedAmount = approvedToday.reduce((sum: number, l: any) => sum + (l.approved_amount || 0), 0);
+        const todayDisbursedCount = approvedToday.length;
+
         return {
           totalCustomers,
           activeLoansCount: activeLoans.length,
@@ -1002,7 +1052,10 @@ export const db = {
           averageLoanSize,
           avgDaysToRepay,
           monthlyCollectionTotal,
-          npaRate
+          npaRate,
+          totalDisbursedAmount,
+          todayDisbursedAmount,
+          todayDisbursedCount
         };
       } catch (err: any) {
         console.warn('Supabase analytics fetch failed, falling back to local SQLite database:', err.message || err);
@@ -1085,6 +1138,13 @@ export const db = {
     const overdueAmount = overdueAmtResult.sum || 0;
     const npaRate = outstandingAmount ? Math.round((overdueAmount / outstandingAmount) * 100) : 0;
 
+    const totalDisbursedResult = await getSqlAsync("SELECT SUM(approved_amount) as sum FROM loans WHERE status IN ('Active', 'Completed')");
+    const totalDisbursedAmount = totalDisbursedResult.sum || 0;
+
+    const todayDisbursedResult = await getSqlAsync("SELECT SUM(approved_amount) as sum, COUNT(*) as cnt FROM loans WHERE status IN ('Active', 'Completed') AND approval_date LIKE ?", [`${today}%`]);
+    const todayDisbursedAmount = todayDisbursedResult.sum || 0;
+    const todayDisbursedCount = todayDisbursedResult.cnt || 0;
+
     return {
       totalCustomers,
       activeLoansCount,
@@ -1104,7 +1164,10 @@ export const db = {
       averageLoanSize,
       avgDaysToRepay,
       monthlyCollectionTotal,
-      npaRate
+      npaRate,
+      totalDisbursedAmount,
+      todayDisbursedAmount,
+      todayDisbursedCount
     };
   },
 
@@ -1199,6 +1262,90 @@ export const db = {
     } else {
       await runSqlAsync("DELETE FROM installments WHERE loan_id = ? AND status = 'Unpaid'", [loanId]);
       return { loanId };
+    }
+  },
+
+  async updateInstallmentDueDate(id: string, dueDate: string) {
+    if (useSupabase) {
+      const { data, error } = await supabaseClient.from('installments')
+        .update({ due_date: dueDate })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } else {
+      await runSqlAsync('UPDATE installments SET due_date = ? WHERE id = ?', [dueDate, id]);
+      return await this.getInstallmentById(id);
+    }
+  },
+
+  async getPaidLatePayments() {
+    const today = new Date().toISOString().split('T')[0];
+    if (useSupabase) {
+      try {
+        const { data, error } = await supabaseClient.from('installments')
+          .select('*, loan:loans(*, customer:users(*))')
+          .eq('status', 'Paid')
+          .order('payment_date', { ascending: false });
+        if (error) throw error;
+        
+        return (data || [])
+          .filter((inst: any) => {
+            const payDateOnly = inst.payment_date ? inst.payment_date.substring(0, 10) : '';
+            return payDateOnly && payDateOnly > inst.due_date;
+          })
+          .map((inst: any) => {
+            const payDateOnly = inst.payment_date ? inst.payment_date.substring(0, 10) : '';
+            const daysLate = Math.max(1, Math.ceil((new Date(payDateOnly).getTime() - new Date(inst.due_date).getTime()) / (1000 * 60 * 60 * 24)));
+            return {
+              id: inst.id,
+              loanId: inst.loan_id,
+              customerName: inst.loan?.customer?.full_name || 'Unknown',
+              mobile: inst.loan?.customer?.mobile_number || '',
+              dueDate: inst.due_date,
+              paymentDate: inst.payment_date,
+              amount: inst.loan?.daily_installment || 0,
+              daysLate
+            };
+          });
+      } catch (err: any) {
+        console.warn('Supabase fetch paid late payments failed:', err.message || err);
+        return [];
+      }
+    } else {
+      try {
+        const rows = await allSqlAsync(`
+          SELECT i.id, i.loan_id, i.due_date, i.payment_date, l.daily_installment, u.full_name as customer_name, u.mobile_number as customer_mobile
+          FROM installments i
+          JOIN loans l ON i.loan_id = l.id
+          JOIN users u ON l.customer_id = u.id
+          WHERE i.status = 'Paid'
+          ORDER BY i.payment_date DESC
+        `);
+        return rows
+          .filter((r: any) => {
+            const payDateOnly = r.payment_date ? r.payment_date.substring(0, 10) : '';
+            return payDateOnly && payDateOnly > r.due_date;
+          })
+          .map((r: any) => {
+            const payDateOnly = r.payment_date ? r.payment_date.substring(0, 10) : '';
+            const daysLate = Math.max(1, Math.ceil((new Date(payDateOnly).getTime() - new Date(r.due_date).getTime()) / (1000 * 60 * 60 * 24)));
+            return {
+              id: r.id,
+              loanId: r.loan_id,
+              customerName: r.customer_name || 'Unknown',
+              mobile: r.customer_mobile || '',
+              dueDate: r.due_date,
+              paymentDate: r.payment_date,
+              amount: r.daily_installment || 0,
+              daysLate
+            };
+          });
+      } catch (err: any) {
+        console.warn('SQLite fetch paid late payments failed:', err.message || err);
+        return [];
+      }
     }
   }
 };

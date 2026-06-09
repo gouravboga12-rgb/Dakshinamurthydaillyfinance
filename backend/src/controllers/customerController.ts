@@ -34,7 +34,7 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
       const unpaid = installments.filter((i: any) => i.status === 'Unpaid');
 
       // Find next due date
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = db.getISTDateString();
       const nextDueInstallment = unpaid.find((i: any) => i.due_date >= todayStr) || unpaid[0];
 
       const paidAmount = paid.length * activeLoan.daily_installment;
@@ -259,7 +259,7 @@ export const payInstallment = async (req: AuthRequest, res: Response) => {
     const oldestUnpaid = unpaidInstallments[0]; // First unpaid installment
 
     // Mark paid
-    const now = new Date().toISOString();
+    const now = db.getISTDateTimeString();
     await db.markInstallmentPaid(oldestUnpaid.id, now);
 
     // Calculate new balance
@@ -446,7 +446,7 @@ export const forecloseLoan = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'All installments are already paid.' });
     }
 
-    const now = new Date().toISOString();
+    const now = db.getISTDateTimeString();
     for (const inst of unpaid) {
       await db.markInstallmentPaid(inst.id, now);
     }

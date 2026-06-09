@@ -25,7 +25,7 @@ interface Installment {
   id: string;
   loan_id: string;
   due_date: string;
-  status: 'Paid' | 'Unpaid';
+  status: 'Paid' | 'Unpaid' | 'Pending';
   payment_date: string | null;
 }
 
@@ -271,41 +271,60 @@ export default function PaymentHistoryScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
             {(installments || []).map((inst, idx) => {
+              const isPaid = inst?.status === 'Paid';
+              const payDateOnly = inst?.payment_date ? inst.payment_date.substring(0, 10) : '';
+              const isPaidLate = !!(isPaid && payDateOnly && payDateOnly > inst.due_date);
               const isOverdue =
                 inst?.status === 'Unpaid' &&
                 inst?.due_date < new Date().toISOString().split('T')[0];
-              const isPaid = inst?.status === 'Paid';
+              const isPending = inst?.status === 'Pending';
+              
+              let delayDays = 0;
+              if (isPaidLate) {
+                const dueTime = new Date(inst.due_date).getTime();
+                const payTime = new Date(payDateOnly).getTime();
+                delayDays = Math.max(1, Math.ceil((payTime - dueTime) / (1000 * 60 * 60 * 24)));
+              }
+
               return (
                 <View key={inst?.id || idx} style={styles.installmentCard}>
                   <View style={styles.rowLeft}>
                     <View style={[
                       styles.calcIconBox,
-                      isPaid && styles.calcIconBoxPaid,
+                      isPaidLate && styles.calcIconBoxPaidLate,
+                      !isPaidLate && isPaid && styles.calcIconBoxPaid,
                       isOverdue && styles.calcIconBoxOverdue,
                     ]}>
                       <Text style={styles.calcEmoji}>
                         {isPaid ? '✓' : isOverdue ? '⚠' : '⏳'}
                       </Text>
                     </View>
-                    <View>
+                    <View style={{ flexShrink: 1 }}>
                       <Text style={styles.installAmount}>
                         ₹{Number(selectedLoan?.daily_installment || 0).toLocaleString('en-IN')}
                       </Text>
                       <Text style={styles.installDate}>
-                        Day {idx + 1} — {inst?.due_date || '—'}
+                        Day {idx + 1} — Due: {inst?.due_date || '—'}
                       </Text>
+                      {isPaid && inst?.payment_date && (
+                        <Text style={[styles.installSubDate, isPaidLate && { color: '#D97706' }]}>
+                          Paid: {payDateOnly} {isPaidLate ? `(${delayDays}d late)` : ''}
+                        </Text>
+                      )}
                     </View>
                   </View>
                   <View style={styles.rowRight}>
                     <Text
                       style={[
                         styles.statusText,
-                        isPaid && styles.statusPaid,
+                        isPaidLate && styles.statusPaidLate,
+                        !isPaidLate && isPaid && styles.statusPaid,
                         isOverdue && styles.statusOverdue,
-                        !isPaid && !isOverdue && styles.statusPending,
+                        isPending && styles.statusPending,
+                        !isPaid && !isOverdue && !isPending && styles.statusUpcoming,
                       ]}
                     >
-                      {isPaid ? 'PAID' : isOverdue ? 'LATE' : 'PENDING'}
+                      {isPaidLate ? 'PAID LATE' : isPaid ? 'PAID' : isOverdue ? 'FAILED' : 'PENDING'}
                     </Text>
                   </View>
                 </View>
@@ -456,17 +475,23 @@ const styles = StyleSheet.create({
   calcIconBoxPaid: {
     backgroundColor: '#D1FAE5',
   },
+  calcIconBoxPaidLate: {
+    backgroundColor: '#FEF3C7',
+  },
   calcIconBoxOverdue: {
     backgroundColor: '#FEE2E2',
   },
   calcEmoji: { fontSize: 16 },
   installAmount: { color: COLORS.primary, fontSize: 15, fontWeight: '900' },
   installDate: { color: COLORS.muted, fontSize: 11, fontWeight: '700', marginTop: 2 },
+  installSubDate: { fontSize: 10, color: '#6B7280', fontWeight: '600', marginTop: 2 },
   rowRight: {},
   statusText: { fontSize: 9, fontWeight: '900', letterSpacing: 0.5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   statusPaid: { color: '#10B981', backgroundColor: '#DCFCE7' },
+  statusPaidLate: { color: '#D97706', backgroundColor: '#FEF3C7' },
   statusPending: { color: '#6B7280', backgroundColor: '#F3F4F6' },
   statusOverdue: { color: '#EF4444', backgroundColor: '#FEF2F2' },
+  statusUpcoming: { color: '#9CA3AF', backgroundColor: '#F9FAFB' },
 
   historyCtaButton: {
     flexDirection: 'row',

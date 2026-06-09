@@ -504,8 +504,8 @@ export default function DashboardScreen({ navigation }: any) {
                       <Text style={styles.indicatorText}>{isOverdue ? '🚨' : '⏳'}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.unpaidItemTitle}>
-                        {isOverdue ? 'Overdue Installment' : 'Upcoming Installment'}
+                      <Text style={[styles.unpaidItemTitle, isOverdue && { color: '#EF4444' }]}>
+                        {isOverdue ? 'Failed to Pay' : 'Upcoming Installment'}
                       </Text>
                       <Text style={styles.unpaidItemDate}>Due Date: {inst.due_date}</Text>
                       {inst.status === 'Pending' && (

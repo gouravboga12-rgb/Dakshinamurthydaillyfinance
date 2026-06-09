@@ -27,7 +27,9 @@ import {
   updateLoan,
   getPendingPayments,
   rejectInstallment,
-  getOverduePayments
+  getOverduePayments,
+  getPaidLatePayments,
+  updateInstallment
 } from '../controllers/adminController';
 
 const uploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/aadhaar');
@@ -110,6 +112,7 @@ router.put('/loans/:id', updateLoan);
 // Payment Tracking
 router.post('/payments/mark-paid', markInstallmentPaid);
 router.post('/payments/reject', rejectInstallment);
+router.put('/installments/:id', updateInstallment);
 
 // Settings Configuration
 const qrUploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/qr');
@@ -146,6 +149,7 @@ router.post('/settings/upi-qr', uploadQr.single('qr'), updateUpiQr);
 router.get('/dashboard-stats', getDashboardStats);
 router.get('/pending-payments', getPendingPayments);
 router.get('/overdue-payments', getOverduePayments);
+router.get('/paid-late-payments', getPaidLatePayments);
 router.get('/reports', getReports);
 
 export default router;

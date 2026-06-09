@@ -88,6 +88,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   const [approvalFormLoading, setApprovalFormLoading] = useState(false);
   const [isEditingActive, setIsEditingActive] = useState(false);
   const [approvalLoan, setApprovalLoan] = useState<Loan | null>(null);
+  const [approvalDate, setApprovalDate] = useState('');
 
   // Default settings loaded from database
   const [defaultPlatformFee, setDefaultPlatformFee] = useState('1000');
@@ -210,6 +211,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     setApprovalDurationDays(String(loan.duration_days));
     setIsEditingActive(loan.status === 'Active');
     setApprovalLoan(loan);
+    setApprovalDate(loan.approval_date ? loan.approval_date.substring(0, 10) : new Date().toISOString().substring(0, 10));
     
     // Calculate existing interest rate
     const interestAmt = loan.total_repayment - loan.approved_amount;
@@ -249,7 +251,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
           daily_installment: Number(approvalDailyInstallment),
           duration_days: Number(approvalDurationDays),
           total_repayment: totalRepay,
-          remaining_balance: newRemainingBalance
+          remaining_balance: newRemainingBalance,
+          approval_date: approvalDate
         }, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -261,7 +264,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
           amount_disbursed: approvedAmt - Number(approvalPlatformCharges),
           daily_installment: Number(approvalDailyInstallment),
           duration_days: Number(approvalDurationDays),
-          total_repayment: totalRepay
+          total_repayment: totalRepay,
+          approval_date: approvalDate
         }, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -551,7 +555,14 @@ export default function LoanManagement({ token }: LoanManagementProps) {
             <div className="bg-slate-900 p-6 text-white flex justify-between items-start">
               <div>
                 <h4 className="text-lg font-bold">Installment Ledger: {selectedLoanDetails.customer?.full_name}</h4>
-                <p className="text-xs text-slate-300 font-mono mt-1">Loan ID: DMF-{selectedLoanDetails.loan?.id.split('-')[0].toUpperCase()}</p>
+                <p className="text-xs text-slate-300 font-mono mt-1">
+                  Loan ID: DMF-{selectedLoanDetails.loan?.id.split('-')[0].toUpperCase()}
+                  {selectedLoanDetails.loan?.approval_date && (
+                    <span className="ml-3 font-semibold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
+                      Loan Given Date: {new Date(selectedLoanDetails.loan.approval_date).toLocaleDateString('en-IN')}
+                    </span>
+                  )}
+                </p>
               </div>
               <button 
                 onClick={() => setSelectedLoanDetails(null)}
@@ -820,6 +831,17 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                     onChange={(e) => setApprovalApprovedAmt(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
                     placeholder="e.g. 10000"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Loan Given Date (Disbursal) *</label>
+                  <input
+                    type="date"
+                    required
+                    value={approvalDate}
+                    onChange={(e) => setApprovalDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
                   />
                 </div>
 
