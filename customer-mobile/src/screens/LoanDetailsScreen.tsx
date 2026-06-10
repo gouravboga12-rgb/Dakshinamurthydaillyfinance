@@ -83,10 +83,11 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
     }
   };
 
-  // Interest rate = (total interest charged) / approved_amount * 100
-  // total_repayment = approved_amount + interest, so interest = total_repayment - approved_amount
+  // Interest rate = interest% of approved_amount
+  // Since total_repayment = (approved_amount + interest) - platform_charges
+  // interest = total_repayment + platform_charges - approved_amount
   const interestRate = loan.approved_amount > 0 
-    ? ((loan.total_repayment - loan.approved_amount) / loan.approved_amount) * 100 
+    ? ((loan.total_repayment + loan.platform_charges - loan.approved_amount) / loan.approved_amount) * 100 
     : 0;
 
   return (
@@ -120,7 +121,7 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
 
               <View style={styles.modalRow}>
                 <Text style={styles.modalLabel}>Flat Interest Charges</Text>
-                <Text style={styles.modalValue}>+ ₹{(loan.total_repayment - loan.approved_amount).toLocaleString('en-IN')}</Text>
+                <Text style={styles.modalValue}>+ ₹{(loan.total_repayment + loan.platform_charges - loan.approved_amount).toLocaleString('en-IN')}</Text>
               </View>
 
               <View style={[styles.modalRow, styles.modalRowBorder]}>

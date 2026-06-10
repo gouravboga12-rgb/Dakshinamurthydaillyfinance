@@ -173,15 +173,17 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   useEffect(() => {
     const amt = Number(formApprovedAmount) || 0;
     const interestAmt = Number(formInterestAmt) || 0;
+    const charges = Number(formPlatformCharges) || 0;
     const dur = Number(formDurationDays) || 0;
-    // Total repayment = approved amount + interest (platform charges are only deducted from disbursement, not from repayment target)
-    const totalRepay = amt + interestAmt;
+    // Total repayment = (approved_amount + interest) - platform_charges
+    // Platform fee is deducted from both disbursement and repayment target
+    const totalRepay = (amt + interestAmt) - charges;
     if (totalRepay > 0 && dur > 0) {
       setFormDailyInstallment(String(Math.round(totalRepay / dur)));
     } else {
       setFormDailyInstallment('');
     }
-  }, [formApprovedAmount, formInterestAmt, formDurationDays]);
+  }, [formApprovedAmount, formInterestAmt, formPlatformCharges, formDurationDays]);
 
   // Dynamic calculations for Approval Customize modal
   useEffect(() => {
@@ -194,15 +196,16 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   useEffect(() => {
     const amt = Number(approvalApprovedAmt) || 0;
     const interestAmt = Number(approvalInterestAmt) || 0;
+    const charges = Number(approvalPlatformCharges) || 0;
     const dur = Number(approvalDurationDays) || 0;
-    // Total repayment = approved amount + interest (platform charges are only deducted from disbursement, not from repayment target)
-    const totalRepay = amt + interestAmt;
+    // Total repayment = (approved_amount + interest) - platform_charges
+    const totalRepay = (amt + interestAmt) - charges;
     if (totalRepay > 0 && dur > 0) {
       setApprovalDailyInstallment(String(Math.round(totalRepay / dur)));
     } else {
       setApprovalDailyInstallment('');
     }
-  }, [approvalApprovedAmt, approvalInterestAmt, approvalDurationDays]);
+  }, [approvalApprovedAmt, approvalInterestAmt, approvalPlatformCharges, approvalDurationDays]);
 
   const openApproveModal = (loan: Loan) => {
     setApprovalLoanId(loan.id);
@@ -216,8 +219,9 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     setApprovalLoan(loan);
     setApprovalDate(loan.approval_date ? loan.approval_date.substring(0, 10) : new Date().toISOString().substring(0, 10));
     
-    // Calculate existing interest rate (total_repayment = approved_amount + interest, so interest = total_repayment - approved_amount)
-    const interestAmt = loan.total_repayment - loan.approved_amount;
+    // Calculate existing interest rate: interest = total_repayment - (approved_amount - platform_charges)
+    // i.e. interest = total_repayment + platform_charges - approved_amount
+    const interestAmt = loan.total_repayment + loan.platform_charges - loan.approved_amount;
     const interestPct = loan.approved_amount > 0 ? Math.round((interestAmt / loan.approved_amount) * 100) : 0;
     
     // Default interest percentage to calculated value if editing active, or 0 if pending
@@ -241,8 +245,9 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     setApprovalFormError('');
     const approvedAmt = Number(approvalApprovedAmt) || 0;
     const interestAmt = Number(approvalInterestAmt) || 0;
-    // Total repayment = approved amount + interest only; platform charges are a disbursement deduction only
-    const totalRepay = approvedAmt + interestAmt;
+    const charges = Number(approvalPlatformCharges) || 0;
+    // Total repayment = (approved_amount + interest) - platform_charges
+    const totalRepay = (approvedAmt + interestAmt) - charges;
 
     try {
       if (isEditingActive) {
@@ -333,8 +338,9 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     setFormError('');
     const approvedAmt = Number(formApprovedAmount) || 0;
     const interestAmt = Number(formInterestAmt) || 0;
-    // Total repayment = approved amount + interest only; platform charges are a disbursement deduction only
-    const totalRepay = approvedAmt + interestAmt;
+    const charges = Number(formPlatformCharges) || 0;
+    // Total repayment = (approved_amount + interest) - platform_charges
+    const totalRepay = (approvedAmt + interestAmt) - charges;
 
     try {
       await axios.post('/api/admin/loans', {
@@ -372,8 +378,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   const dispDaily = Number(formDailyInstallment) || 0;
   const dispInterestPct = Number(formInterestPct) || 0;
   const dispInterestAmt = Number(formInterestAmt) || 0;
-  // Total repayment = approved + interest (platform charges only reduce what customer receives, not what they owe)
-  const dispTotalRepayment = dispApproved + dispInterestAmt;
+  // Total repayment = (approved + interest) - platform_charges
+  const dispTotalRepayment = (dispApproved + dispInterestAmt) - dispCharges;
   const projectedRepaymentAmt = dispDuration * dispDaily;
 
   return (

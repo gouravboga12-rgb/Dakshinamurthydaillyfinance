@@ -195,12 +195,12 @@ export const requestLoan = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'You already have an active or pending loan.' });
     }
 
-    // Calculations for initial request (admin will override with final terms on approval)
+    // Calculations for initial request (admin will set final interest on approval)
     const approved_amount = Number(amount);
-    const platform_charges = Math.round(approved_amount * 0.05); // 5% platform charge (upfront deduction)
+    const platform_charges = Math.round(approved_amount * 0.05); // 5% upfront platform charge
     const amount_disbursed = approved_amount - platform_charges;
-    // Initial total_repayment = approved_amount (admin will add interest when approving)
-    const total_repayment = approved_amount;
+    // total_repayment starts as approved - platform_charges (no interest yet; admin adds it on approval)
+    const total_repayment = approved_amount - platform_charges;
     const remaining_balance = total_repayment;
     const daily_installment = Math.round(total_repayment / Number(duration_days));
 
