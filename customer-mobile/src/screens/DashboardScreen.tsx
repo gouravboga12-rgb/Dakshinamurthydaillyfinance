@@ -404,7 +404,7 @@ export default function DashboardScreen({ navigation }: any) {
                     <Text style={styles.loanDetailsGridLabel}>Interest Rate</Text>
                     <Text style={styles.loanDetailsGridValue}>
                       {loan.approved_amount > 0 
-                        ? `${Math.round(((loan.total_repayment + (loan.platform_charges || 0) - loan.approved_amount) / loan.approved_amount) * 100)}%`
+                        ? `${Math.round(((loan.total_repayment - loan.approved_amount) / loan.approved_amount) * 100)}%`
                         : '0%'
                       }
                     </Text>
