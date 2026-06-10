@@ -54,9 +54,9 @@ export const sendOtp = async (req: Request, res: Response) => {
       console.warn(`[SMTP Warning] Failed to send email to ${trimmedEmail}. Falling back to console OTP in development: ${otp}`);
       const isLocal = process.env.NODE_ENV === 'development' || !process.env.VERCEL;
       if (isLocal) {
-        return res.status(200).json({ 
-          message: `[Dev Mode] SMTP Failed. Your verification code is: ${otp}`, 
-          otp 
+        return res.status(200).json({
+          message: `[Dev Mode] SMTP Failed. Your verification code is: ${otp}`,
+          otp
         });
       }
       return res.status(500).json({ error: 'Failed to send OTP email. Please verify SMTP settings.' });
@@ -279,7 +279,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     let user = null;
     if (mobile_number.includes('@')) {
       const trimmedEmail = mobile_number.trim().toLowerCase();
-      
+
       // Verify OTP for email reset
       const cachedOtpObj = otpCache[trimmedEmail];
       if (!cachedOtpObj) {
