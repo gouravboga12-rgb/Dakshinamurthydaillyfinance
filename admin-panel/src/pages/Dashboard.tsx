@@ -122,10 +122,12 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
   }
 
   if (error || !stats || (stats as any).error) {
+    const errVal = error || (stats as any).error;
+    const errMsg = typeof errVal === 'object' ? (errVal.message || errVal.code || JSON.stringify(errVal)) : errVal;
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="bg-danger-light border border-danger-DEFAULT/20 text-danger-text rounded-2xl p-5 text-sm font-medium">
-          {error || (stats as any).error || 'Error loading dashboard.'}
+          {errMsg || 'Error loading dashboard.'}
         </div>
       </div>
     );

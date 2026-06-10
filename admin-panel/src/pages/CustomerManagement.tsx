@@ -245,7 +245,8 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
       if (Array.isArray(response.data)) {
         setCustomers(response.data);
       } else if (response.data && response.data.error) {
-        setError(response.data.error);
+        const errVal = response.data.error;
+        setError(typeof errVal === 'object' ? (errVal.message || errVal.code || JSON.stringify(errVal)) : String(errVal));
       } else {
         setError('Received invalid data format from server.');
       }
