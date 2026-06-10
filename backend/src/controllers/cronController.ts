@@ -13,8 +13,8 @@ export const sendCronReminders = async (req: Request, res: Response) => {
   try {
     // 1. Fetch all active loans
     const activeLoans = await db.getLoans({ status: 'Active' });
-    let emailsSent = 0;
     const todayStr = db.getISTDateString();
+    const reminderTasks: any[] = [];
 
     for (const loan of activeLoans) {
       // Find customer info
@@ -37,23 +37,38 @@ export const sendCronReminders = async (req: Request, res: Response) => {
       const isDueToday = !!dueTodayInstallment;
 
       if (isOverdue || isDueToday) {
-        // Send email reminder
-        const dueAmount = loan.daily_installment;
-        const overdueCount = overdueInstallments.length;
-        const remainingBalance = loan.remaining_balance;
+        reminderTasks.push({
+          email: user.email,
+          name: user.full_name,
+          dueAmount: loan.daily_installment,
+          overdueCount: overdueInstallments.length,
+          remainingBalance: loan.remaining_balance
+        });
+      }
+    }
 
-        const emailSentStatus = await sendDuesReminderEmail(
-          user.email,
-          user.full_name,
-          dueAmount,
-          overdueCount,
-          remainingBalance
-        );
+    // 4. Send emails concurrently in chunks of 5 to avoid SMTP blockages and Vercel timeouts
+    let emailsSent = 0;
+    const chunkSize = 5;
+    for (let i = 0; i < reminderTasks.length; i += chunkSize) {
+      const chunk = reminderTasks.slice(i, i + chunkSize);
+      const results = await Promise.allSettled(
+        chunk.map(task =>
+          sendDuesReminderEmail(
+            task.email,
+            task.name,
+            task.dueAmount,
+            task.overdueCount,
+            task.remainingBalance
+          )
+        )
+      );
 
-        if (emailSentStatus) {
+      results.forEach(res => {
+        if (res.status === 'fulfilled' && res.value) {
           emailsSent++;
         }
-      }
+      });
     }
 
     return res.status(200).json({
