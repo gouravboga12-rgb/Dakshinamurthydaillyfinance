@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import api from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
 
@@ -35,45 +36,85 @@ export default function PaymentHistoryScreen({ navigation }: any) {
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'ongoing' | 'closed'>('ongoing');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  useEffect(() => {
-    const fetchLoans = async () => {
-      try {
-        const response = await api.get('/customer/loans');
-        setLoans(response.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchLoans();
-  }, []);
+  // Refetch loans list on focus (ensures no stale data) and increment refreshTrigger
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
+      const fetchLoans = async () => {
+        try {
+          const response = await api.get('/customer/loans');
+          if (isMounted) {
+            setLoans(response.data);
+            setRefreshTrigger(prev => prev + 1);
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          if (isMounted) {
+            setLoading(false);
+          }
+        }
+      };
+      fetchLoans();
+      return () => {
+        isMounted = false;
+      };
+    }, [])
+  );
 
+  // Synchronize selectedLoan based on current tab and loans list updates
   useEffect(() => {
     const ongoingLoans = loans.filter(l => l.status === 'Active' || l.status === 'Pending');
     const closedLoans = loans.filter(l => l.status === 'Completed' || l.status === 'Rejected');
     const currentTabLoans = activeTab === 'ongoing' ? ongoingLoans : closedLoans;
 
     if (currentTabLoans.length > 0) {
-      // Pre-select the first loan in the list if selected one is not in the list
-      if (!selectedLoan || !currentTabLoans.some(l => l.id === selectedLoan.id)) {
-        loadInstallments(currentTabLoans[0]);
+      const matched = selectedLoan ? currentTabLoans.find(l => l.id === selectedLoan.id) : null;
+      if (matched) {
+        if (selectedLoan !== matched) {
+          setSelectedLoan(matched);
+        }
+      } else {
+        setSelectedLoan(currentTabLoans[0]);
       }
     } else {
-      setSelectedLoan(null);
-      setInstallments([]);
+      if (selectedLoan !== null) {
+        setSelectedLoan(null);
+        setInstallments([]);
+      }
     }
-  }, [activeTab, loans]);
+  }, [activeTab, loans, selectedLoan]);
 
-  const loadInstallments = async (loan: Loan) => {
-    setSelectedLoan(loan);
-    try {
-      const response = await api.get(`/customer/loans/${loan.id}`);
-      setInstallments(response.data.installments);
-    } catch (err) {
-      console.error(err);
+  // Fetch installments for the selected loan
+  useEffect(() => {
+    if (!selectedLoan) {
+      setInstallments([]);
+      return;
     }
+
+    let isCurrent = true;
+    const fetchInstallments = async () => {
+      setInstallments([]); // Clear list immediately to prevent showing stale installments of other loans
+      try {
+        const response = await api.get(`/customer/loans/${selectedLoan.id}`);
+        if (isCurrent) {
+          setInstallments(response.data.installments);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchInstallments();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [selectedLoan?.id, refreshTrigger]);
+
+  const loadInstallments = (loan: Loan) => {
+    setSelectedLoan(loan);
   };
 
   const handleHowToRepay = () => {
