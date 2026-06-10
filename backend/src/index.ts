@@ -10,6 +10,7 @@ import { initDatabase, db } from './config/db';
 import authRoutes from './routes/authRoutes';
 import adminRoutes from './routes/adminRoutes';
 import customerRoutes from './routes/customerRoutes';
+import { sendCronReminders } from './controllers/cronController';
 
 const app = express();
 const PORT = process.env.PORT || 8081;
@@ -66,6 +67,8 @@ app.use('/api/customer', customerRoutes);
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+app.get('/api/cron/send-reminders', sendCronReminders);
 
 
 app.get('/api/test-analytics', async (req, res) => {

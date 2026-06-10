@@ -49,7 +49,15 @@ interface DashboardSummary {
   overdueCount?: number;
   overdueAmount?: number;
   pendingInstallmentIds?: string[];
+  isTodayPaid?: boolean;
 }
+
+const getISTDateString = () => {
+  return new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0];
+};
+
+let lastPaidSuccessNotifiedDate = '';
+let lastDueNotifiedDate = '';
 
 export default function DashboardScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -68,40 +76,113 @@ export default function DashboardScreen({ navigation }: any) {
   const [requestLoading, setRequestLoading] = useState(false);
   const [isCustomAmount, setIsCustomAmount] = useState(false);
 
-  const fetchDashboard = async () => {
-    try {
-      const response = await api.get('/customer/dashboard');
-      const dashboardSummary = response.data.summary;
-      setSummary(dashboardSummary);
+  const scheduleRepaymentReminders = async (summary: any) => {
+    if (Platform.OS === 'web' || !summary) return;
 
-      // Trigger local push notification and Alert dialog if overdue or due today
-      if (Platform.OS !== 'web' && dashboardSummary) {
-        const loan = dashboardSummary.loan;
-        if (dashboardSummary.overdueCount > 0) {
-          // Trigger local push notification tray alert
+    const todayStr = getISTDateString();
+    const loan = summary.loan;
+    if (!loan) return;
+
+    if (summary.isTodayPaid) {
+      // 1. Paid today
+      try {
+        await Notifications.cancelAllScheduledNotificationsAsync();
+      } catch (err) {
+        console.error('Failed to cancel scheduled notifications:', err);
+      }
+
+      try {
+        await Notifications.dismissAllNotificationsAsync();
+      } catch (err) {
+        console.error('Failed to dismiss tray notifications:', err);
+      }
+
+      if (lastPaidSuccessNotifiedDate !== todayStr) {
+        try {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: '✅ Daily Repayment Successful',
+              body: `Thank you! Your daily installment of ₹${loan.daily_installment} has been paid successfully. Keep it up!`,
+              sound: true,
+              priority: Notifications.AndroidNotificationPriority.HIGH,
+            },
+            trigger: null, // immediate
+          });
+          lastPaidSuccessNotifiedDate = todayStr;
+        } catch (err) {
+          console.error('Failed to trigger payment success notification:', err);
+        }
+      }
+    } else {
+      // 2. Unpaid today
+      try {
+        await Notifications.cancelAllScheduledNotificationsAsync();
+      } catch (err) {
+        console.error('Failed to cancel scheduled notifications:', err);
+      }
+
+      // Schedule 2-hourly reminders after 5:00 PM today
+      // Hours: 17:00, 19:00, 21:00, 23:00 (5 PM, 7 PM, 9 PM, 11 PM)
+      const hours = [17, 19, 21, 23];
+      for (const h of hours) {
+        const triggerDate = new Date();
+        triggerDate.setHours(h, 0, 0, 0);
+
+        if (triggerDate.getTime() > Date.now()) {
+          try {
+            const isOverdue = (summary.overdueCount || 0) > 0;
+            const title = isOverdue
+              ? '🚨 Action Required: Late Repayment Warning!'
+              : '📅 Daily Repayment Due Today';
+            const body = isOverdue
+              ? `You have missed ${summary.overdueCount} installment(s). Please clear dues immediately to protect your lending profile!`
+              : `Your daily installment of ₹${summary.dueTodayAmount || loan.daily_installment} is due. Settle today to keep your lending score healthy!`;
+
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title,
+                body,
+                sound: true,
+                priority: Notifications.AndroidNotificationPriority.HIGH,
+              },
+              trigger: {
+                date: triggerDate,
+              },
+            });
+          } catch (err) {
+            console.error('Failed to schedule 2-hourly notification:', err);
+          }
+        }
+      }
+
+      // Trigger immediate tray alerts only once per day
+      if (lastDueNotifiedDate !== todayStr) {
+        const isOverdue = (summary.overdueCount || 0) > 0;
+        if (isOverdue) {
           try {
             await Notifications.scheduleNotificationAsync({
               content: {
                 title: '⚠️ Repayment Overdue Warning!',
-                body: `You have missed ${dashboardSummary.overdueCount} installment(s). Your lending profile score is at risk. Please clear dues immediately!`,
+                body: `You have missed ${summary.overdueCount} installment(s). Your lending profile score is at risk. Please clear dues immediately!`,
                 sound: true,
                 priority: Notifications.AndroidNotificationPriority.HIGH,
               },
               trigger: null, // immediate
             });
-          } catch (notifErr) {
-            console.error('Failed to schedule overdue push notification:', notifErr);
+            lastDueNotifiedDate = todayStr;
+          } catch (err) {
+            console.error('Failed to trigger overdue notification:', err);
           }
 
-          // Trigger explicit Alert Dialog popup
+          // Trigger Alert dialog popup immediately when opening app (non-tray)
           Alert.alert(
             '⚠️ Repayment Overdue Alert!',
-            `You have missed ${dashboardSummary.overdueCount} daily installment(s) (Total Overdue: ₹${dashboardSummary.overdueAmount.toLocaleString('en-IN')}).\n\nCRITICAL: Your lending profile score and future loan eligibility will be negatively affected if you do not pay on time. Please clear your dues immediately!`,
+            `You have missed ${summary.overdueCount} daily installment(s) (Total Overdue: ₹${summary.overdueAmount.toLocaleString('en-IN')}).\n\nCRITICAL: Your lending profile score and future loan eligibility will be negatively affected if you do not pay on time. Please clear your dues immediately!`,
             [
               {
                 text: 'Pay Now',
                 onPress: () => {
-                  const oldestUnpaid = dashboardSummary.unpaidInstallments?.find((i: any) => i.status === 'Unpaid');
+                  const oldestUnpaid = summary.unpaidInstallments?.find((i: any) => i.status === 'Unpaid');
                   if (oldestUnpaid) {
                     navigation.navigate('Payment', {
                       installmentId: oldestUnpaid.id,
@@ -113,23 +194,33 @@ export default function DashboardScreen({ navigation }: any) {
               { text: 'Dismiss', style: 'cancel' },
             ]
           );
-        } else if (dashboardSummary.dueTodayAmount > 0) {
-          // Trigger local push notification reminder
+        } else if (summary.dueTodayAmount > 0) {
           try {
             await Notifications.scheduleNotificationAsync({
               content: {
                 title: '📅 Daily Repayment Due Today',
-                body: `Your daily installment of ₹${dashboardSummary.dueTodayAmount} is due today. Settle today to keep your lending score healthy!`,
+                body: `Your daily installment of ₹${summary.dueTodayAmount} is due today. Settle today to keep your lending score healthy!`,
                 sound: true,
                 priority: Notifications.AndroidNotificationPriority.DEFAULT,
               },
               trigger: null, // immediate
             });
-          } catch (notifErr) {
-            console.error('Failed to schedule daily push notification:', notifErr);
+            lastDueNotifiedDate = todayStr;
+          } catch (err) {
+            console.error('Failed to trigger daily due notification:', err);
           }
         }
       }
+    }
+  };
+
+  const fetchDashboard = async () => {
+    try {
+      const response = await api.get('/customer/dashboard');
+      const dashboardSummary = response.data.summary;
+      setSummary(dashboardSummary);
+
+      await scheduleRepaymentReminders(dashboardSummary);
 
       // Fetch dynamic defaults from settings
       const settingsResponse = await api.get('/customer/settings');

@@ -73,6 +73,9 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
       const dueTodayInstallment = unpaid.find((i: any) => i.due_date === todayStr);
       const pendingInstallmentsList = overdueInstallments.concat(dueTodayInstallment ? [dueTodayInstallment] : []);
 
+      const todayInstallment = installments.find((i: any) => i.due_date === todayStr);
+      const isTodayPaid = todayInstallment ? todayInstallment.status === 'Paid' : true;
+
       summary = {
         hasActiveLoan: true,
         loan: activeLoan,
@@ -84,7 +87,8 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
         paidAmount,
         nextDue: nextDueInstallment ? nextDueInstallment.due_date : null,
         nextDueInstallmentId: nextDueInstallment ? nextDueInstallment.id : null,
-        dueTodayAmount: activeLoan.status === 'Active' ? activeLoan.daily_installment : 0,
+        dueTodayAmount: (activeLoan.status === 'Active' && dueTodayInstallment) ? activeLoan.daily_installment : 0,
+        isTodayPaid: activeLoan.status === 'Active' ? isTodayPaid : false,
         overdueCount,
         overdueAmount,
         unpaidInstallments: installments.filter((i: any) => i.status !== 'Paid').slice(0, 5),
