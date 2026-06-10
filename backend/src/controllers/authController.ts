@@ -22,6 +22,7 @@ export const sendOtp = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Email address is required.' });
     }
 
+
     const trimmedEmail = email.trim().toLowerCase();
     const actionType = type || 'register';
 
