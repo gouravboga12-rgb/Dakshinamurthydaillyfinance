@@ -810,33 +810,6 @@ export const db = {
     }
   },
 
-  async deleteUnpaidInstallments(loanId: string) {
-    if (useSupabase) {
-      const { error } = await supabaseClient.from('installments')
-        .delete()
-        .eq('loan_id', loanId)
-        .eq('status', 'Unpaid');
-      if (error) throw error;
-    } else {
-      await runSqlAsync("DELETE FROM installments WHERE loan_id = ? AND status = 'Unpaid'", [loanId]);
-    }
-  },
-
-  async updateInstallmentDueDate(id: string, dueDate: string) {
-    if (useSupabase) {
-      const { data, error } = await supabaseClient.from('installments')
-        .update({ due_date: dueDate })
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    } else {
-      await runSqlAsync('UPDATE installments SET due_date = ? WHERE id = ?', [dueDate, id]);
-      return await this.getInstallmentById(id);
-    }
-  },
-
 
   async getSetting(key: string, defaultValue: string = '') {
     if (useSupabase) {
