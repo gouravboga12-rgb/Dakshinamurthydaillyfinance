@@ -50,7 +50,7 @@ const getBaseUrl = () => {
   
   // Use the permanent Vercel deployment URL for all physical devices
   // No tunnel needed — the backend is live at the Vercel URL
-  return 'https://dakshinamurthydailyfinance.vercel.app/api';
+  return 'https://dakshinamurthydaillyfinance.vercel.app/api';
 };
 
 // --- In-Memory Mock Database State ---
