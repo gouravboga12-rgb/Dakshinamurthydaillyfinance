@@ -520,6 +520,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                   <th className="px-6 py-4">Customer Details</th>
                   <th className="px-6 py-4">Contact</th>
                   <th className="px-6 py-4">Occupation / Shop</th>
+                  <th className="px-6 py-4">Loan Status</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Registration Date</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -570,6 +571,21 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                         <span className="font-semibold text-slate-700 block">{c.occupation || 'N/A'}</span>
                         {c.shop_name && <span className="text-xs text-slate-400 block">{c.shop_name}</span>}
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {(c.active_loan_count || 0) > 0 ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200">
+                          Live
+                        </span>
+                      ) : (c.loan_count || 0) > 0 ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-blue-50 text-blue-700 border-blue-200">
+                          Closed / Completed
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-slate-50 text-slate-500 border-slate-200">
+                          No Loans
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize ${
@@ -1051,7 +1067,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                                   ? 'bg-blue-50 text-blue-700 border-blue-200'
                                   : 'bg-rose-50 text-rose-700 border-rose-200'
                               }`}>
-                                {l.status}
+                                {l.status === 'Active' ? 'Live' : l.status === 'Completed' ? 'Closed / Completed' : l.status}
                               </span>
                             </div>
 

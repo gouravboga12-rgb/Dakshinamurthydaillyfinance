@@ -41,6 +41,7 @@ CREATE TABLE loans (
     status TEXT NOT NULL, -- 'Pending', 'Active', 'Completed', 'Rejected'
     approval_date TIMESTAMPTZ,
     completion_date TIMESTAMPTZ,
+    interest_rate REAL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

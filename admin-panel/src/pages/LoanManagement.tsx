@@ -261,7 +261,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
           duration_days: Number(approvalDurationDays),
           total_repayment: totalRepay,
           remaining_balance: newRemainingBalance,
-          approval_date: approvalDate
+          approval_date: approvalDate,
+          interest_rate: Number(approvalInterestPct) || 0
         }, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -274,7 +275,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
           daily_installment: Number(approvalDailyInstallment),
           duration_days: Number(approvalDurationDays),
           total_repayment: totalRepay,
-          approval_date: approvalDate
+          approval_date: approvalDate,
+          interest_rate: Number(approvalInterestPct) || 0
         }, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -349,7 +351,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
         platform_charges: Number(formPlatformCharges),
         daily_installment: Number(formDailyInstallment),
         duration_days: Number(formDurationDays),
-        total_repayment: totalRepay
+        total_repayment: totalRepay,
+        interest_rate: Number(formInterestPct) || 0
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });

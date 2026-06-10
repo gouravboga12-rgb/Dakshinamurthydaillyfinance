@@ -328,7 +328,7 @@ export const getLoans = async (req: AuthRequest, res: Response) => {
 
 export const createLoan = async (req: AuthRequest, res: Response) => {
   try {
-    const { customer_id, approved_amount, platform_charges, daily_installment, duration_days, total_repayment } = req.body;
+    const { customer_id, approved_amount, platform_charges, daily_installment, duration_days, total_repayment, interest_rate } = req.body;
 
     if (!customer_id || !approved_amount || !platform_charges || !daily_installment || !duration_days) {
       return res.status(400).json({ error: 'Missing required loan parameters.' });
@@ -363,7 +363,8 @@ export const createLoan = async (req: AuthRequest, res: Response) => {
       duration_days: Number(duration_days),
       total_repayment: repaymentTarget,
       remaining_balance,
-      status: 'Pending' // Initial state is Pending, requires Approval
+      status: 'Pending', // Initial state is Pending, requires Approval
+      interest_rate: interest_rate !== undefined ? Number(interest_rate) : 0
     });
 
     await db.createNotification(customer_id, 'New Loan Request Created', `A new loan request of ₹${approved_amount} has been registered.`, 'loan');
@@ -387,7 +388,7 @@ export const approveLoan = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: `Cannot approve loan in '${loan.status}' status.` });
     }
 
-    const { approved_amount, platform_charges, amount_disbursed, daily_installment, duration_days, total_repayment, approval_date } = req.body;
+    const { approved_amount, platform_charges, amount_disbursed, daily_installment, duration_days, total_repayment, approval_date, interest_rate } = req.body;
 
     // Update status to Active
     const now = db.getISTDateTimeString();
@@ -416,6 +417,9 @@ export const approveLoan = async (req: AuthRequest, res: Response) => {
     }
     if (duration_days !== undefined) {
       additionalFields.duration_days = Number(duration_days);
+    }
+    if (interest_rate !== undefined) {
+      additionalFields.interest_rate = Number(interest_rate);
     }
 
     const updatedLoan = await db.updateLoanStatus(id, 'Active', additionalFields);
@@ -968,7 +972,7 @@ export const updateLoan = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Loan request not found.' });
     }
 
-    const { approved_amount, platform_charges, daily_installment, duration_days, total_repayment, remaining_balance, approval_date } = req.body;
+    const { approved_amount, platform_charges, daily_installment, duration_days, total_repayment, remaining_balance, approval_date, interest_rate } = req.body;
 
     const updates: any = {};
     if (approved_amount !== undefined) updates.approved_amount = Number(approved_amount);
@@ -982,6 +986,7 @@ export const updateLoan = async (req: AuthRequest, res: Response) => {
     if (total_repayment !== undefined) updates.total_repayment = Number(total_repayment);
     if (remaining_balance !== undefined) updates.remaining_balance = Number(remaining_balance);
     if (approval_date !== undefined) updates.approval_date = approval_date;
+    if (interest_rate !== undefined) updates.interest_rate = Number(interest_rate);
 
     const updatedLoan = await db.updateLoanStatus(id, loan.status, updates);
 

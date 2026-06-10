@@ -25,6 +25,7 @@ interface Loan {
   status: string;
   approval_date: string | null;
   completion_date: string | null;
+  interest_rate?: number;
 }
 
 interface Installment {
@@ -83,12 +84,12 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
     }
   };
 
-  // Interest rate = interest% of approved_amount
-  // Since total_repayment = (approved_amount + interest) - platform_charges
-  // interest = total_repayment + platform_charges - approved_amount
-  const interestRate = loan.approved_amount > 0 
-    ? ((loan.total_repayment + loan.platform_charges - loan.approved_amount) / loan.approved_amount) * 100 
-    : 0;
+  // Interest rate: read directly from database or fall back to calculation
+  const interestRate = loan.interest_rate !== undefined && loan.interest_rate !== null
+    ? loan.interest_rate
+    : (loan.approved_amount > 0 
+      ? ((loan.total_repayment + loan.platform_charges - loan.approved_amount) / loan.approved_amount) * 100 
+      : 0);
 
   return (
     <ScrollView style={COMMON_STYLES.container} contentContainerStyle={styles.content}>

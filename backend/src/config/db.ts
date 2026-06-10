@@ -207,6 +207,10 @@ async function setupSQLiteTables() {
     await runSqlAsync('ALTER TABLE users ADD COLUMN manual_late_payments_dates TEXT');
   } catch (err) {}
 
+  try {
+    await runSqlAsync('ALTER TABLE loans ADD COLUMN interest_rate REAL DEFAULT 0');
+  } catch (err) {}
+
   // Loans Table
   await runSqlAsync(`
     CREATE TABLE IF NOT EXISTS loans (
@@ -223,6 +227,7 @@ async function setupSQLiteTables() {
       approval_date TEXT,
       completion_date TEXT,
       created_at TEXT NOT NULL,
+      interest_rate REAL DEFAULT 0,
       FOREIGN KEY(customer_id) REFERENCES users(id)
     )
   `);
@@ -547,12 +552,12 @@ export const db = {
       return data;
     } else {
       await runSqlAsync(`
-        INSERT INTO loans (id, customer_id, approved_amount, platform_charges, amount_disbursed, daily_installment, duration_days, total_repayment, remaining_balance, status, approval_date, completion_date, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO loans (id, customer_id, approved_amount, platform_charges, amount_disbursed, daily_installment, duration_days, total_repayment, remaining_balance, status, approval_date, completion_date, created_at, interest_rate)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         id, loanData.customer_id, loanData.approved_amount, loanData.platform_charges, loanData.amount_disbursed,
         loanData.daily_installment, loanData.duration_days, loanData.total_repayment, loanData.remaining_balance,
-        loanData.status, loanData.approval_date || null, loanData.completion_date || null, createdAt
+        loanData.status, loanData.approval_date || null, loanData.completion_date || null, createdAt, loanData.interest_rate || 0
       ]);
       return loanToInsert;
     }
