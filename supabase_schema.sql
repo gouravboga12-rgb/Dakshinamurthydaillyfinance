@@ -73,12 +73,16 @@ CREATE TABLE notifications (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 7. Disable Row Level Security (RLS) so the anonymous client can read/write data
-ALTER TABLE users DISABLE ROW LEVEL SECURITY;
-ALTER TABLE loans DISABLE ROW LEVEL SECURITY;
-ALTER TABLE installments DISABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
-ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
+-- 7. Enable Row Level Security (RLS) for database security
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE loans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE installments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+
+-- Allow anonymous read-only access to settings table (needed by mobile app to fetch api_tunnel_url)
+CREATE POLICY "Allow anonymous read access to settings" ON settings
+FOR SELECT TO anon USING (true);
 
 -- 8. Seed default UPI QR setting
 INSERT INTO settings (key, value)
