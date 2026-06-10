@@ -140,7 +140,8 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
       setEditingInstallment(null);
       alert('Installment details updated successfully!');
     } catch (err: any) {
-      setEditInstError(err.response?.data?.error || 'Failed to update installment.');
+      const errVal = err.response?.data?.error;
+      setEditInstError(typeof errVal === 'object' && errVal !== null ? (errVal.message || errVal.code || JSON.stringify(errVal)) : String(errVal || 'Failed to update installment.'));
     } finally {
       setEditInstLoading(false);
     }
@@ -337,7 +338,8 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
       setShowCreateModal(false);
       fetchCustomers();
     } catch (err: any) {
-      setFormError(err.response?.data?.error || 'Failed to create customer.');
+      const errVal = err.response?.data?.error;
+      setFormError(typeof errVal === 'object' && errVal !== null ? (errVal.message || errVal.code || JSON.stringify(errVal)) : String(errVal || 'Failed to create customer.'));
     } finally {
       setFormLoading(false);
     }
@@ -404,7 +406,8 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
       setShowEditModal(false);
       alert('Customer details updated successfully!');
     } catch (err: any) {
-      setEditFormError(err.response?.data?.error || 'Failed to update customer details.');
+      const errVal = err.response?.data?.error;
+      setEditFormError(typeof errVal === 'object' && errVal !== null ? (errVal.message || errVal.code || JSON.stringify(errVal)) : String(errVal || 'Failed to update customer details.'));
     } finally {
       setEditFormLoading(false);
     }

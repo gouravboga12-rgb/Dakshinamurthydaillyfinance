@@ -122,8 +122,8 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
   }
 
   if (error || !stats || (stats as any).error) {
-    const errVal = error || (stats as any).error;
-    const errMsg = typeof errVal === 'object' ? (errVal.message || errVal.code || JSON.stringify(errVal)) : errVal;
+    const errVal = error || (stats ? (stats as any).error : null);
+    const errMsg = typeof errVal === 'object' && errVal !== null ? (errVal.message || errVal.code || JSON.stringify(errVal)) : String(errVal || 'Error loading dashboard.');
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="bg-danger-light border border-danger-DEFAULT/20 text-danger-text rounded-2xl p-5 text-sm font-medium">

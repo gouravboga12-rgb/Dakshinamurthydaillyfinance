@@ -39,7 +39,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       onLoginSuccess(token, user.full_name);
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.error || 'Authentication failed. Please verify your credentials.');
+      const errVal = err.response?.data?.error;
+      setError(typeof errVal === 'object' && errVal !== null ? (errVal.message || errVal.code || JSON.stringify(errVal)) : String(errVal || 'Authentication failed. Please verify your credentials.'));
       setLoading(false);
     }
   };

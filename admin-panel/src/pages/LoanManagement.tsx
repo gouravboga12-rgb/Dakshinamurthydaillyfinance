@@ -278,7 +278,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
       setShowApproveModal(false);
       fetchLoans();
     } catch (err: any) {
-      setApprovalFormError(err.response?.data?.error || (isEditingActive ? 'Failed to update loan.' : 'Failed to approve loan.'));
+      const errVal = err.response?.data?.error;
+      setApprovalFormError(typeof errVal === 'object' && errVal !== null ? (errVal.message || errVal.code || JSON.stringify(errVal)) : String(errVal || (isEditingActive ? 'Failed to update loan.' : 'Failed to approve loan.')));
     } finally {
       setApprovalFormLoading(false);
     }
@@ -356,7 +357,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
       setShowCreateModal(false);
       fetchLoans();
     } catch (err: any) {
-      setFormError(err.response?.data?.error || 'Failed to disburse loan.');
+      const errVal = err.response?.data?.error;
+      setFormError(typeof errVal === 'object' && errVal !== null ? (errVal.message || errVal.code || JSON.stringify(errVal)) : String(errVal || 'Failed to disburse loan.'));
     } finally {
       setFormLoading(false);
     }
