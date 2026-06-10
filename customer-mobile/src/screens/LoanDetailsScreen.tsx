@@ -84,8 +84,8 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
     }
   };
 
-  // Interest rate: read directly from database or fall back to calculation
-  const interestRate = loan.interest_rate !== undefined && loan.interest_rate !== null
+  // Interest rate: read directly from database if positive, or fall back to calculation
+  const interestRate = loan.interest_rate !== undefined && loan.interest_rate !== null && loan.interest_rate > 0
     ? loan.interest_rate
     : (loan.approved_amount > 0 
       ? ((loan.total_repayment + loan.platform_charges - loan.approved_amount) / loan.approved_amount) * 100 
