@@ -32,11 +32,14 @@ export async function initDatabase() {
     console.log('Connecting to Supabase at:', SUPABASE_URL);
     supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
     
-    // Auto-seed admin users if they don't exist in Supabase
-    try {
-      await seedSupabaseAdmins();
-    } catch (err) {
-      console.error('Error seeding Supabase admins:', err);
+    // Only seed admin users in non-Vercel environments (local dev)
+    // On Vercel, bcrypt.hash + multiple DB calls on every cold start causes 504 timeouts
+    if (!process.env.VERCEL) {
+      try {
+        await seedSupabaseAdmins();
+      } catch (err) {
+        console.error('Error seeding Supabase admins:', err);
+      }
     }
   } else {
     if (process.env.VERCEL) {
