@@ -10,6 +10,7 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import * as DocumentPicker from 'expo-document-picker';
@@ -19,11 +20,108 @@ import api, { getBaseUrl } from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
 import { fileUriToBase64 } from '../utils/file';
 
+const PRIVACY_POLICY_TEXT = `Privacy Policy for Dakshinamurthy Daily Finance
+
+Last Updated: June 10, 2026
+
+1. Information We Collect
+We collect the personal details you provide during registration and onboarding, including your full name, phone number, email address, occupation, shop/business name, physical address, and documents (like Aadhaar card photo).
+
+2. How We Use Your Information
+We use your information strictly for:
+• Verifying your identity and business legitimacy.
+• Managing and tracking daily loan disbursements and repayments.
+• Sending transaction and security notifications via SMS or email.
+• Generating loan accounts and payment receipts.
+
+3. Data Security
+Your data is highly secure. We use encrypted SSL connections (HTTPS) for all transfers and store your data in secure cloud servers. We restrict database access only to authorized administrators.
+
+4. Data Sharing
+We do not sell, trade, or share your personal data with third-party advertising companies or outside agencies. Your details are strictly for internal loan tracking and accounting.
+
+5. Data Deletion
+You can request account and data deletion by contacting the system administrator. Once confirmed, all your active profiles and documents will be permanently deleted from our servers, subject to the settlement of any outstanding loan balance.`;
+
+const TERMS_OF_SERVICE_TEXT = `Terms of Service for Dakshinamurthy Daily Finance
+
+Last Updated: June 10, 2026
+
+1. Acceptance of Terms
+By downloading, installing, or registering with the Dakshinamurthy Daily Finance application, you agree to comply with and be bound by these Terms of Service.
+
+2. User Eligibility
+You must be at least 18 years of age and own a legitimate registered local business to request or track financial services through this app.
+
+3. Account Registration & Security
+You agree to provide accurate and complete details. You are responsible for keeping your login credentials confidential and secure. Inform the administrator immediately if you suspect unauthorized access.
+
+4. Loan Repayment Commitment
+• You agree to repay the daily loan installments on time as scheduled.
+• In case of missed installments, the system administrator reserves the right to contact you directly at your registered business address.
+• Platform processing fees (if applicable) are deducted at the time of loan disbursement.
+
+5. Prohibited Actions
+You agree not to upload false documents, misuse the app for fraudulent purposes, or attempt to compromise app security.`;
+
+const REFUND_POLICY_TEXT = `Refund & Repayment Policy
+
+Last Updated: June 10, 2026
+
+1. Non-Refundable Payments
+All payments made as repayments towards principal or interest on active loans are strictly final and non-refundable.
+
+2. Double Payment / Network Issues
+If a payment transaction fails or is processed twice due to internet lag or banking service delays:
+• You must contact the app owner or lender with valid payment proof (such as a receipt or bank transaction screenshot).
+• Upon verification, the duplicate amount will be credited and adjusted towards your next scheduled daily installment.
+
+3. Fee Policies
+Any initial documentation fees or platform processing fees deducted at the time of loan disbursement are non-refundable.`;
+
+const ABOUT_US_TEXT = `About Dakshinamurthy Daily Finance
+
+Dakshinamurthy Daily Finance is a micro-finance management application designed to support local merchants, small business owners, and daily wage traders. 
+
+We aim to bridge the gap in short-term financial needs by offering easy, direct loan tracking and daily installment settlement features. Through this app, merchants can easily view their current active loans, monitor daily installment status, verify receipts, and maintain clear records of their financial transactions in real time.`;
+
 export default function ProfileScreen() {
   const user = useSelector((state: RootState) => state.auth.user);
   const dispatch = useDispatch();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalContent, setModalContent] = useState('');
+
+  const showPolicy = (title: string, content: string) => {
+    setModalTitle(title);
+    setModalContent(content);
+    setModalVisible(true);
+  };
+
+  const legalItems = [
+    {
+      label: 'Privacy Policy',
+      icon: '🛡️',
+      onPress: () => showPolicy('Privacy Policy', PRIVACY_POLICY_TEXT),
+    },
+    {
+      label: 'Terms of Service',
+      icon: '📄',
+      onPress: () => showPolicy('Terms of Service', TERMS_OF_SERVICE_TEXT),
+    },
+    {
+      label: 'Refund & Repayment Policy',
+      icon: '💰',
+      onPress: () => showPolicy('Refund & Repayment Policy', REFUND_POLICY_TEXT),
+    },
+    {
+      label: 'About Us',
+      icon: 'ℹ️',
+      onPress: () => showPolicy('About Us', ABOUT_US_TEXT),
+    },
+  ];
   const [occupation, setOccupation] = useState(user?.occupation || '');
   const [shopName, setShopName] = useState(user?.shop_name || '');
   const [address, setAddress] = useState(user?.address || '');
@@ -329,6 +427,33 @@ export default function ProfileScreen() {
         )}
       </View>
 
+      {/* Legal & Support Card */}
+      <View style={[COMMON_STYLES.card, styles.infoCard, { marginTop: 16 }]}>
+        <Text style={styles.sectionTitle}>⚖️ Legal & Support</Text>
+        
+        {legalItems.map((item, idx) => (
+          <TouchableOpacity
+            key={idx}
+            style={[
+              styles.fieldRow,
+              idx < legalItems.length - 1 && styles.fieldBorder,
+            ]}
+            onPress={item.onPress}
+            activeOpacity={0.7}
+          >
+            <View style={styles.fieldLeft}>
+              <View style={styles.fieldIconCircle}>
+                <Text style={styles.fieldIcon}>{item.icon}</Text>
+              </View>
+              <View>
+                <Text style={styles.legalItemLabel}>{item.label}</Text>
+              </View>
+            </View>
+            <Text style={styles.chevronIcon}>›</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {/* Action Buttons (Save/Cancel or Edit Profile Details) */}
       {isEditing ? (
         <View style={styles.actionButtonsContainer}>
@@ -382,6 +507,28 @@ export default function ProfileScreen() {
       </TouchableOpacity>
 
       <Text style={styles.footerBrand}>Dakshinamurthy Daily Finance v1.4 (Multi-EMI & Size Enforced)</Text>
+
+      {/* Legal Policy Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContentCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{modalTitle}</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.modalText}>{modalContent}</Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -605,5 +752,68 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     marginTop: 32,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    width: '100%',
+    maxHeight: '80%',
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 14,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: COLORS.heading,
+  },
+  closeButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+  },
+  closeButtonText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#64748B',
+  },
+  modalBody: {
+    maxHeight: 400,
+  },
+  modalText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: COLORS.body,
+    fontWeight: '600',
+  },
+  legalItemLabel: {
+    color: COLORS.heading,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  chevronIcon: {
+    color: COLORS.placeholder,
+    fontSize: 22,
+    fontWeight: '800',
+    marginRight: 4,
   },
 });

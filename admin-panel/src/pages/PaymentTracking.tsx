@@ -149,6 +149,32 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
     }
   };
 
+  const handleRejectPayment = async (installmentId: string) => {
+    if (!window.confirm('Are you sure you want to REJECT this payment proof? This will notify the customer to re-submit proof.')) return;
+    try {
+      await api.post('/api/admin/payments/reject', {
+        installmentId
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      alert('Payment proof rejected and customer notified!');
+
+      if (selectedLoan) {
+        // Refresh local details
+        fetchInstallments(selectedLoan.id);
+        fetchActiveLoans(); // Auto-refresh left panel counts
+        
+        setSelectedLoan(prev => prev ? { 
+          ...prev, 
+          pendingCount: Math.max(0, (prev.pendingCount || 0) - 1)
+        } : null);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to reject payment proof.');
+    }
+  };
+
   const filteredLoans = activeLoans.filter(l => {
     if (showPendingOnly) {
       return (l.pendingCount || 0) > 0;
@@ -444,16 +470,26 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                               <span>Verified</span>
                             </span>
                           ) : (
-                            <button
-                              onClick={() => handleMarkPaid(inst.id)}
-                              className={`px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 ${
-                                inst.status === 'Pending'
-                                  ? 'bg-amber-500 hover:bg-amber-600'
-                                  : 'bg-blue-600 hover:bg-blue-700'
-                              }`}
-                            >
-                              <span>{inst.status === 'Pending' ? 'Approve Payment' : 'Mark Paid'}</span>
-                            </button>
+                            <div className="flex gap-2">
+                              {inst.status === 'Pending' && (
+                                <button
+                                  onClick={() => handleRejectPayment(inst.id)}
+                                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                                >
+                                  Reject
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleMarkPaid(inst.id)}
+                                className={`px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer ${
+                                  inst.status === 'Pending'
+                                    ? 'bg-amber-500 hover:bg-amber-600'
+                                    : 'bg-blue-600 hover:bg-blue-700'
+                                }`}
+                              >
+                                <span>{inst.status === 'Pending' ? 'Approve Payment' : 'Mark Paid'}</span>
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>

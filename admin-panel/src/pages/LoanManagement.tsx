@@ -172,14 +172,15 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   useEffect(() => {
     const amt = Number(formApprovedAmount) || 0;
     const interestAmt = Number(formInterestAmt) || 0;
+    const charges = Number(formPlatformCharges) || 0;
     const dur = Number(formDurationDays) || 0;
-    const totalRepay = amt + interestAmt;
+    const totalRepay = (amt + interestAmt) - charges;
     if (totalRepay > 0 && dur > 0) {
       setFormDailyInstallment(String(Math.round(totalRepay / dur)));
     } else {
       setFormDailyInstallment('');
     }
-  }, [formApprovedAmount, formInterestAmt, formDurationDays]);
+  }, [formApprovedAmount, formInterestAmt, formPlatformCharges, formDurationDays]);
 
   // Dynamic calculations for Approval Customize modal
   useEffect(() => {
@@ -192,14 +193,15 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   useEffect(() => {
     const amt = Number(approvalApprovedAmt) || 0;
     const interestAmt = Number(approvalInterestAmt) || 0;
+    const charges = Number(approvalPlatformCharges) || 0;
     const dur = Number(approvalDurationDays) || 0;
-    const totalRepay = amt + interestAmt;
+    const totalRepay = (amt + interestAmt) - charges;
     if (totalRepay > 0 && dur > 0) {
       setApprovalDailyInstallment(String(Math.round(totalRepay / dur)));
     } else {
       setApprovalDailyInstallment('');
     }
-  }, [approvalApprovedAmt, approvalInterestAmt, approvalDurationDays]);
+  }, [approvalApprovedAmt, approvalInterestAmt, approvalPlatformCharges, approvalDurationDays]);
 
   const openApproveModal = (loan: Loan) => {
     setApprovalLoanId(loan.id);
@@ -214,7 +216,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     setApprovalDate(loan.approval_date ? loan.approval_date.substring(0, 10) : new Date().toISOString().substring(0, 10));
     
     // Calculate existing interest rate
-    const interestAmt = loan.total_repayment - loan.approved_amount;
+    const interestAmt = loan.total_repayment + loan.platform_charges - loan.approved_amount;
     const interestPct = loan.approved_amount > 0 ? Math.round((interestAmt / loan.approved_amount) * 100) : 0;
     
     // Default interest percentage to calculated value if editing active, or 0 if pending
@@ -238,7 +240,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     setApprovalFormError('');
     const approvedAmt = Number(approvalApprovedAmt) || 0;
     const interestAmt = Number(approvalInterestAmt) || 0;
-    const totalRepay = approvedAmt + interestAmt;
+    const charges = Number(approvalPlatformCharges) || 0;
+    const totalRepay = (approvedAmt + interestAmt) - charges;
 
     try {
       if (isEditingActive) {
@@ -328,7 +331,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     setFormError('');
     const approvedAmt = Number(formApprovedAmount) || 0;
     const interestAmt = Number(formInterestAmt) || 0;
-    const totalRepay = approvedAmt + interestAmt;
+    const charges = Number(formPlatformCharges) || 0;
+    const totalRepay = (approvedAmt + interestAmt) - charges;
 
     try {
       await axios.post('/api/admin/loans', {
@@ -365,7 +369,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   const dispDaily = Number(formDailyInstallment) || 0;
   const dispInterestPct = Number(formInterestPct) || 0;
   const dispInterestAmt = Number(formInterestAmt) || 0;
-  const dispTotalRepayment = dispApproved + dispInterestAmt; // Total repayment target basis is approved + interest
+  const dispTotalRepayment = (dispApproved + dispInterestAmt) - dispCharges; // Total repayment target basis is approved + interest - platform charges
   const projectedRepaymentAmt = dispDuration * dispDaily;
 
   return (
@@ -756,7 +760,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                     <span className="font-semibold text-blue-600">+ ₹{dispInterestAmt}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500 font-medium">Platform upfront deductions</span>
+                    <span className="text-slate-500 font-medium">Downpayment & Platform charges</span>
                     <span className="font-semibold text-rose-500">- ₹{dispCharges}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs border-t border-slate-200/50 pt-2">
@@ -934,7 +938,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                     <span className="font-semibold text-blue-600">+ ₹{Number(approvalInterestAmt) || 0}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500 font-medium">Upfront platform charges (Deducted)</span>
+                    <span className="text-slate-500 font-medium">Downpayment & Platform charges (Deducted)</span>
                     <span className="font-semibold text-rose-500">- ₹{Number(approvalPlatformCharges) || 0}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs border-t border-slate-200/50 pt-2">
@@ -943,7 +947,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-slate-500 font-bold">Total repayment target basis</span>
-                    <span className="font-extrabold text-slate-800 text-sm">₹{(Number(approvalApprovedAmt) || 0) + (Number(approvalInterestAmt) || 0)}</span>
+                    <span className="font-extrabold text-slate-800 text-sm">₹{((Number(approvalApprovedAmt) || 0) + (Number(approvalInterestAmt) || 0)) - (Number(approvalPlatformCharges) || 0)}</span>
                   </div>
                   {(Number(approvalDailyInstallment) || 0) * (Number(approvalDurationDays) || 0) > 0 && 
                    (Number(approvalDailyInstallment) || 0) * (Number(approvalDurationDays) || 0) !== 

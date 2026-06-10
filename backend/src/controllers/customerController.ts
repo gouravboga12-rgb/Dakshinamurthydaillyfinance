@@ -199,7 +199,7 @@ export const requestLoan = async (req: AuthRequest, res: Response) => {
     const approved_amount = Number(amount);
     const platform_charges = Math.round(approved_amount * 0.05); // 5% platform charge
     const amount_disbursed = approved_amount - platform_charges;
-    const total_repayment = approved_amount;
+    const total_repayment = approved_amount - platform_charges;
     const remaining_balance = total_repayment;
     const daily_installment = Math.round(total_repayment / Number(duration_days));
 
