@@ -1,7 +1,7 @@
 {
   "version": 2,
   "installCommand": "npm install && cd admin-panel && npm install",
-  "buildCommand": "cd admin-panel && npm run build && mkdir -p ../public",
+  "buildCommand": "cd admin-panel && npm run build && mkdir -p ../public && echo 'Deployment OK' > ../public/index.html",
   "functions": {
     "api/index.ts": {
       "maxDuration": 30,
