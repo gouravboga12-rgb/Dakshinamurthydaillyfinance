@@ -29,7 +29,8 @@ import {
   rejectInstallment,
   getOverduePayments,
   getPaidLatePayments,
-  updateInstallment
+  updateInstallment,
+  deleteCustomer
 } from '../controllers/adminController';
 
 const uploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/aadhaar');
@@ -96,6 +97,7 @@ router.post('/customers', upload.fields([{ name: 'aadhaar', maxCount: 1 }, { nam
 router.get('/customers/:id', getCustomerDetails);
 router.patch('/customers/:id/status', updateCustomerStatus);
 router.put('/customers/:id', editCustomerDetails);
+router.delete('/customers/:id', deleteCustomer);
 router.post('/customers/:id/aadhaar', upload.single('aadhaar'), uploadCustomerAadhaar);
 router.post('/customers/:id/avatar', upload.single('avatar'), uploadCustomerAvatar);
 

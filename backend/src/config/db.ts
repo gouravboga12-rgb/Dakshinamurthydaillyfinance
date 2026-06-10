@@ -435,6 +435,66 @@ export const db = {
     }
   },
 
+  async deleteCustomer(id: string) {
+    if (useSupabase) {
+      // 1. Get all loans for this customer
+      const { data: loans, error: loansErr } = await supabaseClient
+        .from('loans')
+        .select('id')
+        .eq('customer_id', id);
+      if (loansErr) throw loansErr;
+
+      const loanIds = (loans || []).map((l: any) => l.id);
+
+      if (loanIds.length > 0) {
+        // 2. Delete installments associated with these loans
+        const { error: instErr } = await supabaseClient
+          .from('installments')
+          .delete()
+          .in('loan_id', loanIds);
+        if (instErr) throw instErr;
+
+        // 3. Delete loans
+        const { error: loanDelErr } = await supabaseClient
+          .from('loans')
+          .delete()
+          .eq('customer_id', id);
+        if (loanDelErr) throw loanDelErr;
+      }
+
+      // 4. Delete notifications
+      const { error: notifErr } = await supabaseClient
+        .from('notifications')
+        .delete()
+        .eq('user_id', id);
+      if (notifErr) throw notifErr;
+
+      // 5. Delete the user
+      const { error: userErr } = await supabaseClient
+        .from('users')
+        .delete()
+        .eq('id', id);
+      if (userErr) throw userErr;
+
+      return { success: true };
+    } else {
+      // Get all loans to delete installments
+      const loans = await allSqlAsync('SELECT id FROM loans WHERE customer_id = ?', [id]);
+      const loanIds = loans.map((l: any) => l.id);
+
+      if (loanIds.length > 0) {
+        const placeholders = loanIds.map(() => '?').join(',');
+        await runSqlAsync(`DELETE FROM installments WHERE loan_id IN (${placeholders})`, loanIds);
+        await runSqlAsync('DELETE FROM loans WHERE customer_id = ?', [id]);
+      }
+
+      await runSqlAsync('DELETE FROM notifications WHERE user_id = ?', [id]);
+      await runSqlAsync('DELETE FROM users WHERE id = ?', [id]);
+
+      return { success: true };
+    }
+  },
+
   // --- LOANS ---
   async getActiveLoanByCustomerId(customerId: string) {
     if (useSupabase) {

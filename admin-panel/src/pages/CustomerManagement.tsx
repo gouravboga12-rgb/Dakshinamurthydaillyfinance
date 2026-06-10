@@ -23,7 +23,8 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
-  Edit
+  Edit,
+  Trash2
 } from 'lucide-react';
 
 interface Customer {
@@ -272,6 +273,22 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
       }
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to update customer status.');
+    }
+  };
+
+  const handleDeleteCustomer = async (id: string, name: string) => {
+    if (!window.confirm(`⚠️ WARNING: Are you sure you want to permanently delete customer "${name}"?\n\nThis will also delete all their loans, installments, and notifications. This action CANNOT be undone.`)) {
+      return;
+    }
+    try {
+      await axios.delete(`/api/admin/customers/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert(`Customer "${name}" deleted successfully.`);
+      setSelectedCust(null); // Close modal if open
+      fetchCustomers();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete customer.');
     }
   };
 
@@ -618,6 +635,13 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                             <UserCheck size={14} />
                           </button>
                         )}
+                        <button
+                          onClick={() => handleDeleteCustomer(c.id, c.full_name)}
+                          title="Delete Customer"
+                          className="p-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-600 hover:text-white transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1157,21 +1181,34 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
             </div>
             
             {/* Footer */}
-            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-between items-center">
               <button
                 type="button"
-                onClick={handleOpenEditModal}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/10"
+                onClick={() => {
+                  if (selectedCust) {
+                    handleDeleteCustomer(selectedCust.id, selectedCust.full_name);
+                  }
+                }}
+                className="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-100 rounded-xl text-xs font-bold transition-all"
               >
-                Edit Profile
+                Delete Customer
               </button>
-              <button
-                type="button"
-                onClick={() => setSelectedCust(null)}
-                className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-600 transition-colors"
-              >
-                Close
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleOpenEditModal}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/10"
+                >
+                  Edit Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCust(null)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-600 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

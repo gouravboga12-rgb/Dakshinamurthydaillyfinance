@@ -1153,3 +1153,24 @@ export const updateInstallment = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const deleteCustomer = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await db.getUserById(id);
+    if (!user) {
+      return res.status(404).json({ error: 'Customer not found.' });
+    }
+
+    if (user.role === 'admin') {
+      return res.status(403).json({ error: 'Admin accounts cannot be deleted.' });
+    }
+
+    await db.deleteCustomer(id);
+    return res.status(200).json({ success: true, message: 'Customer and all associated records deleted successfully.' });
+  } catch (error: any) {
+    console.error('Delete customer error:', error);
+    return res.status(500).json({ error: error.message || 'Failed to delete customer.' });
+  }
+};
+
