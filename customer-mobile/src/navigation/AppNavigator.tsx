@@ -21,6 +21,7 @@ import HowToRepayScreen from '../screens/HowToRepayScreen';
 import { Text, View, StyleSheet, TouchableOpacity, Linking, Platform, Alert } from 'react-native';
 import { COLORS } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -66,6 +67,9 @@ const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => {
 };
 
 function TabNavigator() {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 12);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -118,9 +122,9 @@ function TabNavigator() {
         },
         tabBarStyle: {
           backgroundColor: COLORS.white,
-          height: 72,
+          height: 60 + bottomPadding,
           paddingTop: 8,
-          paddingBottom: 12,
+          paddingBottom: bottomPadding,
           borderTopWidth: 1,
           borderTopColor: COLORS.border,
         }
@@ -142,6 +146,7 @@ function TabNavigator() {
 }
 
 const FloatingWhatsApp = () => {
+  const insets = useSafeAreaInsets();
   const handleOpenWhatsApp = () => {
     Linking.openURL('https://wa.me/917659934261?text=Hello%20Dakshinamurthy%20Finance,%20I%20have%20a%20query%20about%20my%20loan.').catch(() => {
       // Fallback silently
@@ -150,7 +155,7 @@ const FloatingWhatsApp = () => {
 
   return (
     <TouchableOpacity 
-      style={styles.floatingWhatsapp} 
+      style={[styles.floatingWhatsapp, { bottom: 80 + Math.max(insets.bottom, 12) }]} 
       onPress={handleOpenWhatsApp}
       activeOpacity={0.85}
     >
@@ -366,7 +371,6 @@ const styles = StyleSheet.create({
   },
   floatingWhatsapp: {
     position: 'absolute',
-    bottom: 92,
     right: 22,
     backgroundColor: '#25D366',
     width: 56,
