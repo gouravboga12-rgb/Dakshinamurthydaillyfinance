@@ -9,7 +9,7 @@ interface HeaderProps {
 const PAGE_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
   customers: 'Customer Management',
-  loans: 'Loans & Disbursals',
+  loans: 'Ledgers & Accounts',
   payments: 'Repayments Tracker',
   reports: 'Reports & Analytics',
   settings: 'Settings',

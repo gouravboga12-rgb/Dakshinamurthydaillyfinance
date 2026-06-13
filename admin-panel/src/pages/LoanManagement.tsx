@@ -392,15 +392,15 @@ export default function LoanManagement({ token }: LoanManagementProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h3 className="text-lg font-bold text-slate-900">Loan Portfolio & Disbursals</h3>
-          <p className="text-xs text-slate-500">Create loans, configure platforms/installments, and review approvals.</p>
+          <h3 className="text-lg font-bold text-slate-900">Ledger Portfolio & Accounts</h3>
+          <p className="text-xs text-slate-500">Create daily ledger records, configure platforms/installments, and review approvals.</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
           className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-500/15"
         >
           <Plus size={16} />
-          <span>New Loan Disbursal</span>
+          <span>New Ledger Account</span>
         </button>
       </div>
 
@@ -412,7 +412,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
           </span>
           <input
             type="text"
-            placeholder="Search by customer name, mobile, loan ID..."
+            placeholder="Search by customer name, mobile, ledger ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
@@ -424,7 +424,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="w-full md:w-auto px-4 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
           >
-            <option value="">All Loan Statuses</option>
+            <option value="">All Ledger Statuses</option>
             <option value="Pending">Pending Approval</option>
             <option value="Active">Active Collection</option>
             <option value="Completed">Completed / Settled</option>
@@ -451,13 +451,13 @@ export default function LoanManagement({ token }: LoanManagementProps) {
         ) : error ? (
           <div className="p-6 text-center text-rose-500 font-semibold">{error}</div>
         ) : loans.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 text-sm">No loan portfolios matched your current filter guidelines.</div>
+          <div className="p-12 text-center text-slate-400 text-sm">No ledger portfolios matched your current filter guidelines.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200/80 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="px-6 py-4">Loan ID / Customer</th>
+                  <th className="px-6 py-4">Ledger ID / Customer</th>
                   <th className="px-6 py-4">Approved (Repay)</th>
                   <th className="px-6 py-4">Upfront Fee</th>
                   <th className="px-6 py-4">Disbursed (Net)</th>
@@ -473,7 +473,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                     <td className="px-6 py-4">
                       <div className="space-y-0.5">
                         <span className="font-bold text-slate-900 block">{l.customer?.full_name}</span>
-                        <span className="text-[10px] text-slate-400 block font-mono">Loan ID: DMF-{l.id.split('-')[0].toUpperCase()} | Mobile: {l.customer?.mobile_number}</span>
+                        <span className="text-[10px] text-slate-400 block font-mono">Ledger ID: DMF-{l.id.split('-')[0].toUpperCase()} | Mobile: {l.customer?.mobile_number}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 font-bold text-slate-800">₹{l.approved_amount}</td>
