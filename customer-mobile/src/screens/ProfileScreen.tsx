@@ -112,11 +112,6 @@ export default function ProfileScreen() {
       onPress: () => showPolicy('Terms of Service', TERMS_OF_SERVICE_TEXT),
     },
     {
-      label: 'Refund & Repayment Policy',
-      icon: '💰',
-      onPress: () => showPolicy('Refund & Repayment Policy', REFUND_POLICY_TEXT),
-    },
-    {
       label: 'About Us',
       icon: 'ℹ️',
       onPress: () => showPolicy('About Us', ABOUT_US_TEXT),
