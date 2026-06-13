@@ -67,14 +67,7 @@ export default function DashboardScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [paying, setPaying] = useState(false);
 
-  // Apply Modal State
-  const [applyModalVisible, setApplyModalVisible] = useState(false);
-  const [selectedLoanType, setSelectedLoanType] = useState('Daily Finance Loan');
-  const [requestAmount, setRequestAmount] = useState('10000');
-  const [defaultDuration, setDefaultDuration] = useState('50');
-  const [requestDuration, setRequestDuration] = useState('50');
-  const [requestLoading, setRequestLoading] = useState(false);
-  const [isCustomAmount, setIsCustomAmount] = useState(false);
+  // Apply Modal State is removed to comply with Google Play Policy
 
   const scheduleRepaymentReminders = async (summary: any) => {
     if (Platform.OS === 'web' || !summary) return;
@@ -223,12 +216,7 @@ export default function DashboardScreen({ navigation }: any) {
       await scheduleRepaymentReminders(dashboardSummary);
 
       // Fetch dynamic defaults from settings
-      const settingsResponse = await api.get('/customer/settings');
-      if (settingsResponse.data.settings?.default_duration) {
-        const defDur = String(settingsResponse.data.settings.default_duration);
-        setDefaultDuration(defDur);
-        setRequestDuration(defDur);
-      }
+      await api.get('/customer/settings');
     } catch (err) {
       console.error('Dashboard fetch error:', err);
     } finally {
@@ -288,67 +276,7 @@ export default function DashboardScreen({ navigation }: any) {
     }
   };
 
-  // Open Apply Form
-  const openApplyModal = (loanType: string = 'Daily Finance Loan') => {
-    setSelectedLoanType(loanType);
-    setRequestAmount('10000');
-    setIsCustomAmount(false);
-    setRequestDuration(defaultDuration);
-    setApplyModalVisible(true);
-  };
-
-  // Handle Submit Loan Application
-  const handleSubmitLoan = async () => {
-    const amt = parseFloat(requestAmount);
-    const dur = parseInt(requestDuration);
-    
-    if (isNaN(amt) || amt <= 0) {
-      if (Platform.OS === 'web') {
-        alert('Invalid Amount: Please enter a valid loan amount.');
-      } else {
-        Alert.alert('Invalid Amount', 'Please enter a valid loan amount.');
-      }
-      return;
-    }
-    if (isNaN(dur) || dur <= 0) {
-      if (Platform.OS === 'web') {
-        alert('Invalid Duration: Please enter a valid duration in days.');
-      } else {
-        Alert.alert('Invalid Duration', 'Please enter a valid duration in days.');
-      }
-      return;
-    }
-
-    setRequestLoading(true);
-    try {
-      await api.post('/customer/request-loan', {
-        amount: amt,
-        duration_days: dur,
-        type: selectedLoanType,
-      });
-
-      setApplyModalVisible(false);
-      if (Platform.OS === 'web') {
-        alert('Application Received\n\nWe received your application. Thank you for applying! We will get back to you soon.');
-        fetchDashboard();
-      } else {
-        Alert.alert(
-          'Application Received',
-          'We received your application. Thank you for applying! We will get back to you soon.',
-          [{ text: 'Great', onPress: fetchDashboard }]
-        );
-      }
-    } catch (err) {
-      console.error(err);
-      if (Platform.OS === 'web') {
-        alert('Error: Failed to submit loan request.');
-      } else {
-        Alert.alert('Error', 'Failed to submit loan request.');
-      }
-    } finally {
-      setRequestLoading(false);
-    }
-  };
+  // Application handling functions removed for policy compliance
 
   if (loading) {
     return (
@@ -638,45 +566,25 @@ export default function DashboardScreen({ navigation }: any) {
       {/* 3. Unified Daily Finance Loan Apply Card */}
       {!summary?.hasActiveLoan && (
         <View style={styles.loanApplySection}>
-          <Text style={styles.sectionHeader}>Daily Finance Loan</Text>
+          <Text style={styles.sectionHeader}>Account Ledger</Text>
 
           <View style={styles.applyCard}>
             <View style={styles.cardTopBar}>
-              <Text style={styles.applyCardTitle}>Daily Installment Loan</Text>
-              <View style={styles.applyCardTag}>
-                <Text style={styles.applyCardTagText}>⚡ INSTANT DISBURSAL</Text>
+              <Text style={styles.applyCardTitle}>No Active Ledger Account</Text>
+              <View style={[styles.applyCardTag, { backgroundColor: '#F3F4F6' }]}>
+                <Text style={[styles.applyCardTagText, { color: '#6B7280' }]}>🔒 INACTIVE</Text>
               </View>
             </View>
-            <View style={styles.cardDetailsRow}>
+            <View style={[styles.cardDetailsRow, { flexWrap: 'wrap', gap: 12 }]}>
               <View style={styles.loanIconCircle}>
-                <Text style={styles.loanIconEmoji}>📅</Text>
+                <Text style={styles.loanIconEmoji}>📝</Text>
               </View>
-              <View style={styles.loanLimitInfo}>
-                <Text style={styles.limitLabel}>AVAILABLE LIMITS</Text>
-                <Text style={styles.limitAmount}>₹5,000 - ₹20,000+</Text>
-                <Text style={styles.limitTenure}>Flexible daily terms (up to 100 days)</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.applyYellowButton}
-                onPress={() => openApplyModal('Daily Finance Loan')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.applyButtonText}>Apply now</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.loanFeaturesRow}>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureBullet}>•</Text>
-                <Text style={styles.featureText}>Instant Disbursal</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureBullet}>•</Text>
-                <Text style={styles.featureText}>Daily Tracker</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureBullet}>•</Text>
-                <Text style={styles.featureText}>Zero Collateral</Text>
+              <View style={[styles.loanLimitInfo, { flex: 1, minWidth: 200 }]}>
+                <Text style={styles.limitLabel}>LEDGER STATUS</Text>
+                <Text style={styles.limitAmount}>Inactive / Not Linked</Text>
+                <Text style={[styles.limitTenure, { marginTop: 4, color: COLORS.muted }]}>
+                  To track your transactions, outstanding balance, and daily payments, please contact your administrator offline to link your active daily ledger account.
+                </Text>
               </View>
             </View>
           </View>
@@ -685,116 +593,7 @@ export default function DashboardScreen({ navigation }: any) {
 
 
 
-      {/* Loan Proposal Application Modal */}
-      <Modal
-        visible={applyModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setApplyModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Request {selectedLoanType}</Text>
-              <TouchableOpacity onPress={() => setApplyModalVisible(false)}>
-                <Text style={styles.closeBtn}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalDivider} />
-
-            <ScrollView contentContainerStyle={styles.modalScroll}>
-              <View style={COMMON_STYLES.inputGroup}>
-                <Text style={COMMON_STYLES.label}>Requested Amount (INR) *</Text>
-                <View style={styles.amountPillsRow}>
-                  {['5000', '10000', '20000'].map((amt) => (
-                    <TouchableOpacity
-                      key={amt}
-                      style={[
-                        styles.amountPill,
-                        !isCustomAmount && requestAmount === amt && styles.activeAmountPill
-                      ]}
-                      onPress={() => {
-                        setRequestAmount(amt);
-                        setIsCustomAmount(false);
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[
-                        styles.amountPillText,
-                        !isCustomAmount && requestAmount === amt && styles.activeAmountPillText
-                      ]}>
-                        ₹{parseInt(amt).toLocaleString('en-IN')}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                  <TouchableOpacity
-                    style={[
-                      styles.amountPill,
-                      isCustomAmount && styles.activeAmountPill
-                    ]}
-                    onPress={() => {
-                      setIsCustomAmount(true);
-                      setRequestAmount('');
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[
-                      styles.amountPillText,
-                      isCustomAmount && styles.activeAmountPillText
-                    ]}>
-                      More
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {isCustomAmount && (
-                  <TextInput
-                    style={[COMMON_STYLES.input, { marginTop: 10 }]}
-                    keyboardType="numeric"
-                    value={requestAmount}
-                    onChangeText={setRequestAmount}
-                    placeholder="Enter custom amount (e.g. 15000)"
-                    placeholderTextColor={COLORS.placeholder}
-                  />
-                )}
-              </View>
-
-              <View style={COMMON_STYLES.inputGroup}>
-                <Text style={COMMON_STYLES.label}>Duration Term (Days) *</Text>
-                <TextInput
-                  style={COMMON_STYLES.input}
-                  keyboardType="numeric"
-                  value={requestDuration}
-                  onChangeText={setRequestDuration}
-                  placeholder="e.g. 50"
-                />
-                <Text style={styles.helperText}>Daily repayments will adjust based on term length</Text>
-              </View>
-
-              <View style={COMMON_STYLES.inputGroup}>
-                <Text style={COMMON_STYLES.label}>Purpose / Business Type</Text>
-                <TextInput
-                  style={COMMON_STYLES.input}
-                  placeholder="e.g. Shop Inventory, Fruits vendor, Personal Needs"
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[COMMON_STYLES.button, { marginTop: 12 }]}
-                onPress={handleSubmitLoan}
-                disabled={requestLoading}
-              >
-                {requestLoading ? (
-                  <ActivityIndicator color={COLORS.primary} />
-                ) : (
-                  <Text style={COMMON_STYLES.buttonText}>Submit Loan Application</Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      {/* Loan Proposal Application Modal is removed to comply with Google Play Policy */}
     </ScrollView>
   );
 }

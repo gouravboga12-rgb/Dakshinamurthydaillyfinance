@@ -69,7 +69,7 @@ export default function LenderDetailsScreen() {
           />
         </View>
         <Text style={styles.heroTitle}>Dakshinamurthy Daily Finance</Text>
-        <Text style={styles.heroSubtitle}>Your trusted daily lending partner</Text>
+        <Text style={styles.heroSubtitle}>Your trusted daily ledger tracker</Text>
       </View>
 
       {/* Upgraded Modern Contact Channels */}

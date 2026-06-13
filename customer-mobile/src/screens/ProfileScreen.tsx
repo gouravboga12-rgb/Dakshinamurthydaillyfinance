@@ -22,7 +22,7 @@ import { fileUriToBase64 } from '../utils/file';
 
 const PRIVACY_POLICY_TEXT = `Privacy Policy for Dakshinamurthy Daily Finance
 
-Last Updated: June 10, 2026
+Last Updated: June 13, 2026
 
 1. Information We Collect
 We collect the personal details you provide during registration and onboarding, including your full name, phone number, email address, occupation, shop/business name, physical address, and documents (like Aadhaar card photo).
@@ -30,60 +30,60 @@ We collect the personal details you provide during registration and onboarding, 
 2. How We Use Your Information
 We use your information strictly for:
 • Verifying your identity and business legitimacy.
-• Managing and tracking daily loan disbursements and repayments.
+• Managing and tracking daily account balances and ledger entries.
 • Sending transaction and security notifications via SMS or email.
-• Generating loan accounts and payment receipts.
+• Generating ledger accounts and payment receipts.
 
 3. Data Security
 Your data is highly secure. We use encrypted SSL connections (HTTPS) for all transfers and store your data in secure cloud servers. We restrict database access only to authorized administrators.
 
 4. Data Sharing
-We do not sell, trade, or share your personal data with third-party advertising companies or outside agencies. Your details are strictly for internal loan tracking and accounting.
+We do not sell, trade, or share your personal data with third-party advertising companies or outside agencies. Your details are strictly for internal ledger tracking and accounting.
 
 5. Data Deletion
-You can request account and data deletion by contacting the system administrator. Once confirmed, all your active profiles and documents will be permanently deleted from our servers, subject to the settlement of any outstanding loan balance.`;
+You can request account and data deletion by contacting the system administrator. Once confirmed, all your active profiles and documents will be permanently deleted from our servers, subject to the settlement of any outstanding account balance.`;
 
 const TERMS_OF_SERVICE_TEXT = `Terms of Service for Dakshinamurthy Daily Finance
 
-Last Updated: June 10, 2026
+Last Updated: June 13, 2026
 
 1. Acceptance of Terms
 By downloading, installing, or registering with the Dakshinamurthy Daily Finance application, you agree to comply with and be bound by these Terms of Service.
 
 2. User Eligibility
-You must be at least 18 years of age and own a legitimate registered local business to request or track financial services through this app.
+You must be at least 18 years of age and own a legitimate registered local business to track transaction records and daily logs through this app.
 
 3. Account Registration & Security
 You agree to provide accurate and complete details. You are responsible for keeping your login credentials confidential and secure. Inform the administrator immediately if you suspect unauthorized access.
 
-4. Loan Repayment Commitment
-• You agree to repay the daily loan installments on time as scheduled.
+4. Ledger Settlement Commitment
+• You agree to clear the daily installment entries on time as scheduled.
 • In case of missed installments, the system administrator reserves the right to contact you directly at your registered business address.
-• Platform processing fees (if applicable) are deducted at the time of loan disbursement.
+• Platform processing fees (if applicable) are deducted at the time of ledger account creation.
 
 5. Prohibited Actions
 You agree not to upload false documents, misuse the app for fraudulent purposes, or attempt to compromise app security.`;
 
 const REFUND_POLICY_TEXT = `Refund & Repayment Policy
 
-Last Updated: June 10, 2026
+Last Updated: June 13, 2026
 
 1. Non-Refundable Payments
-All payments made as repayments towards principal or interest on active loans are strictly final and non-refundable.
+All payments made as ledger updates on active accounts are strictly final and non-refundable.
 
 2. Double Payment / Network Issues
 If a payment transaction fails or is processed twice due to internet lag or banking service delays:
-• You must contact the app owner or lender with valid payment proof (such as a receipt or bank transaction screenshot).
+• You must contact the app owner or admin with valid payment proof (such as a receipt or bank transaction screenshot).
 • Upon verification, the duplicate amount will be credited and adjusted towards your next scheduled daily installment.
 
 3. Fee Policies
-Any initial documentation fees or platform processing fees deducted at the time of loan disbursement are non-refundable.`;
+Any initial documentation fees or platform processing fees deducted at the time of ledger creation are non-refundable.`;
 
 const ABOUT_US_TEXT = `About Dakshinamurthy Daily Finance
 
-Dakshinamurthy Daily Finance is a micro-finance management application designed to support local merchants, small business owners, and daily wage traders. 
+Dakshinamurthy Daily Finance is a daily ledger tracker and micro-transaction management utility designed to support local merchants, small business owners, and daily wage traders. 
 
-We aim to bridge the gap in short-term financial needs by offering easy, direct loan tracking and daily installment settlement features. Through this app, merchants can easily view their current active loans, monitor daily installment status, verify receipts, and maintain clear records of their financial transactions in real time.`;
+We aim to offer easy, direct transaction tracking and daily installment ledger features. Through this app, merchants can easily view their current active ledger balances, monitor daily installment status, verify receipts, and maintain clear records of their financial transactions in real time.`;
 
 export default function ProfileScreen() {
   const user = useSelector((state: RootState) => state.auth.user);
