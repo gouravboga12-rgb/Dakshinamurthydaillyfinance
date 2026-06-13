@@ -106,7 +106,7 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
             
             <View style={styles.modalBreakdown}>
               <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Approved Loan Amount</Text>
+                <Text style={styles.modalLabel}>Approved Account Balance</Text>
                 <Text style={styles.modalValue}>₹{loan.approved_amount.toLocaleString('en-IN')}</Text>
               </View>
 
@@ -116,7 +116,7 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
               </View>
 
               <View style={[styles.modalRow, styles.modalRowBorder]}>
-                <Text style={styles.modalLabelHighlight}>Net Disbursed Amount</Text>
+                <Text style={styles.modalLabelHighlight}>Net Account Value</Text>
                 <Text style={[styles.modalValueHighlight, { color: '#10B981' }]}>₹{loan.amount_disbursed.toLocaleString('en-IN')}</Text>
               </View>
 
@@ -126,7 +126,7 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
               </View>
 
               <View style={[styles.modalRow, styles.modalRowBorder]}>
-                <Text style={styles.modalLabelHighlight}>Total Repayment Basis</Text>
+                <Text style={styles.modalLabelHighlight}>Total Settlement Basis</Text>
                 <Text style={styles.modalValueHighlight}>₹{loan.total_repayment.toLocaleString('en-IN')}</Text>
               </View>
 
@@ -136,7 +136,7 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
               </View>
 
               <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Loan Term Duration</Text>
+                <Text style={styles.modalLabel}>Ledger Duration Term</Text>
                 <Text style={styles.modalValue}>{loan.duration_days} Days</Text>
               </View>
             </View>
@@ -151,31 +151,31 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
       {/* Top Ref card */}
       <View style={styles.topCard}>
         <View style={styles.row}>
-          <Text style={styles.refLabel}>Loan Ref no.</Text>
+          <Text style={styles.refLabel}>Ledger Ref no.</Text>
           <Text style={styles.refValue}>DMF-{(loan.id || '').split('-')[0].toUpperCase()}</Text>
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.refLabel}>Loan Given Date</Text>
+          <Text style={styles.refLabel}>Account Start Date</Text>
           <Text style={styles.refValue}>{loan.approval_date ? formatDueDate(loan.approval_date.split('T')[0]) : 'Pending'}</Text>
         </View>
 
         <View style={styles.amountDivider} />
 
         <View style={styles.row}>
-          <Text style={styles.labelApproved}>Approved Amount</Text>
+          <Text style={styles.labelApproved}>Ledger Balance</Text>
           <Text style={styles.valueApproved}>₹{loan.approved_amount.toLocaleString('en-IN')}</Text>
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.labelDisbursed}>Disbursement Amount</Text>
+          <Text style={styles.labelDisbursed}>Total Linked Value</Text>
           <Text style={styles.valueDisbursed}>₹{loan.amount_disbursed.toLocaleString('en-IN')}</Text>
         </View>
 
         <View style={styles.bankTransferBox}>
-          <Text style={styles.bankTransferText}>Transfer to registered bank account</Text>
+          <Text style={styles.bankTransferText}>Linked to registered customer profile</Text>
           <TouchableOpacity onPress={() => setFeeModalVisible(true)}>
-            <Text style={styles.viewFeeText}>View Fee Details</Text>
+            <Text style={styles.viewFeeText}>View Details</Text>
           </TouchableOpacity>
         </View>
 
@@ -202,7 +202,7 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
         <View style={styles.row}>
           <View>
             <Text style={styles.rowLabel}>Status</Text>
-            <Text style={styles.rowSubLabel}>Current Status of Loan</Text>
+            <Text style={styles.rowSubLabel}>Current Status of Account</Text>
           </View>
           <View style={[
             styles.statusBadge,
@@ -276,7 +276,7 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
             <Text style={styles.makePaymentBtnText}>Make Payment</Text>
           </TouchableOpacity>
 
-          {/* Foreclose Loan Link */}
+          {/* Settle Account Link */}
           <TouchableOpacity
             style={styles.forecloseLinkContainer}
             onPress={() => navigation.navigate('Payment', {
@@ -287,7 +287,7 @@ export default function LoanDetailsScreen({ route, navigation }: any) {
             })}
             activeOpacity={0.7}
           >
-            <Text style={styles.forecloseLinkText}>Foreclose Loan</Text>
+            <Text style={styles.forecloseLinkText}>Settle Ledger Account</Text>
           </TouchableOpacity>
           <Text style={styles.foreclosureChargesNote}>Pay full outstanding amount in one go</Text>
         </View>

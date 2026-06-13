@@ -139,7 +139,7 @@ function TabNavigator() {
         }} 
       />
       <Tab.Screen name="History" component={PaymentHistoryScreen} options={{ title: 'Repayment Log' }} />
-      <Tab.Screen name="Support" component={LenderDetailsScreen} options={{ title: 'Lender Support' }} />
+      <Tab.Screen name="Support" component={LenderDetailsScreen} options={{ title: 'Ledger Support' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
     </Tab.Navigator>
   );
@@ -148,7 +148,7 @@ function TabNavigator() {
 const FloatingWhatsApp = () => {
   const insets = useSafeAreaInsets();
   const handleOpenWhatsApp = () => {
-    Linking.openURL('https://wa.me/917659934261?text=Hello%20Dakshinamurthy%20Finance,%20I%20have%20a%20query%20about%20my%20loan.').catch(() => {
+    Linking.openURL('https://wa.me/917659934261?text=Hello%20Dakshinamurthy%20Finance,%20I%20have%20a%20query%20about%20my%20ledger%20account.').catch(() => {
       // Fallback silently
     });
   };
@@ -211,7 +211,7 @@ export default function AppNavigator() {
                 component={LoanDetailsScreen} 
                 options={{ 
                   headerShown: true, 
-                  title: 'Loan Disbursal Details',
+                  title: 'Ledger Account Details',
                   headerStyle: { backgroundColor: COLORS.primary },
                   headerTintColor: COLORS.white 
                 }} 

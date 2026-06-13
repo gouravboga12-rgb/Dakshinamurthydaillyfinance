@@ -402,10 +402,10 @@ export default function DashboardScreen({ navigation }: any) {
           
           {loan.status === 'Pending' ? (
             <View style={styles.pendingContainer}>
-              <Text style={styles.pendingLabel}>Loan Amount Requested</Text>
+              <Text style={styles.pendingLabel}>Requested Account Balance</Text>
               <Text style={styles.pendingAmount}>₹{loan.approved_amount.toLocaleString('en-IN')}</Text>
               <View style={styles.pendingBadge}>
-                <Text style={styles.pendingStatusText}>⏳  Proposal Submitted — Pending Admin Review</Text>
+                <Text style={styles.pendingStatusText}>⏳  Account Verification — Pending Admin Review</Text>
               </View>
             </View>
           ) : (
@@ -489,7 +489,7 @@ export default function DashboardScreen({ navigation }: any) {
                 </TouchableOpacity>
               )}
               <View style={styles.repaymentFooter}>
-                <Text style={styles.activeLoanCountText}>Active Loans: 1</Text>
+                <Text style={styles.activeLoanCountText}>Active Ledgers: 1</Text>
                 <View style={styles.footerCalendarRow}>
                   <Text style={styles.calendarEmoji}>📅</Text>
                   <Text style={styles.dueDateText}>on {summary.nextDue || 'today'}</Text>
@@ -502,7 +502,7 @@ export default function DashboardScreen({ navigation }: any) {
                 onPress={() => navigation.navigate('LoanDetails', { loanId: loan.id })}
                 activeOpacity={0.85}
               >
-                <Text style={styles.loanDetailsQuickLinkText}>📋 View Loan Details</Text>
+                <Text style={styles.loanDetailsQuickLinkText}>📋 View Ledger Details</Text>
                 <Text style={styles.loanDetailsQuickLinkArrow}> →</Text>
               </TouchableOpacity>
             </>

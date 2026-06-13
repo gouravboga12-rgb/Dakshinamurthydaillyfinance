@@ -392,7 +392,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h3 className="text-lg font-bold text-slate-900">Ledger Portfolio & Accounts</h3>
+          <h3 className="text-lg font-bold text-slate-900">Payments & Dues Ledger</h3>
           <p className="text-xs text-slate-500">Create daily ledger records, configure platforms/installments, and review approvals.</p>
         </div>
         <button

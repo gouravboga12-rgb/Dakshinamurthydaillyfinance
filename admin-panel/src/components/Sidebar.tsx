@@ -24,7 +24,7 @@ export default function Sidebar({ currentPage, setCurrentPage, adminName, onLogo
   const menuItems = [
     { id: 'dashboard',  label: 'Dashboard',           icon: LayoutDashboard },
     { id: 'customers',  label: 'Customers',            icon: Users           },
-    { id: 'loans',      label: 'Ledgers & Accounts',   icon: Wallet          },
+    { id: 'loans',      label: 'Payments & Dues',      icon: Wallet          },
     { id: 'payments',   label: 'Repayments Tracker',   icon: CheckSquare     },
     { id: 'delays',     label: 'Delayed Payments',     icon: AlertCircle     },
     { id: 'reports',    label: 'Reports & Analytics',  icon: FileSpreadsheet },

@@ -113,7 +113,6 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
   };
 
   const handleMarkPaid = async (installmentId: string) => {
-    if (!window.confirm('Verify that you have physically collected the cash/payment for this daily installment?')) return;
     try {
       const response = await api.post('/api/admin/payments/mark-paid', {
         installmentId
