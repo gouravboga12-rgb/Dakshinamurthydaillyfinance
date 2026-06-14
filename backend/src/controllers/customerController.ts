@@ -54,14 +54,14 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
         if (!recentNotif) {
           const titles = [
             "⚠️ Missed Installment Alert!",
-            "⏳ Repayment Reminder: Profile Status At Risk!",
-            "🚨 Action Required: Lending Score Impact Warning",
+            "⏳ Ledger Payment Reminder: Profile Status At Risk!",
+            "🚨 Action Required: Ledger Score Impact Warning",
             "💳 Settle your overdue installments!"
           ];
           const messages = [
-            `Hey! You have ${overdueCount} missed daily installment${overdueCount > 1 ? 's' : ''} (Total: ₹${overdueAmount}). Your lending profile score will be affected if you do not pay on time. Settle immediately!`,
-            `Avoid profile deactivation! You have ₹${overdueAmount} overdue. Your lending history will be affected if you do not pay on time.`,
-            `Urgent: Settle your ₹${overdueAmount} unpaid dues to prevent your credit score profile from being negatively affected.`
+            `Hey! You have ${overdueCount} missed daily installment${overdueCount > 1 ? 's' : ''} (Total: ₹${overdueAmount}). Your ledger profile score will be affected if you do not pay on time. Settle immediately!`,
+            `Avoid profile deactivation! You have ₹${overdueAmount} overdue. Your ledger history will be affected if you do not pay on time.`,
+            `Urgent: Settle your ₹${overdueAmount} unpaid dues to prevent your ledger profile score from being negatively affected.`
           ];
           // Pick based on overdue count or random
           const selectedTitle = titles[Math.min(overdueCount - 1, titles.length - 1)];
@@ -74,7 +74,7 @@ export const getCustomerDashboard = async (req: AuthRequest, res: Response) => {
       const pendingInstallmentsList = overdueInstallments.concat(dueTodayInstallment ? [dueTodayInstallment] : []);
 
       const todayInstallment = installments.find((i: any) => i.due_date === todayStr);
-      const isTodayPaid = todayInstallment ? todayInstallment.status === 'Paid' : true;
+      const isTodayPaid = todayInstallment ? todayInstallment.status === 'Paid' : false;
 
       summary = {
         hasActiveLoan: true,
@@ -223,13 +223,13 @@ export const requestLoan = async (req: AuthRequest, res: Response) => {
     // Notify user & admin
     await db.createNotification(
       customerId,
-      'Loan Request Submitted',
-      `Your request for a loan of ₹${approved_amount} has been submitted for admin approval.`,
+      'Ledger Account Request Submitted',
+      `Your request for a ledger account of ₹${approved_amount} has been submitted for admin approval.`,
       'loan'
     );
 
     return res.status(201).json({
-      message: 'Loan request submitted successfully.',
+      message: 'Ledger account request submitted successfully.',
       loan: newLoan
     });
   } catch (error: any) {
@@ -282,8 +282,8 @@ export const payInstallment = async (req: AuthRequest, res: Response) => {
       });
       await db.createNotification(
         customerId,
-        'Loan Fully Repaid!',
-        `Congratulations! Your loan of ₹${activeLoan.approved_amount} is fully repaid and closed.`,
+        'Ledger Account Fully Settled!',
+        `Congratulations! Your ledger account of ₹${activeLoan.approved_amount} is fully settled and closed.`,
         'loan'
       );
     } else {
@@ -292,8 +292,8 @@ export const payInstallment = async (req: AuthRequest, res: Response) => {
       });
       await db.createNotification(
         customerId,
-        'Installment Paid',
-        `Repayment of ₹${activeLoan.daily_installment} successful. Remaining balance: ₹${newBalance}.`,
+        'Ledger Installment Paid',
+        `Repayment of ₹${activeLoan.daily_installment} successful. Remaining ledger balance: ₹${newBalance}.`,
         'payment'
       );
     }
@@ -466,8 +466,8 @@ export const forecloseLoan = async (req: AuthRequest, res: Response) => {
     // Notify customer
     await db.createNotification(
       customerId,
-      'Loan Foreclosed Successfully 🎉',
-      `Your loan of ₹${loan.approved_amount} has been foreclosed by paying ₹${foreclosureAmount}. Loan is now closed.`,
+      'Ledger Account Foreclosed Successfully 🎉',
+      `Your ledger account of ₹${loan.approved_amount} has been foreclosed by paying ₹${foreclosureAmount}. Ledger account is now closed.`,
       'loan'
     );
 
@@ -559,7 +559,7 @@ export const submitForeclosureProof = async (req: AuthRequest, res: Response) =>
     await db.createNotification(
       customerId,
       'Foreclosure Proof Submitted ⏳',
-      `Your foreclosure payment proof (UTR: ${transaction_id}) for ₹${loan.remaining_balance} has been submitted. Your loan will be closed once the admin verifies the payment.`,
+      `Your foreclosure payment proof (UTR: ${transaction_id}) for ₹${loan.remaining_balance} has been submitted. Your ledger account will be closed once the admin verifies the payment.`,
       'loan'
     );
 

@@ -94,8 +94,8 @@ export default function DashboardScreen({ navigation }: any) {
         try {
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: '✅ Daily Repayment Successful',
-              body: `Thank you! Your daily installment of ₹${loan.daily_installment} has been paid successfully. Keep it up!`,
+              title: '✅ Daily Ledger Payment Successful',
+              body: `Thank you! Your daily installment of ₹${loan.daily_installment} has been paid and recorded on ledger successfully. Keep it up!`,
               sound: true,
               priority: Notifications.AndroidNotificationPriority.HIGH,
             },
@@ -106,8 +106,8 @@ export default function DashboardScreen({ navigation }: any) {
           console.error('Failed to trigger payment success notification:', err);
         }
       }
-    } else {
-      // 2. Unpaid today
+    } else if (summary.dueTodayAmount > 0 || (summary.overdueCount || 0) > 0) {
+      // 2. Unpaid today and has outstanding dues
       try {
         await Notifications.cancelAllScheduledNotificationsAsync();
       } catch (err) {
@@ -125,11 +125,11 @@ export default function DashboardScreen({ navigation }: any) {
           try {
             const isOverdue = (summary.overdueCount || 0) > 0;
             const title = isOverdue
-              ? '🚨 Action Required: Late Repayment Warning!'
-              : '📅 Daily Repayment Due Today';
+              ? '🚨 Action Required: Late Ledger Payment Warning!'
+              : '📅 Daily Ledger Payment Due Today';
             const body = isOverdue
-              ? `You have missed ${summary.overdueCount} installment(s). Please clear dues immediately to protect your lending profile!`
-              : `Your daily installment of ₹${summary.dueTodayAmount || loan.daily_installment} is due. Settle today to keep your lending score healthy!`;
+              ? `You have missed ${summary.overdueCount} installment(s). Please clear dues immediately to protect your ledger profile!`
+              : `Your daily installment of ₹${summary.dueTodayAmount || loan.daily_installment} is due. Settle today to keep your ledger score healthy!`;
 
             await Notifications.scheduleNotificationAsync({
               content: {
@@ -155,8 +155,8 @@ export default function DashboardScreen({ navigation }: any) {
           try {
             await Notifications.scheduleNotificationAsync({
               content: {
-                title: '⚠️ Repayment Overdue Warning!',
-                body: `You have missed ${summary.overdueCount} installment(s). Your lending profile score is at risk. Please clear dues immediately!`,
+                title: '⚠️ Ledger Payment Overdue Warning!',
+                body: `You have missed ${summary.overdueCount} installment(s). Your ledger profile score is at risk. Please clear dues immediately!`,
                 sound: true,
                 priority: Notifications.AndroidNotificationPriority.HIGH,
               },
@@ -169,8 +169,8 @@ export default function DashboardScreen({ navigation }: any) {
 
           // Trigger Alert dialog popup immediately when opening app (non-tray)
           Alert.alert(
-            '⚠️ Repayment Overdue Alert!',
-            `You have missed ${summary.overdueCount} daily installment(s) (Total Overdue: ₹${summary.overdueAmount.toLocaleString('en-IN')}).\n\nCRITICAL: Your lending profile score and future loan eligibility will be negatively affected if you do not pay on time. Please clear your dues immediately!`,
+            '⚠️ Ledger Payment Overdue Alert!',
+            `You have missed ${summary.overdueCount} daily installment(s) (Total Overdue: ₹${summary.overdueAmount.toLocaleString('en-IN')}).\n\nCRITICAL: Your ledger profile score and future account eligibility will be negatively affected if you do not pay on time. Please clear your dues immediately!`,
             [
               {
                 text: 'Pay Now',
@@ -191,8 +191,8 @@ export default function DashboardScreen({ navigation }: any) {
           try {
             await Notifications.scheduleNotificationAsync({
               content: {
-                title: '📅 Daily Repayment Due Today',
-                body: `Your daily installment of ₹${summary.dueTodayAmount} is due today. Settle today to keep your lending score healthy!`,
+                title: '📅 Daily Ledger Payment Due Today',
+                body: `Your daily installment of ₹${summary.dueTodayAmount} is due today. Settle today to keep your ledger score healthy!`,
                 sound: true,
                 priority: Notifications.AndroidNotificationPriority.DEFAULT,
               },

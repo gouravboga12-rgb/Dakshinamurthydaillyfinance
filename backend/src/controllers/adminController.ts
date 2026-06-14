@@ -386,7 +386,7 @@ export const createLoan = async (req: AuthRequest, res: Response) => {
     }
     await db.createInstallments(installments);
 
-    await db.createNotification(customer_id, 'New Loan Active', `Your loan of ₹${approved_amount} has been activated. Daily installment is ₹${daily_installment}.`, 'loan');
+    await db.createNotification(customer_id, 'New Ledger Account Active', `Your ledger account of ₹${approved_amount} has been activated. Daily installment is ₹${daily_installment}.`, 'loan');
 
     return res.status(201).json({ message: 'Loan created and activated.', loan: newLoan });
   } catch (error: any) {
@@ -462,8 +462,8 @@ export const approveLoan = async (req: AuthRequest, res: Response) => {
 
     await db.createNotification(
       updatedLoan.customer_id,
-      'Loan Approved!',
-      `Your loan request of ₹${updatedLoan.approved_amount} has been approved. Daily installment is ₹${updatedLoan.daily_installment}.`,
+      'Ledger Account Activated!',
+      `Your ledger account of ₹${updatedLoan.approved_amount} has been activated. Daily installment is ₹${updatedLoan.daily_installment}.`,
       'loan'
     );
 
@@ -487,7 +487,7 @@ export const rejectLoan = async (req: AuthRequest, res: Response) => {
     }
 
     const updated = await db.updateLoanStatus(id, 'Rejected');
-    await db.createNotification(loan.customer_id, 'Loan Rejected', `Your loan request of ₹${loan.approved_amount} was rejected.`, 'loan');
+    await db.createNotification(loan.customer_id, 'Ledger Account Rejected', `Your ledger account request of ₹${loan.approved_amount} was rejected.`, 'loan');
 
     return res.status(200).json({ message: 'Loan request rejected.', loan: updated });
   } catch (error: any) {
@@ -511,7 +511,7 @@ export const closeLoan = async (req: AuthRequest, res: Response) => {
       remaining_balance: 0
     });
 
-    await db.createNotification(loan.customer_id, 'Loan Completed', `Your loan of ₹${loan.approved_amount} has been successfully closed.`, 'loan');
+    await db.createNotification(loan.customer_id, 'Ledger Account Completed', `Your ledger account of ₹${loan.approved_amount} has been successfully closed.`, 'loan');
 
     return res.status(200).json({ message: 'Loan marked as completed manually.', loan: updated });
   } catch (error: any) {
@@ -597,8 +597,8 @@ export const markInstallmentPaid = async (req: AuthRequest, res: Response) => {
       });
       await db.createNotification(
         loan.customer_id,
-        'Loan Fully Repaid!',
-        `Congratulations! Your loan of ₹${loan.approved_amount} is fully repaid and closed. You are now eligible for a new loan.`,
+        'Ledger Account Fully Settled!',
+        `Congratulations! Your ledger account of ₹${loan.approved_amount} is fully settled and closed. You are now eligible for a new ledger account.`,
         'loan'
       );
     } else {
@@ -607,8 +607,8 @@ export const markInstallmentPaid = async (req: AuthRequest, res: Response) => {
       });
       await db.createNotification(
         loan.customer_id,
-        'Installment Paid',
-        `Installment due on ${installment.due_date} of ₹${loan.daily_installment} marked as Paid. Remaining balance: ₹${newBalance}.`,
+        'Ledger Installment Paid',
+        `Installment due on ${installment.due_date} of ₹${loan.daily_installment} marked as Paid. Remaining ledger balance: ₹${newBalance}.`,
         'payment'
       );
     }
@@ -968,8 +968,8 @@ export const approveForeclosure = async (req: AuthRequest, res: Response) => {
 
     await db.createNotification(
       loan.customer_id,
-      'Loan Foreclosed Successfully! 🔒',
-      `Your foreclosure request for loan ₹${loan.approved_amount} has been approved. The loan is now closed.`,
+      'Ledger Account Foreclosed Successfully! 🔒',
+      `Your foreclosure request for ledger account ₹${loan.approved_amount} has been approved. The ledger account is now closed.`,
       'loan'
     );
 
