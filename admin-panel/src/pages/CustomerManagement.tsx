@@ -176,7 +176,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
         setSelectedCustLatePayments(response.data.latePaymentsList || []);
       }
     } catch (err) {
-      console.error('Failed to load customer details & loan history:', err);
+      console.error('Failed to load customer details & account history:', err);
     } finally {
       setSelectedCustLoading(false);
     }
@@ -520,7 +520,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                   <th className="px-6 py-4">Customer Details</th>
                   <th className="px-6 py-4">Contact</th>
                   <th className="px-6 py-4">Occupation / Shop</th>
-                  <th className="px-6 py-4">Loan Status</th>
+                  <th className="px-6 py-4">Ledger Status</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Registration Date</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -553,7 +553,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                             <span className="font-mono">ID: {c.id.slice(0, 8)}</span>
                             {c.loan_count !== undefined && (
                               <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                                Loans: {c.loan_count} ({c.active_loan_count || 0} active)
+                                Ledgers: {c.loan_count} ({c.active_loan_count || 0} active)
                               </span>
                             )}
                           </div>
@@ -583,7 +583,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-slate-50 text-slate-500 border-slate-200">
-                          No Loans
+                          No Ledgers
                         </span>
                       )}
                     </td>
@@ -727,7 +727,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                     : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
-                <span>Loan History</span>
+                <span>Account History</span>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                   activeTab === 'loans' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
                 }`}>
@@ -788,7 +788,7 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                     return selectedCustStats ? (
                       <div className="border-t border-slate-100 pt-4 space-y-4">
                         <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                          Lending Score & Payment Compliance
+                          Ledger Score & Payment Compliance
                         </h5>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           {/* Compliance Score Card */}
@@ -837,16 +837,16 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                             <h6 className="text-xs font-bold uppercase tracking-wider">
                               Recommendation: {
                                 recStatus === 'Good' 
-                                  ? 'Approved (Excellent Borrower)' 
+                                  ? 'Approved (Excellent Record)' 
                                   : recStatus === 'Caution'
                                   ? 'Approve with Caution'
                                   : 'High Risk (Not Recommended)'
                               }
                             </h6>
                             <p className="text-[11px] mt-1 leading-relaxed opacity-90">
-                              {recStatus === 'Good' && 'This borrower has an excellent track record of making on-time payments. Standard loan approval is recommended.'}
-                              {recStatus === 'Caution' && `This borrower has some late payments (${selectedCustStats.paidLate}). Monitor collections closely if a new loan is approved.`}
-                              {recStatus === 'High Risk' && `This borrower is currently high risk due to ${selectedCustStats.overdueUnpaid > 0 ? `${selectedCustStats.overdueUnpaid} overdue unpaid installment(s)` : `low compliance score of ${complianceScore}%`}. Issuing a new loan is not recommended.`}
+                              {recStatus === 'Good' && 'This customer has an excellent track record of making on-time payments. Standard ledger approval is recommended.'}
+                              {recStatus === 'Caution' && `This customer has some late payments (${selectedCustStats.paidLate}). Monitor collections closely if a new ledger is approved.`}
+                              {recStatus === 'High Risk' && `This customer is currently high risk due to ${selectedCustStats.overdueUnpaid > 0 ? `${selectedCustStats.overdueUnpaid} overdue unpaid installment(s)` : `low compliance score of ${complianceScore}%`}. Creating a new ledger is not recommended.`}
                             </p>
                           </div>
                         </div>
@@ -1037,11 +1037,11 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                   {selectedCustLoading ? (
                     <div className="py-12 flex flex-col justify-center items-center gap-2">
                       <Loader2 className="animate-spin text-blue-600" size={24} />
-                      <span className="text-xs font-bold text-slate-500">Loading loan history...</span>
+                      <span className="text-xs font-bold text-slate-500">Loading account history...</span>
                     </div>
                   ) : selectedCustLoans.length === 0 ? (
                     <div className="py-12 text-center text-slate-400 text-xs">
-                      No loan records found for this customer.
+                      No account records found for this customer.
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -1052,10 +1052,10 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                             <div className="flex justify-between items-start">
                               <div>
                                 <span className="text-xs font-bold text-slate-800">
-                                  Approved Amount: ₹{l.approved_amount}
+                                  Approved Balance: ₹{l.approved_amount}
                                 </span>
                                 <span className="text-[10px] text-slate-400 block font-mono">
-                                  Loan ID: DMF-{l.id.split('-')[0].toUpperCase()} | Disbursed (Net): ₹{l.amount_disbursed}
+                                  Ledger Ref ID: DMF-{l.id.split('-')[0].toUpperCase()} | Net Account Value: ₹{l.amount_disbursed}
                                 </span>
                               </div>
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${
@@ -1073,15 +1073,15 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
 
                             <div className="grid grid-cols-3 gap-2 text-xs border-t border-slate-100 pt-2 text-slate-500">
                               <div>
-                                <span className="font-semibold block text-slate-400 text-[10px] uppercase">Repayment Basis</span>
+                                <span className="font-semibold block text-slate-400 text-[10px] uppercase">Settlement Basis</span>
                                 <span className="font-bold text-slate-700">₹{l.total_repayment}</span>
                               </div>
                               <div>
-                                <span className="font-semibold block text-slate-400 text-[10px] uppercase">Daily EMI</span>
+                                <span className="font-semibold block text-slate-400 text-[10px] uppercase">Daily Installment</span>
                                 <span className="font-bold text-slate-700">₹{l.daily_installment} / {l.duration_days} Days</span>
                               </div>
                               <div>
-                                <span className="font-semibold block text-slate-400 text-[10px] uppercase">Remaining Due</span>
+                                <span className="font-semibold block text-slate-400 text-[10px] uppercase">Remaining Balance</span>
                                 <span className="font-bold text-slate-900">₹{l.remaining_balance}</span>
                               </div>
                             </div>
