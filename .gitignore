@@ -58,3 +58,14 @@ run_tunnel.js
 tunnel-url.json
 customer-mobile/tunnel-url.json
 test_supabase_read.js
+
+# App builds and keystores/credentials
+*.apk
+*keystore-backup*/
+*keystore-backup*
+*.jks
+*credentials.md
+App assest verification photos/
+
+# Temp build outputs
+admin-panel/vite.config.ts.timestamp*
