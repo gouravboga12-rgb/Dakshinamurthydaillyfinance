@@ -137,9 +137,9 @@ export default function PaymentHistoryScreen({ navigation }: any) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyIcon}>📄</Text>
-        <Text style={styles.emptyTitle}>No Loan History</Text>
+        <Text style={styles.emptyTitle}>No Ledger Account History</Text>
         <Text style={styles.emptySubtitle}>
-          You do not have any ongoing or past loan records.
+          You do not have any ongoing or past ledger account records.
         </Text>
       </View>
     );
@@ -160,7 +160,7 @@ export default function PaymentHistoryScreen({ navigation }: any) {
           activeOpacity={0.7}
         >
           <Text style={[styles.tabText, activeTab === 'ongoing' && styles.tabTextActive]}>
-            Ongoing Loans
+            Ongoing Ledger Accounts
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -169,7 +169,7 @@ export default function PaymentHistoryScreen({ navigation }: any) {
           activeOpacity={0.7}
         >
           <Text style={[styles.tabText, activeTab === 'closed' && styles.tabTextActive]}>
-            Closed Loans
+            Closed Ledger Accounts
           </Text>
         </TouchableOpacity>
       </View>
@@ -207,10 +207,10 @@ export default function PaymentHistoryScreen({ navigation }: any) {
         <View style={styles.tabEmptyContainer}>
           <Text style={styles.tabEmptyIcon}>📄</Text>
           <Text style={styles.tabEmptyTitle}>
-            No {activeTab === 'ongoing' ? 'Ongoing' : 'Closed'} Loans
+            No {activeTab === 'ongoing' ? 'Ongoing' : 'Closed'} Ledger Accounts
           </Text>
           <Text style={styles.tabEmptySubtitle}>
-            There are no {activeTab === 'ongoing' ? 'active or pending' : 'completed or rejected'} loans in this section.
+            There are no {activeTab === 'ongoing' ? 'active or pending' : 'completed or rejected'} ledger accounts in this section.
           </Text>
         </View>
       ) : (
@@ -246,7 +246,7 @@ export default function PaymentHistoryScreen({ navigation }: any) {
               activeOpacity={0.8}
             >
               <Text style={styles.loanDetailsLinkIcon}>📋</Text>
-              <Text style={styles.loanDetailsLinkText}>View Loan Details</Text>
+              <Text style={styles.loanDetailsLinkText}>View Ledger Details</Text>
               <Text style={styles.loanDetailsLinkArrow}>❯</Text>
             </TouchableOpacity>
 
@@ -293,7 +293,7 @@ export default function PaymentHistoryScreen({ navigation }: any) {
                   })}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.actionLabel, styles.forecloseActionLabel]}>Foreclose Loan</Text>
+                  <Text style={[styles.actionLabel, styles.forecloseActionLabel]}>Foreclose Ledger Account</Text>
                   <Text style={styles.arrowText}>❯</Text>
                 </TouchableOpacity>
               )}

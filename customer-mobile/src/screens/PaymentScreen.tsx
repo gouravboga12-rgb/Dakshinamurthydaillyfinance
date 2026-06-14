@@ -115,11 +115,11 @@ export default function PaymentScreen({ route, navigation }: any) {
           proof_base64: base64Data,
         });
         if (Platform.OS === 'web') {
-          alert('Foreclosure Request Submitted! 🎉\n\nYour full outstanding payment proof has been submitted to the administrator for review. Your loan will be closed once the admin verifies the payment.');
+          alert('Foreclosure Request Submitted! 🎉\n\nYour full outstanding payment proof has been submitted to the administrator for review. Your ledger account will be closed once the admin verifies the payment.');
         } else {
           Alert.alert(
             'Foreclosure Submitted! 🎉',
-            'Your full outstanding payment proof has been submitted to the administrator for review. Your loan will be closed once the admin verifies the payment.',
+            'Your full outstanding payment proof has been submitted to the administrator for review. Your ledger account will be closed once the admin verifies the payment.',
             [{ text: 'OK' }]
           );
         }
@@ -182,7 +182,7 @@ export default function PaymentScreen({ route, navigation }: any) {
       <View style={styles.paymentCard}>
         {isForeclosure && (
           <View style={styles.foreclosureBadge}>
-            <Text style={styles.foreclosureBadgeText}>🔒 LOAN FORECLOSURE</Text>
+            <Text style={styles.foreclosureBadgeText}>🔒 LEDGER FORECLOSURE</Text>
           </View>
         )}
         <Text style={styles.amountLabel}>
@@ -193,7 +193,7 @@ export default function PaymentScreen({ route, navigation }: any) {
         </Text>
         <Text style={styles.amountText}>₹{Number(amount).toLocaleString('en-IN')}</Text>
         {isForeclosure && (
-          <Text style={styles.foreclosureNote}>Pay this amount to close your loan permanently</Text>
+          <Text style={styles.foreclosureNote}>Pay this amount to close your ledger account permanently</Text>
         )}
       </View>
 
