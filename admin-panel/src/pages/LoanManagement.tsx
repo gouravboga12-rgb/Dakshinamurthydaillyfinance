@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { 
   Search, 
@@ -10,7 +10,8 @@ import {
   Calculator,
   Loader2,
   AlertCircle,
-  Edit
+  Edit,
+  ChevronDown
 } from 'lucide-react';
 
 interface Loan {
@@ -93,6 +94,23 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   // Default settings loaded from database
   const [defaultPlatformFee, setDefaultPlatformFee] = useState('1000');
   const [defaultDurationVal, setDefaultDurationVal] = useState('50');
+
+  // Customer Dropdown States
+  const [isCustDropdownOpen, setIsCustDropdownOpen] = useState(false);
+  const [custSearchQuery, setCustSearchQuery] = useState('');
+  const custDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (custDropdownRef.current && !custDropdownRef.current.contains(event.target as Node)) {
+        setIsCustDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const fetchLoans = async () => {
     try {
@@ -385,6 +403,11 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   const dispTotalRepayment = (dispApproved + dispInterestAmt) - dispCharges;
   const projectedRepaymentAmt = dispDuration * dispDaily;
 
+  const filteredCustomers = customers.filter(c => 
+    c.full_name.toLowerCase().includes(custSearchQuery.toLowerCase()) ||
+    c.mobile_number.includes(custSearchQuery)
+  );
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="space-y-4 sm:space-y-6 animate-fade-in">
@@ -637,7 +660,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="bg-slate-900 p-5 text-white flex justify-between items-center">
-              <h4 className="text-lg font-bold">New Loan Disbursal Sheet</h4>
+              <h4 className="text-lg font-bold">New Ledger Account Sheet</h4>
               <button 
                 onClick={() => setShowCreateModal(false)}
                 className="p-1 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors"
@@ -655,21 +678,67 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                   </div>
                 )}
 
-                <div className="space-y-1">
+                <div className="space-y-1 relative" ref={custDropdownRef}>
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Customer Select *</label>
-                  <select
-                    required
-                    value={formCustId}
-                    onChange={(e) => setFormCustId(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustDropdownOpen(!isCustDropdownOpen);
+                      setCustSearchQuery('');
+                    }}
+                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-left flex justify-between items-center"
                   >
-                    <option value="">-- Choose Approved Customer --</option>
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.full_name} ({c.mobile_number})
-                      </option>
-                    ))}
-                  </select>
+                    <span className={formCustId ? 'text-slate-800 font-semibold' : 'text-slate-400'}>
+                      {formCustId 
+                        ? (() => {
+                            const selectedCust = customers.find(c => c.id === formCustId);
+                            return selectedCust ? `${selectedCust.full_name} (${selectedCust.mobile_number})` : '-- Choose Approved Customer --';
+                          })()
+                        : '-- Choose Approved Customer --'
+                      }
+                    </span>
+                    <span className="text-slate-400">
+                      <ChevronDown size={16} />
+                    </span>
+                  </button>
+
+                  {isCustDropdownOpen && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-hidden flex flex-col">
+                      <div className="p-2 border-b border-slate-100 flex items-center gap-2 bg-slate-50">
+                        <Search size={14} className="text-slate-400 shrink-0" />
+                        <input
+                          type="text"
+                          placeholder="Search customer by name or mobile..."
+                          value={custSearchQuery}
+                          onChange={(e) => setCustSearchQuery(e.target.value)}
+                          className="w-full bg-transparent border-0 outline-none text-xs text-slate-800 placeholder-slate-400"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="overflow-y-auto flex-1 max-h-48 divide-y divide-slate-50">
+                        {filteredCustomers.length === 0 ? (
+                          <div className="p-3 text-xs text-slate-400 text-center">No customers found</div>
+                        ) : (
+                          filteredCustomers.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setFormCustId(c.id);
+                                setIsCustDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-xs flex justify-between items-center transition-colors hover:bg-slate-50 ${
+                                formCustId === c.id ? 'bg-blue-50/50 text-blue-700 font-bold' : 'text-slate-700'
+                              }`}
+                            >
+                              <span>{c.full_name}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">{c.mobile_number}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1">

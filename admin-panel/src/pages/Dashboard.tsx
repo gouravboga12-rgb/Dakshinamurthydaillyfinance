@@ -243,7 +243,7 @@ export default function Dashboard({ token, setCurrentPage }: DashboardProps) {
               onClick={() => setCurrentPage('loans')}
               className="btn-gold text-xs"
             >
-              Manage Loans <ArrowRight size={13} />
+              Manage Ledger Accounts <ArrowRight size={13} />
             </button>
             <button
               onClick={() => setCurrentPage('customers')}
