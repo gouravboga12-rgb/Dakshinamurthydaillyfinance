@@ -39,9 +39,9 @@ export default function LoginScreen({ navigation }: any) {
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
       if (Platform.OS === 'web') {
-        alert('Missing Fields: Please enter your email address and password.');
+        alert('Missing Fields: Please enter your email or phone number and password.');
       } else {
-        Alert.alert('Missing Fields', 'Please enter your email address and password.');
+        Alert.alert('Missing Fields', 'Please enter your email or phone number and password.');
       }
       return;
     }
@@ -217,13 +217,13 @@ export default function LoginScreen({ navigation }: any) {
             )}
 
             <View style={COMMON_STYLES.inputGroup}>
-              <Text style={COMMON_STYLES.label}>Email Address</Text>
+              <Text style={COMMON_STYLES.label}>Email ID or Phone Number</Text>
               <TextInput
                 style={COMMON_STYLES.input}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
-                placeholder="Enter your registered email"
+                placeholder="Enter your registered email or phone number"
                 placeholderTextColor={COLORS.placeholder}
                 autoCapitalize="none"
               />
