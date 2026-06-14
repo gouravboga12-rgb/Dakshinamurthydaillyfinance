@@ -353,6 +353,7 @@ export const createLoan = async (req: AuthRequest, res: Response) => {
     const amount_disbursed = Number(approved_amount) - Number(platform_charges);
     const repaymentTarget = total_repayment !== undefined ? Number(total_repayment) : Number(approved_amount);
     const remaining_balance = repaymentTarget;
+    const now = db.getISTDateTimeString();
 
     const newLoan = await db.createLoan({
       customer_id,
@@ -363,13 +364,31 @@ export const createLoan = async (req: AuthRequest, res: Response) => {
       duration_days: Number(duration_days),
       total_repayment: repaymentTarget,
       remaining_balance,
-      status: 'Pending', // Initial state is Pending, requires Approval
+      status: 'Active', // Auto-approved and set to Active directly
+      approval_date: now, // Approved immediately
       interest_rate: interest_rate !== undefined ? Number(interest_rate) : 0
     });
 
-    await db.createNotification(customer_id, 'New Loan Request Created', `A new loan request of ₹${approved_amount} has been registered.`, 'loan');
+    // Automatically generate daily installments immediately
+    const installments = [];
+    const startDate = new Date(); // Start from today
+    for (let i = 1; i <= newLoan.duration_days; i++) {
+      const dueDate = new Date(startDate);
+      dueDate.setDate(startDate.getDate() + i);
+      installments.push({
+        id: crypto.randomUUID(),
+        loan_id: newLoan.id,
+        due_date: dueDate.toISOString().split('T')[0], // YYYY-MM-DD
+        status: 'Unpaid',
+        payment_date: null,
+        created_at: now
+      });
+    }
+    await db.createInstallments(installments);
 
-    return res.status(201).json({ message: 'Loan request created.', loan: newLoan });
+    await db.createNotification(customer_id, 'New Loan Active', `Your loan of ₹${approved_amount} has been activated. Daily installment is ₹${daily_installment}.`, 'loan');
+
+    return res.status(201).json({ message: 'Loan created and activated.', loan: newLoan });
   } catch (error: any) {
     console.error('Create loan error:', error);
     return res.status(500).json({ error: 'Failed to create loan.' });
