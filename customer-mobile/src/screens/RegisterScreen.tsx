@@ -182,7 +182,7 @@ export default function RegisterScreen({ navigation }: any) {
             resizeMode="contain"
           />
           <Text style={styles.brandName}>DAKSHINAMURTHY</Text>
-          <Text style={styles.brandSub}>Daily Finance</Text>
+          <Text style={styles.brandSub}>Daily Ledger</Text>
           <Text style={styles.headerSubtitle}>New Customer Registration</Text>
         </View>
 

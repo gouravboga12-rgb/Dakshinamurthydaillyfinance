@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Dakshinamurthy Daily Finance",
+    "name": "Dakshinamurthy Daily Ledger",
     "slug": "daily-finance-customer",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -25,7 +25,7 @@
       },
       "permissions": [],
       "package": "com.dailyfinance.customer",
-      "versionCode": 7
+      "versionCode": 8
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -44,8 +44,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "e6685974-16e7-49ab-82d3-adf199e8cb8f"
+        "projectId": "9729b1b3-ac0d-4f3c-8343-431a07fcae4b"
       }
-    }
+    },
+    "owner": "gouravboga64"
   }
 }

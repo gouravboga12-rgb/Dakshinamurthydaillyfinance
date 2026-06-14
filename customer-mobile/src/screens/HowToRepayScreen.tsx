@@ -61,7 +61,7 @@ export default function HowToRepayScreen({ navigation }: any) {
     {
       step: 3,
       title: 'Enter the UPI ID',
-      desc: `Type the UPI ID exactly:\n${upiId}\nVerify the name "Dakshinamurthy Finance" appears before proceeding.`,
+      desc: `Type the UPI ID exactly:\n${upiId}\nVerify the name "Dakshinamurthy Ledger" appears before proceeding.`,
       icon: 'create-outline' as const,
       highlight: upiId,
     },
@@ -87,7 +87,7 @@ export default function HowToRepayScreen({ navigation }: any) {
 
   const handleWhatsApp = () => {
     Linking.openURL(
-      `https://wa.me/${WHATSAPP_NUMBER}?text=Hello%20Dakshinamurthy%20Finance,%20I%20need%20help%20with%20my%20repayment.`
+      `https://wa.me/${WHATSAPP_NUMBER}?text=Hello%20Dakshinamurthy%20Ledger,%20I%20need%20help%20with%20my%20repayment.`
     ).catch(() => {});
   };
 
@@ -166,7 +166,7 @@ export default function HowToRepayScreen({ navigation }: any) {
           <Text style={styles.upiIdLabel}>Official UPI ID</Text>
           <Text style={styles.upiIdValue}>{upiId}</Text>
           <Text style={styles.upiIdVerify}>
-            ✓ Verify name: <Text style={styles.upiIdVerifyName}>Dakshinamurthy Finance</Text>
+            ✓ Verify name: <Text style={styles.upiIdVerifyName}>Dakshinamurthy Ledger</Text>
           </Text>
         </View>
         <TouchableOpacity style={styles.copyBtn} onPress={handleCopyUPI} activeOpacity={0.8}>
@@ -211,7 +211,7 @@ export default function HowToRepayScreen({ navigation }: any) {
         <Text style={styles.fraudText}>
           Beware of fraudsters asking you for money through unknown UPI IDs or bank transfers.
           Always pay ONLY to the official UPI ID above through authorised channels.
-          Dakshinamurthy Finance will NEVER ask you to pay through an unknown link.
+          Dakshinamurthy Ledger will NEVER ask you to pay through an unknown link.
         </Text>
       </View>
 

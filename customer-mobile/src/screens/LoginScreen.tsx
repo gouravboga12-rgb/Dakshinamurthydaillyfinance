@@ -202,13 +202,13 @@ export default function LoginScreen({ navigation }: any) {
               resizeMode="contain"
             />
             <Text style={styles.brandName}>DAKSHINAMURTHY</Text>
-            <Text style={styles.brandSub}>Daily Finance</Text>
+            <Text style={styles.brandSub}>Daily Ledger</Text>
           </View>
 
           {/* Form Card */}
           <View style={styles.formCard}>
             <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to view your loan dashboard</Text>
+            <Text style={styles.subtitle}>Sign in to view your ledger dashboard</Text>
 
             {error && (
               <View style={styles.errorBox}>

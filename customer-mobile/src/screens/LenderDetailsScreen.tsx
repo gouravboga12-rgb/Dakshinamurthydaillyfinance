@@ -33,7 +33,7 @@ export default function LenderDetailsScreen() {
       isWhatsapp: true,
       action: () =>
         Linking.openURL(
-          'https://wa.me/917659934261?text=Hello%20Dakshinamurthy%20Finance,%20I%20need%20assistance.'
+          'https://wa.me/917659934261?text=Hello%20Dakshinamurthy%20Ledger,%20I%20need%20assistance.'
         ),
     },
     {
@@ -45,9 +45,9 @@ export default function LenderDetailsScreen() {
     },
     {
       label: 'Official Email Support',
-      value: 'support@dailyfinance.com',
+      value: 'support@dailyledger.com',
       icon: '📧',
-      action: () => Linking.openURL('mailto:support@dailyfinance.com'),
+      action: () => Linking.openURL('mailto:support@dailyledger.com'),
     },
   ];
 
@@ -68,7 +68,7 @@ export default function LenderDetailsScreen() {
             resizeMode="cover"
           />
         </View>
-        <Text style={styles.heroTitle}>Dakshinamurthy Daily Finance</Text>
+        <Text style={styles.heroTitle}>Dakshinamurthy Daily Ledger</Text>
         <Text style={styles.heroSubtitle}>Your trusted daily ledger tracker</Text>
       </View>
 

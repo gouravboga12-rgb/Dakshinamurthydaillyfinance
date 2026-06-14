@@ -60,8 +60,8 @@ let mockNotifications = [
   {
     id: 'notif-1',
     user_id: 'mock-customer-id-12345',
-    title: 'Welcome to Dakshinamurthy Finance! 🎉',
-    message: 'Your account registration has been approved. You can now track your active loans here.',
+    title: 'Welcome to Dakshinamurthy Ledger! 🎉',
+    message: 'Your account registration has been approved. You can now track your active ledger accounts here.',
     type: 'system',
     is_read: 0,
     created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
@@ -259,8 +259,8 @@ const mockAdapter = (config: any): Promise<any> => {
       mockNotifications.unshift({
         id: 'notif-' + Math.random().toString(),
         user_id: 'mock-customer-id-12345',
-        title: 'Loan Request Submitted 📋',
-        message: `Your request for a loan of ₹${amount} is pending approval from the administrator.`,
+        title: 'Account Request Submitted 📋',
+        message: `Your request for a ledger account of ₹${amount} is pending approval from the administrator.`,
         type: 'loan',
         is_read: 0,
         created_at: new Date().toISOString(),

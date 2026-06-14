@@ -323,7 +323,7 @@ export default function DashboardScreen({ navigation }: any) {
           />
           <View style={styles.logoTextContainer}>
             <Text style={styles.logoTextBrand}>DAKSHINAMURTHY</Text>
-            <Text style={styles.logoTextSub}>DAILY FINANCE</Text>
+            <Text style={styles.logoTextSub}>DAILY LEDGER</Text>
           </View>
         </View>
         <View style={styles.headerRight}>
