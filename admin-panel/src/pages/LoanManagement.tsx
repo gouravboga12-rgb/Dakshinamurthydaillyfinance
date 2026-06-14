@@ -284,7 +284,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
         }, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        alert('Loan details updated successfully.');
+        alert('Ledger details updated successfully.');
       } else {
         await axios.post(`/api/admin/loans/${approvalLoanId}/approve`, {
           approved_amount: approvedAmt,
@@ -298,25 +298,25 @@ export default function LoanManagement({ token }: LoanManagementProps) {
         }, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        alert('Loan approved and activated successfully.');
+        alert('Ledger approved and activated successfully.');
       }
       setShowApproveModal(false);
       fetchLoans();
     } catch (err: any) {
       const errVal = err.response?.data?.error;
-      setApprovalFormError(typeof errVal === 'object' && errVal !== null ? (errVal.message || errVal.code || JSON.stringify(errVal)) : String(errVal || (isEditingActive ? 'Failed to update loan.' : 'Failed to approve loan.')));
+      setApprovalFormError(typeof errVal === 'object' && errVal !== null ? (errVal.message || errVal.code || JSON.stringify(errVal)) : String(errVal || (isEditingActive ? 'Failed to update ledger.' : 'Failed to approve ledger.')));
     } finally {
       setApprovalFormLoading(false);
     }
   };
 
   const handleReject = async (id: string) => {
-    if (!window.confirm('Are you sure you want to Reject this loan request?')) return;
+    if (!window.confirm('Are you sure you want to Reject this ledger request?')) return;
     try {
       await axios.post(`/api/admin/loans/${id}/reject`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert('Loan request rejected.');
+      alert('Ledger request rejected.');
       fetchLoans();
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to reject loan.');
@@ -888,7 +888,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="bg-slate-900 p-5 text-white flex justify-between items-center">
               <div>
-                <h4 className="text-lg font-bold">{isEditingActive ? 'Edit Active Loan' : 'Approve & Customize Loan'}</h4>
+                <h4 className="text-lg font-bold">{isEditingActive ? 'Edit Active Ledger' : 'Approve & Customize Ledger'}</h4>
                 <p className="text-xs text-slate-300 font-mono mt-0.5">Customer: {approvalCustomerName} ({approvalCustomerMobile})</p>
               </div>
               <button 
@@ -909,7 +909,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                 )}
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Approved Amount (₹) *</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Approved Balance (₹) *</label>
                   <input
                     type="number"
                     required
@@ -921,7 +921,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Loan Given Date (Disbursal) *</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Ledger Start Date (Disbursal) *</label>
                   <input
                     type="date"
                     required
@@ -1009,10 +1009,10 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-100/80 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                     <Calculator size={13} className="text-blue-600" />
-                    <span>Calculated Loan Summary</span>
+                    <span>Calculated Ledger Summary</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500 font-medium">Approved Principal</span>
+                    <span className="text-slate-500 font-medium">Approved Balance</span>
                     <span className="font-semibold text-slate-800">₹{Number(approvalApprovedAmt) || 0}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
@@ -1024,18 +1024,18 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                     <span className="font-semibold text-rose-500">- ₹{Number(approvalPlatformCharges) || 0}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs border-t border-slate-200/50 pt-2">
-                    <span className="text-slate-500 font-bold">Net disburse output (Given to client)</span>
+                    <span className="text-slate-500 font-bold">Net Account Value (Given to client)</span>
                     <span className="font-extrabold text-emerald-600 text-sm">₹{Math.max(0, (Number(approvalApprovedAmt) || 0) - (Number(approvalPlatformCharges) || 0))}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500 font-bold">Total repayment target basis</span>
+                    <span className="text-slate-500 font-bold">Total settlement target basis</span>
                     <span className="font-extrabold text-slate-800 text-sm">₹{((Number(approvalApprovedAmt) || 0) + (Number(approvalInterestAmt) || 0)) - (Number(approvalPlatformCharges) || 0)}</span>
                   </div>
                   {(Number(approvalDailyInstallment) || 0) * (Number(approvalDurationDays) || 0) > 0 && 
                    (Number(approvalDailyInstallment) || 0) * (Number(approvalDurationDays) || 0) !== 
                    ((Number(approvalApprovedAmt) || 0) + (Number(approvalInterestAmt) || 0)) && (
                     <div className="text-[10px] text-amber-600 font-medium">
-                      ⚠️ Note: Daily (₹{approvalDailyInstallment}) x Duration ({approvalDurationDays} days) = ₹{(Number(approvalDailyInstallment) || 0) * (Number(approvalDurationDays) || 0)} projected aggregate payments. (Repayment target basis is approved ₹{(Number(approvalApprovedAmt) || 0) + (Number(approvalInterestAmt) || 0)}).
+                      ⚠️ Note: Daily (₹{approvalDailyInstallment}) x Duration ({approvalDurationDays} days) = ₹{(Number(approvalDailyInstallment) || 0) * (Number(approvalDurationDays) || 0)} projected aggregate payments. (Settlement target basis is approved ₹{(Number(approvalApprovedAmt) || 0) + (Number(approvalInterestAmt) || 0)}).
                     </div>
                   )}
                 </div>
