@@ -64,21 +64,6 @@ You agree to provide accurate and complete details. You are responsible for keep
 5. Prohibited Actions
 You agree not to upload false documents, misuse the app for fraudulent purposes, or attempt to compromise app security.`;
 
-const REFUND_POLICY_TEXT = `Refund & Repayment Policy
-
-Last Updated: June 13, 2026
-
-1. Non-Refundable Payments
-All payments made as ledger updates on active accounts are strictly final and non-refundable.
-
-2. Double Payment / Network Issues
-If a payment transaction fails or is processed twice due to internet lag or banking service delays:
-• You must contact the app owner or admin with valid payment proof (such as a receipt or bank transaction screenshot).
-• Upon verification, the duplicate amount will be credited and adjusted towards your next scheduled daily installment.
-
-3. Fee Policies
-Any initial documentation fees or platform processing fees deducted at the time of ledger creation are non-refundable.`;
-
 const ABOUT_US_TEXT = `About Dakshinamurthy Daily Ledger
 
 Dakshinamurthy Daily Ledger is a daily ledger tracker and micro-transaction management utility designed to support local merchants, small business owners, and daily wage traders. 
@@ -110,11 +95,6 @@ export default function ProfileScreen() {
       label: 'Terms of Service',
       icon: '📄',
       onPress: () => showPolicy('Terms of Service', TERMS_OF_SERVICE_TEXT),
-    },
-    {
-      label: 'Refund & Repayment Policy',
-      icon: '💰',
-      onPress: () => showPolicy('Refund & Repayment Policy', REFUND_POLICY_TEXT),
     },
     {
       label: 'About Us',

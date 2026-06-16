@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dakshinamurthy Daily Ledger",
     "slug": "daily-finance-customer",
-    "version": "1.0.3",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -16,7 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.dailyfinance.customer"
+      "bundleIdentifier": "com.dakshinamurthy.dailyledger"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,8 +24,8 @@
         "backgroundColor": "#FFFFFF"
       },
       "permissions": [],
-      "package": "com.dailyfinance.customer",
-      "versionCode": 8
+      "package": "com.dakshinamurthy.dailyledger",
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png",
