@@ -52,6 +52,12 @@
         "projectId": "9729b1b3-ac0d-4f3c-8343-431a07fcae4b"
       }
     },
-    "owner": "gouravboga64"
+    "owner": "gouravboga64",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9729b1b3-ac0d-4f3c-8343-431a07fcae4b"
+    }
   }
 }
