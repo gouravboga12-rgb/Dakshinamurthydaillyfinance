@@ -394,8 +394,13 @@ export const submitPaymentProof = async (req: AuthRequest, res: Response) => {
       if (fs.existsSync(fileToProcess.path)) {
         fs.unlinkSync(fileToProcess.path);
       }
-    } catch (err) {
-      console.error('Cloudinary upload error, using local fallback:', err);
+    } catch (err: any) {
+      console.error('Cloudinary upload failed:', err);
+      // On Vercel /tmp files cannot be served — must have a working cloud URL
+      if (process.env.VERCEL) {
+        return res.status(500).json({ error: 'Failed to upload payment screenshot. Please try again.' });
+      }
+      // Local dev fallback only
       proof_url = `/uploads/proof/${fileToProcess.filename}`;
     }
 
@@ -533,14 +538,17 @@ export const submitForeclosureProof = async (req: AuthRequest, res: Response) =>
     // Upload proof screenshot
     let proof_url = '';
     try {
-      const { uploadToCloudinary } = await import('../config/cloudinary');
       proof_url = await uploadToCloudinary(fileToProcess.path);
-      const fs = await import('fs');
       if (fs.existsSync(fileToProcess.path)) {
         fs.unlinkSync(fileToProcess.path);
       }
-    } catch (err) {
-      console.error('Cloudinary upload error, using local fallback:', err);
+    } catch (err: any) {
+      console.error('Cloudinary upload failed:', err);
+      // On Vercel /tmp files cannot be served — must have a working cloud URL
+      if (process.env.VERCEL) {
+        return res.status(500).json({ error: 'Failed to upload payment screenshot. Please try again.' });
+      }
+      // Local dev fallback only
       proof_url = `/uploads/proof/${fileToProcess.filename}`;
     }
 
