@@ -106,7 +106,19 @@ export default function PaymentScreen({ route, navigation }: any) {
 
     setSubmitting(true);
     try {
-      const base64Data = await fileUriToBase64(proofFile.uri);
+      // On web, proofFile is a browser File object (no .uri); use the blob URL from proofPreviewUri instead
+      const fileUri = Platform.OS === 'web' ? (proofPreviewUri || '') : (proofFile.uri || '');
+      const base64Data = await fileUriToBase64(fileUri);
+      // Guard: if conversion failed or returned empty, show error
+      if (!base64Data || base64Data.length < 100) {
+        setSubmitting(false);
+        if (Platform.OS === 'web') {
+          alert('Screenshot Error: Could not read the selected image. Please try selecting the file again.');
+        } else {
+          Alert.alert('Screenshot Error', 'Could not read the selected image. Please try selecting the file again.');
+        }
+        return;
+      }
 
       if (isForeclosure) {
         // Foreclosure: submit to the loan-level foreclose-proof endpoint
