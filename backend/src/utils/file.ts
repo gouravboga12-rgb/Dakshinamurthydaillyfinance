@@ -29,10 +29,10 @@ export const saveBase64File = (
   const base64Data = matches[2];
   const buffer = Buffer.from(base64Data, 'base64');
   
-  // Enforce 2.5 MB limit (2.5 * 1024 * 1024 = 2,621,440 bytes)
-  const MAX_SIZE = 2.5 * 1024 * 1024;
+  // Enforce 5 MB limit (5 * 1024 * 1024 = 5,242,880 bytes)
+  const MAX_SIZE = 5 * 1024 * 1024;
   if (buffer.length > MAX_SIZE) {
-    throw new Error('File size exceeds the maximum allowed limit of 2.5 MB.');
+    throw new Error('File size exceeds the maximum allowed limit of 5 MB.');
   }
   
   const map: Record<string, string> = {
