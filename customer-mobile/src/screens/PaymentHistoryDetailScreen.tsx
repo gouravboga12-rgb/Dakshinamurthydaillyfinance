@@ -50,13 +50,12 @@ export default function PaymentHistoryDetailScreen({ route, navigation }: any) {
             const detailResponse = await api.get(`/customer/loans/${targetLoan.id}`);
             const allInstallments: Installment[] = detailResponse.data.installments;
 
-            // Enrich with display data: amount, method, and simulate one "failed" entry
-            const enriched = allInstallments.map((inst, idx) => ({
+            // Enrich with display data: amount, method, and check status
+            const enriched = allInstallments.map((inst) => ({
               ...inst,
               amount: targetLoan.daily_installment,
               method: 'UPI',
-              // Simulate a failed entry at index 5 for demo purposes
-              isFailed: inst.status === 'Paid' && idx === 5,
+              isFailed: false,
             }));
 
             // Show paid + 1 failed simulation, reverse so newest first
