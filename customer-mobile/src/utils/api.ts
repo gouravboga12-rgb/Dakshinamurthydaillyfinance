@@ -60,7 +60,7 @@ let mockNotifications = [
   {
     id: 'notif-1',
     user_id: 'mock-customer-id-12345',
-    title: 'Welcome to Dakshinamurthy Ledger! 🎉',
+    title: Platform.OS === 'web' ? 'Welcome to Dakshinamurthy Daily Finance! 🎉' : 'Welcome to Dakshinamurthy Ledger! 🎉',
     message: 'Your account registration has been approved. You can now track your active ledger accounts here.',
     type: 'system',
     is_read: 0,

@@ -20,7 +20,7 @@ import api, { getBaseUrl } from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
 import { fileUriToBase64 } from '../utils/file';
 
-const PRIVACY_POLICY_TEXT = `Privacy Policy for Dakshinamurthy Daily Ledger
+const PRIVACY_POLICY_TEXT = `Privacy Policy for ${Platform.OS === 'web' ? 'Dakshinamurthy Daily Finance' : 'Dakshinamurthy Daily Ledger'}
 
 Last Updated: June 13, 2026
 
@@ -43,12 +43,12 @@ We do not sell, trade, or share your personal data with third-party advertising 
 5. Data Deletion
 You can request account and data deletion by contacting the system administrator. Once confirmed, all your active profiles and documents will be permanently deleted from our servers, subject to the settlement of any outstanding account balance.`;
 
-const TERMS_OF_SERVICE_TEXT = `Terms of Service for Dakshinamurthy Daily Ledger
+const TERMS_OF_SERVICE_TEXT = `Terms of Service for ${Platform.OS === 'web' ? 'Dakshinamurthy Daily Finance' : 'Dakshinamurthy Daily Ledger'}
 
 Last Updated: June 13, 2026
 
 1. Acceptance of Terms
-By downloading, installing, or registering with the Dakshinamurthy Daily Ledger application, you agree to comply with and be bound by these Terms of Service.
+By downloading, installing, or registering with the ${Platform.OS === 'web' ? 'Dakshinamurthy Daily Finance' : 'Dakshinamurthy Daily Ledger'} application, you agree to comply with and be bound by these Terms of Service.
 
 2. User Eligibility
 You must be at least 18 years of age and own a legitimate registered local business to track transaction records and daily logs through this app.
@@ -64,9 +64,9 @@ You agree to provide accurate and complete details. You are responsible for keep
 5. Prohibited Actions
 You agree not to upload false documents, misuse the app for fraudulent purposes, or attempt to compromise app security.`;
 
-const ABOUT_US_TEXT = `About Dakshinamurthy Daily Ledger
+const ABOUT_US_TEXT = `About ${Platform.OS === 'web' ? 'Dakshinamurthy Daily Finance' : 'Dakshinamurthy Daily Ledger'}
 
-Dakshinamurthy Daily Ledger is a daily ledger tracker and micro-transaction management utility designed to support local merchants, small business owners, and daily wage traders. 
+${Platform.OS === 'web' ? 'Dakshinamurthy Daily Finance' : 'Dakshinamurthy Daily Ledger'} is a daily ledger tracker and micro-transaction management utility designed to support local merchants, small business owners, and daily wage traders. 
 
 We aim to offer easy, direct transaction tracking and daily installment ledger features. Through this app, merchants can easily view their current active ledger balances, monitor daily installment status, verify receipts, and maintain clear records of their financial transactions in real time.`;
 
@@ -486,7 +486,7 @@ export default function ProfileScreen() {
         <Text style={styles.logoutText}>Sign Out of Account</Text>
       </TouchableOpacity>
 
-      <Text style={styles.footerBrand}>Dakshinamurthy Daily Ledger v1.4 (Multi-EMI & Size Enforced)</Text>
+      <Text style={styles.footerBrand}>{Platform.OS === 'web' ? 'Dakshinamurthy Daily Finance' : 'Dakshinamurthy Daily Ledger'} v1.4 (Multi-EMI & Size Enforced)</Text>
 
       {/* Legal Policy Modal */}
       <Modal

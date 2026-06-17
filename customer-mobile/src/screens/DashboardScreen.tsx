@@ -94,7 +94,7 @@ export default function DashboardScreen({ navigation }: any) {
         try {
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: '✅ Daily Ledger Payment Successful',
+              title: Platform.OS === 'web' ? '✅ Daily Finance Payment Successful' : '✅ Daily Ledger Payment Successful',
               body: `Thank you! Your daily installment of ₹${loan.daily_installment} has been paid and recorded on ledger successfully. Keep it up!`,
               sound: true,
               priority: Notifications.AndroidNotificationPriority.HIGH,
@@ -125,8 +125,8 @@ export default function DashboardScreen({ navigation }: any) {
           try {
             const isOverdue = (summary.overdueCount || 0) > 0;
             const title = isOverdue
-              ? '🚨 Action Required: Late Ledger Payment Warning!'
-              : '📅 Daily Ledger Payment Due Today';
+              ? (Platform.OS === 'web' ? '🚨 Action Required: Late Payment Warning!' : '🚨 Action Required: Late Ledger Payment Warning!')
+              : (Platform.OS === 'web' ? '📅 Daily Finance Payment Due Today' : '📅 Daily Ledger Payment Due Today');
             const body = isOverdue
               ? `You have missed ${summary.overdueCount} installment(s). Please clear dues immediately to protect your ledger profile!`
               : `Your daily installment of ₹${summary.dueTodayAmount || loan.daily_installment} is due. Settle today to keep your ledger score healthy!`;
@@ -191,7 +191,7 @@ export default function DashboardScreen({ navigation }: any) {
           try {
             await Notifications.scheduleNotificationAsync({
               content: {
-                title: '📅 Daily Ledger Payment Due Today',
+                title: Platform.OS === 'web' ? '📅 Daily Finance Payment Due Today' : '📅 Daily Ledger Payment Due Today',
                 body: `Your daily installment of ₹${summary.dueTodayAmount} is due today. Settle today to keep your ledger score healthy!`,
                 sound: true,
                 priority: Notifications.AndroidNotificationPriority.DEFAULT,

@@ -134,7 +134,7 @@ function TabNavigator() {
         name="Dashboard" 
         component={DashboardScreen} 
         options={{ 
-          title: 'Daily Ledger',
+          title: Platform.OS === 'web' ? 'Daily Finance' : 'Daily Ledger',
           headerShown: false
         }} 
       />
@@ -148,7 +148,7 @@ function TabNavigator() {
 const FloatingWhatsApp = () => {
   const insets = useSafeAreaInsets();
   const handleOpenWhatsApp = () => {
-    Linking.openURL('https://wa.me/917659934261?text=Hello%20Dakshinamurthy%20Ledger,%20I%20have%20a%20query%20about%20my%20ledger%20account.').catch(() => {
+    Linking.openURL('https://wa.me/917659934261?text=' + (Platform.OS === 'web' ? 'Hello%20Dakshinamurthy%20Daily%20Finance,%20I%20have%20a%20query%20about%20my%20finance%20account.' : 'Hello%20Dakshinamurthy%20Ledger,%20I%20have%20a%20query%20about%20my%20ledger%20account.')).catch(() => {
       // Fallback silently
     });
   };
