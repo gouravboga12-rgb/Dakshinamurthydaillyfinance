@@ -250,7 +250,7 @@ export default function LoginScreen({ navigation }: any) {
               resizeMode="contain"
             />
             <Text style={styles.brandName}>DAKSHINAMURTHY</Text>
-            <Text style={styles.brandSub}>Daily Ledger</Text>
+            <Text style={styles.brandSub}>{Platform.OS === 'web' ? 'Daily Finance' : 'Daily Ledger'}</Text>
           </View>
 
           {/* Form Card */}

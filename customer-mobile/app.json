@@ -30,8 +30,8 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "port": 8082,
-      "name": "Dakshinamurthy Daily Ledger",
-      "shortName": "Daily Ledger",
+      "name": "Dakshinamurthy Daily Finance",
+      "shortName": "Daily Finance",
       "themeColor": "#0F172A",
       "backgroundColor": "#0F172A",
       "display": "standalone"
