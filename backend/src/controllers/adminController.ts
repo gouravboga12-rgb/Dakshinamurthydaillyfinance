@@ -574,20 +574,14 @@ export const markInstallmentPaid = async (req: AuthRequest, res: Response) => {
     const now = db.getISTDateTimeString();
     await db.markInstallmentPaid(installmentId, now);
 
-    // Calculate new balance
-    // Remaining balance reduces by the installment amount orapproved daily amount (usually the installment amount).
-    // Let's deduce daily installment.
-    const newBalance = Math.max(0, loan.remaining_balance - loan.daily_installment);
-    
-    let isCompleted = newBalance <= 0;
-    
-    // Double check if there are any remaining unpaid or pending installments
+    // Fetch all installments to count paid ones and check completion
     const installments = await db.getInstallmentsByLoanId(loan.id);
-    const unpaidCount = installments.filter((i: any) => i.id !== installmentId && i.status !== 'Paid').length;
+    const paidCount = installments.filter((i: any) => i.status === 'Paid').length;
+    const unpaidCount = installments.filter((i: any) => i.status !== 'Paid').length;
     
-    if (unpaidCount === 0) {
-      isCompleted = true;
-    }
+    // Calculate new balance based on actual paid count
+    const newBalance = Math.max(0, loan.approved_amount - (paidCount * loan.daily_installment));
+    let isCompleted = unpaidCount === 0;
 
     let updatedLoan;
     if (isCompleted) {
@@ -1148,29 +1142,23 @@ export const updateInstallment = async (req: AuthRequest, res: Response) => {
     if (payment_date !== undefined) updates.payment_date = payment_date || null;
     if (status !== undefined) updates.status = status;
     
+    const updated = await db.updateInstallmentFields(id, updates);
+
     // Check if status changed to adjust loan remaining balance
     if (status !== undefined && status !== installment.status) {
       const loan = await db.getLoanById(installment.loan_id);
       if (loan) {
-        let newBalance = loan.remaining_balance;
-        if (status === 'Paid' && installment.status !== 'Paid') {
-          newBalance = Math.max(0, loan.remaining_balance - loan.daily_installment);
-        } else if (status !== 'Paid' && installment.status === 'Paid') {
-          newBalance = Math.min(loan.total_repayment, loan.remaining_balance + loan.daily_installment);
-        }
+        const installments = await db.getInstallmentsByLoanId(loan.id);
+        const paidCount = installments.filter((i: any) => i.status === 'Paid').length;
+        const newBalance = Math.max(0, loan.approved_amount - (paidCount * loan.daily_installment));
         
-        let newLoanStatus = loan.status;
-        if (newBalance <= 0) {
-          newLoanStatus = 'Completed';
-        } else if (loan.status === 'Completed' && newBalance > 0) {
-          newLoanStatus = 'Active';
-        }
+        const unpaidCount = installments.filter((i: any) => i.status !== 'Paid').length;
+        let newLoanStatus = unpaidCount === 0 ? 'Completed' : 'Active';
         
         await db.updateLoanStatus(loan.id, newLoanStatus, { remaining_balance: newBalance });
       }
     }
     
-    const updated = await db.updateInstallmentFields(id, updates);
     return res.status(200).json({ message: 'Installment updated successfully.', installment: updated });
   } catch (error: any) {
     console.error('Update installment error:', error);

@@ -267,12 +267,14 @@ export const payInstallment = async (req: AuthRequest, res: Response) => {
     const now = db.getISTDateTimeString();
     await db.markInstallmentPaid(oldestUnpaid.id, now);
 
-    // Calculate new balance
-    const newBalance = Math.max(0, activeLoan.remaining_balance - activeLoan.daily_installment);
-    let isCompleted = newBalance <= 0;
-    if (unpaidInstallments.length === 1) {
-      isCompleted = true;
-    }
+    // Fetch all installments to count paid ones and check completion
+    const installmentsAfterUpdate = await db.getInstallmentsByLoanId(activeLoan.id);
+    const paidCount = installmentsAfterUpdate.filter((i: any) => i.status === 'Paid').length;
+    const unpaidCount = installmentsAfterUpdate.filter((i: any) => i.status !== 'Paid').length;
+    
+    // Calculate new balance based on actual paid count
+    const newBalance = Math.max(0, activeLoan.approved_amount - (paidCount * activeLoan.daily_installment));
+    let isCompleted = unpaidCount === 0;
 
     let updatedLoan;
     if (isCompleted) {

@@ -512,9 +512,27 @@ export const db = {
         .in('status', ['Active', 'Pending'])
         .maybeSingle();
       if (error) throw error;
+      if (data) {
+        const { count, error: countErr } = await supabaseClient
+          .from('installments')
+          .select('id', { count: 'exact', head: true })
+          .eq('loan_id', data.id)
+          .eq('status', 'Paid');
+        if (!countErr && count !== null) {
+          const calcRemaining = Math.max(0, data.approved_amount - (count * data.daily_installment));
+          data.remaining_balance = data.status === 'Completed' ? 0 : calcRemaining;
+        }
+      }
       return data;
     } else {
-      return await getSqlAsync("SELECT * FROM loans WHERE customer_id = ? AND status IN ('Active', 'Pending')", [customerId]);
+      const row = await getSqlAsync("SELECT * FROM loans WHERE customer_id = ? AND status IN ('Active', 'Pending')", [customerId]);
+      if (row) {
+        const countRow = await getSqlAsync("SELECT COUNT(*) as cnt FROM installments WHERE loan_id = ? AND status = 'Paid'", [row.id]);
+        const count = countRow ? countRow.cnt : 0;
+        const calcRemaining = Math.max(0, row.approved_amount - (count * row.daily_installment));
+        row.remaining_balance = row.status === 'Completed' ? 0 : calcRemaining;
+      }
+      return row;
     }
   },
 
@@ -522,9 +540,27 @@ export const db = {
     if (useSupabase) {
       const { data, error } = await supabaseClient.from('loans').select('*').eq('id', id).maybeSingle();
       if (error) throw error;
+      if (data) {
+        const { count, error: countErr } = await supabaseClient
+          .from('installments')
+          .select('id', { count: 'exact', head: true })
+          .eq('loan_id', id)
+          .eq('status', 'Paid');
+        if (!countErr && count !== null) {
+          const calcRemaining = Math.max(0, data.approved_amount - (count * data.daily_installment));
+          data.remaining_balance = data.status === 'Completed' ? 0 : calcRemaining;
+        }
+      }
       return data;
     } else {
-      return await getSqlAsync('SELECT * FROM loans WHERE id = ?', [id]);
+      const row = await getSqlAsync('SELECT * FROM loans WHERE id = ?', [id]);
+      if (row) {
+        const countRow = await getSqlAsync("SELECT COUNT(*) as cnt FROM installments WHERE loan_id = ? AND status = 'Paid'", [id]);
+        const count = countRow ? countRow.cnt : 0;
+        const calcRemaining = Math.max(0, row.approved_amount - (count * row.daily_installment));
+        row.remaining_balance = row.status === 'Completed' ? 0 : calcRemaining;
+      }
+      return row;
     }
   },
 
@@ -535,9 +571,39 @@ export const db = {
         .eq('customer_id', customerId)
         .order('created_at', { ascending: false });
       if (error) throw error;
+      if (data && data.length > 0) {
+        const { data: paidInsts, error: paidErr } = await supabaseClient
+          .from('installments')
+          .select('loan_id')
+          .eq('status', 'Paid');
+        if (!paidErr && paidInsts) {
+          const paidCounts: Record<string, number> = {};
+          paidInsts.forEach((inst: any) => {
+            paidCounts[inst.loan_id] = (paidCounts[inst.loan_id] || 0) + 1;
+          });
+          data.forEach((l: any) => {
+            const count = paidCounts[l.id] || 0;
+            const calcRemaining = Math.max(0, l.approved_amount - (count * l.daily_installment));
+            l.remaining_balance = l.status === 'Completed' ? 0 : calcRemaining;
+          });
+        }
+      }
       return data;
     } else {
-      return await allSqlAsync('SELECT * FROM loans WHERE customer_id = ? ORDER BY created_at DESC', [customerId]);
+      const rows = await allSqlAsync('SELECT * FROM loans WHERE customer_id = ? ORDER BY created_at DESC', [customerId]);
+      if (rows.length > 0) {
+        const paidInsts = await allSqlAsync("SELECT loan_id, COUNT(*) as cnt FROM installments WHERE status = 'Paid' GROUP BY loan_id");
+        const paidCounts: Record<string, number> = {};
+        paidInsts.forEach((r: any) => {
+          paidCounts[r.loan_id] = r.cnt;
+        });
+        rows.forEach((r: any) => {
+          const count = paidCounts[r.id] || 0;
+          const calcRemaining = Math.max(0, r.approved_amount - (count * r.daily_installment));
+          r.remaining_balance = r.status === 'Completed' ? 0 : calcRemaining;
+        });
+      }
+      return rows;
     }
   },
 
@@ -599,6 +665,18 @@ export const db = {
         pendingCounts[inst.loan_id] = (pendingCounts[inst.loan_id] || 0) + 1;
       });
 
+      // Fetch paid installments counts grouped by loan_id
+      const { data: paidInsts, error: paidErr } = await supabaseClient
+        .from('installments')
+        .select('loan_id')
+        .eq('status', 'Paid');
+      if (paidErr) throw paidErr;
+
+      const paidCounts: Record<string, number> = {};
+      (paidInsts || []).forEach((inst: any) => {
+        paidCounts[inst.loan_id] = (paidCounts[inst.loan_id] || 0) + 1;
+      });
+
       // Handle search/sorting in memory if database complex bindings are bypassed
       let result = data || [];
       if (filters.search) {
@@ -616,10 +694,15 @@ export const db = {
           result.sort((a: any, b: any) => a.approved_amount - b.approved_amount);
         }
       }
-      return result.map((l: any) => ({
-        ...l,
-        pendingCount: pendingCounts[l.id] || 0
-      }));
+      return result.map((l: any) => {
+        const paidCount = paidCounts[l.id] || 0;
+        const calcRemaining = Math.max(0, l.approved_amount - (paidCount * l.daily_installment));
+        return {
+          ...l,
+          remaining_balance: l.status === 'Completed' ? 0 : calcRemaining,
+          pendingCount: pendingCounts[l.id] || 0
+        };
+      });
     } else {
       const pendingInsts = await allSqlAsync(`
         SELECT loan_id, COUNT(*) as cnt
@@ -630,6 +713,17 @@ export const db = {
       const pendingCounts: Record<string, number> = {};
       pendingInsts.forEach((r: any) => {
         pendingCounts[r.loan_id] = r.cnt;
+      });
+
+      const paidInsts = await allSqlAsync(`
+        SELECT loan_id, COUNT(*) as cnt
+        FROM installments
+        WHERE status = 'Paid'
+        GROUP BY loan_id
+      `);
+      const paidCounts: Record<string, number> = {};
+      paidInsts.forEach((r: any) => {
+        paidCounts[r.loan_id] = r.cnt;
       });
 
       let sql = `
@@ -656,15 +750,20 @@ export const db = {
         sql += ' ORDER BY l.created_at DESC';
       }
       const rows = await allSqlAsync(sql, params);
-      return rows.map((r: any) => ({
-        ...r,
-        customer: {
-          id: r.customer_id,
-          full_name: r.customer_name,
-          mobile_number: r.customer_mobile
-        },
-        pendingCount: pendingCounts[r.id] || 0
-      }));
+      return rows.map((r: any) => {
+        const paidCount = paidCounts[r.id] || 0;
+        const calcRemaining = Math.max(0, r.approved_amount - (paidCount * r.daily_installment));
+        return {
+          ...r,
+          remaining_balance: r.status === 'Completed' ? 0 : calcRemaining,
+          customer: {
+            id: r.customer_id,
+            full_name: r.customer_name,
+            mobile_number: r.customer_mobile
+          },
+          pendingCount: pendingCounts[r.id] || 0
+        };
+      });
     }
   },
 
