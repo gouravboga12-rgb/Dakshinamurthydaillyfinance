@@ -100,6 +100,29 @@ export default function DelayedPayments({ token }: DelayedPaymentsProps) {
     }
   };
 
+  const handleResetDelay = async (params: { installmentId?: string; loanId?: string }) => {
+    const isBulk = !!params.loanId;
+    const confirmMsg = isBulk 
+      ? 'Are you sure you want to reset ALL paid installments of this loan to be marked as On-Time (due date matches payment date)? This will clear their delay history.'
+      : 'Are you sure you want to reset this paid installment to be marked as On-Time?';
+      
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setActionLoading(params.installmentId || params.loanId || 'bulk');
+      await api.post('/api/admin/payments/reset-delays', params, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert(isBulk ? 'All paid installments reset to on-time!' : 'Installment payment date adjusted successfully.');
+      fetchOverduePayments();
+      fetchLatePayments();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to reset delay.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const filteredPayments = payments.filter(p => 
     p.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.mobile.includes(searchQuery) ||
@@ -305,6 +328,7 @@ export default function DelayedPayments({ token }: DelayedPaymentsProps) {
                       <th className="py-3 px-4 font-mono text-center">Due Date</th>
                       <th className="py-3 px-4 font-mono text-center">Payment Date</th>
                       <th className="py-3 px-4 text-center">Days Delay</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
@@ -324,6 +348,22 @@ export default function DelayedPayments({ token }: DelayedPaymentsProps) {
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 border border-amber-200 text-amber-700">
                             {item.daysLate} days late
                           </span>
+                        </td>
+                        <td className="py-3 px-4 text-right flex justify-end gap-2">
+                          <button
+                            onClick={() => handleResetDelay({ installmentId: item.id })}
+                            disabled={actionLoading !== null}
+                            className="px-2.5 py-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                          >
+                            Set On-Time
+                          </button>
+                          <button
+                            onClick={() => handleResetDelay({ loanId: item.loanId })}
+                            disabled={actionLoading !== null}
+                            className="px-2.5 py-1 text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                          >
+                            Reset All for Loan
+                          </button>
                         </td>
                       </tr>
                     ))}

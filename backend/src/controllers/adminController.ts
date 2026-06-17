@@ -978,6 +978,54 @@ export const approveForeclosure = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const rejectForeclosure = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const loan = await db.getLoanById(id);
+    if (!loan) {
+      return res.status(404).json({ error: 'Loan not found.' });
+    }
+
+    const installments = await db.getInstallmentsByLoanId(id);
+    
+    // Mark all pending installments as Unpaid
+    for (const inst of installments) {
+      if (inst.status === 'Pending') {
+        await db.updateInstallmentFields(inst.id, {
+          status: 'Unpaid',
+          transaction_id: null,
+          proof_url: null,
+          payment_date: null
+        });
+      }
+    }
+
+    // Recalculate remaining balance and ensure loan is Active
+    const updatedInstallments = await db.getInstallmentsByLoanId(id);
+    const paidCount = updatedInstallments.filter((i: any) => i.status === 'Paid').length;
+    const newBalance = Math.max(0, loan.approved_amount - (paidCount * loan.daily_installment));
+
+    const updatedLoan = await db.updateLoanStatus(id, 'Active', {
+      remaining_balance: newBalance
+    });
+
+    await db.createNotification(
+      loan.customer_id,
+      '❌ Foreclosure Payment Proof Rejected',
+      `Your foreclosure payment proof for ledger account of ₹${loan.approved_amount} was rejected by the administrator. Please submit a valid payment screenshot.`,
+      'loan'
+    );
+
+    return res.status(200).json({
+      message: 'Foreclosure request rejected and installments reset.',
+      loan: updatedLoan
+    });
+  } catch (error: any) {
+    console.error('Reject foreclosure error:', error);
+    return res.status(500).json({ error: 'Failed to reject foreclosure.' });
+  }
+};
+
 export const updateLoan = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
@@ -1163,6 +1211,126 @@ export const updateInstallment = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Update installment error:', error);
     return res.status(500).json({ error: 'Failed to update installment.' });
+  }
+};
+
+export const bulkUpdateInstallments = async (req: AuthRequest, res: Response) => {
+  try {
+    const { loanId, fromIndex, toIndex, status } = req.body;
+    if (!loanId || !fromIndex || !toIndex || !status) {
+      return res.status(400).json({ error: 'Missing required parameters: loanId, fromIndex, toIndex, status.' });
+    }
+    if (status !== 'Paid' && status !== 'Unpaid') {
+      return res.status(400).json({ error: 'Invalid status. Must be Paid or Unpaid.' });
+    }
+
+    const loan = await db.getLoanById(loanId);
+    if (!loan) {
+      return res.status(404).json({ error: 'Loan not found.' });
+    }
+
+    const installments = await db.getInstallmentsByLoanId(loanId);
+    // Sort by due_date ascending to match UI Day index
+    installments.sort((a: any, b: any) => a.due_date.localeCompare(b.due_date));
+
+    const startIndex = Math.max(1, Number(fromIndex));
+    const endIndex = Math.min(installments.length, Number(toIndex));
+
+    if (startIndex > endIndex) {
+      return res.status(400).json({ error: 'fromIndex must be less than or equal to toIndex.' });
+    }
+
+    const now = db.getISTDateTimeString();
+
+    for (let i = startIndex - 1; i <= endIndex - 1; i++) {
+      const inst = installments[i];
+      if (status === 'Paid') {
+        // Only mark paid if not already paid
+        if (inst.status !== 'Paid') {
+          await db.updateInstallmentFields(inst.id, {
+            status: 'Paid',
+            payment_date: now
+          });
+        }
+      } else {
+        // Set to Unpaid: clear payment date, transaction_id and proof
+        if (inst.status !== 'Unpaid') {
+          await db.updateInstallmentFields(inst.id, {
+            status: 'Unpaid',
+            payment_date: null,
+            transaction_id: null,
+            proof_url: null
+          });
+        }
+      }
+    }
+
+    // Recalculate remaining balance and update status based on actual database counts
+    const updatedInstallments = await db.getInstallmentsByLoanId(loanId);
+    const paidCount = updatedInstallments.filter((i: any) => i.status === 'Paid').length;
+    const unpaidCount = updatedInstallments.filter((i: any) => i.status !== 'Paid').length;
+
+    const newBalance = Math.max(0, loan.approved_amount - (paidCount * loan.daily_installment));
+    const isCompleted = unpaidCount === 0;
+
+    let newLoanStatus = isCompleted ? 'Completed' : 'Active';
+    const updatedLoan = await db.updateLoanStatus(loan.id, newLoanStatus, {
+      remaining_balance: newBalance,
+      completion_date: isCompleted ? now : null
+    });
+
+    return res.status(200).json({
+      message: `Bulk status update successful. Marked Day ${startIndex} to Day ${endIndex} as ${status}.`,
+      loan: updatedLoan
+    });
+  } catch (error: any) {
+    console.error('Bulk update installments error:', error);
+    return res.status(500).json({ error: 'Failed to perform bulk update.' });
+  }
+};
+
+export const resetPaymentDelays = async (req: AuthRequest, res: Response) => {
+  try {
+    const { installmentId, loanId } = req.body;
+    if (!installmentId && !loanId) {
+      return res.status(400).json({ error: 'Either installmentId or loanId is required.' });
+    }
+
+    if (installmentId) {
+      const installment = await db.getInstallmentById(installmentId);
+      if (!installment) {
+        return res.status(404).json({ error: 'Installment not found.' });
+      }
+      if (installment.status !== 'Paid') {
+        return res.status(400).json({ error: 'Only paid installments can be adjusted to on-time.' });
+      }
+      // Set payment_date equal to due_date with a default noon time to look valid
+      const onTimePaymentDate = `${installment.due_date}T12:00:00.000Z`;
+      await db.updateInstallmentFields(installmentId, {
+        payment_date: onTimePaymentDate
+      });
+      return res.status(200).json({ message: 'Installment reset to on-time successfully.' });
+    } else if (loanId) {
+      const loan = await db.getLoanById(loanId);
+      if (!loan) {
+        return res.status(404).json({ error: 'Loan not found.' });
+      }
+      const installments = await db.getInstallmentsByLoanId(loanId);
+      let resetCount = 0;
+      for (const inst of installments) {
+        if (inst.status === 'Paid') {
+          const onTimePaymentDate = `${inst.due_date}T12:00:00.000Z`;
+          await db.updateInstallmentFields(inst.id, {
+            payment_date: onTimePaymentDate
+          });
+          resetCount++;
+        }
+      }
+      return res.status(200).json({ message: `Successfully reset ${resetCount} paid installments to on-time.` });
+    }
+  } catch (error: any) {
+    console.error('Reset payment delays error:', error);
+    return res.status(500).json({ error: 'Failed to reset payment delays.' });
   }
 };
 

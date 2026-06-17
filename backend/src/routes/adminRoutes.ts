@@ -30,7 +30,10 @@ import {
   getOverduePayments,
   getPaidLatePayments,
   updateInstallment,
-  deleteCustomer
+  deleteCustomer,
+  bulkUpdateInstallments,
+  rejectForeclosure,
+  resetPaymentDelays
 } from '../controllers/adminController';
 
 const uploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/aadhaar');
@@ -115,6 +118,9 @@ router.put('/loans/:id', updateLoan);
 router.post('/payments/mark-paid', markInstallmentPaid);
 router.post('/payments/reject', rejectInstallment);
 router.put('/installments/:id', updateInstallment);
+router.post('/payments/bulk-update', bulkUpdateInstallments);
+router.post('/loans/:id/reject-foreclosure', rejectForeclosure);
+router.post('/payments/reset-delays', resetPaymentDelays);
 
 // Settings Configuration
 const qrUploadDir = process.env.VERCEL ? '/tmp' : path.resolve(__dirname, '../../uploads/qr');

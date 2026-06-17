@@ -52,6 +52,12 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
 
   const [showPendingOnly, setShowPendingOnly] = useState(false);
 
+  // Bulk Actions State
+  const [bulkFrom, setBulkFrom] = useState('1');
+  const [bulkTo, setBulkTo] = useState('1');
+  const [bulkAction, setBulkAction] = useState<'Paid' | 'Unpaid'>('Paid');
+  const [bulkLoading, setBulkLoading] = useState(false);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -96,6 +102,10 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
         headers: { Authorization: `Bearer ${token}` }
       });
       setInstallments(response.data.installments);
+      if (response.data.installments && response.data.installments.length > 0) {
+        setBulkFrom('1');
+        setBulkTo(String(response.data.installments.length));
+      }
     } catch (err: any) {
       alert('Failed to load installment details.');
     } finally {
@@ -179,6 +189,71 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
       }
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to reject payment proof.');
+    }
+  };
+
+  const handleUnmarkPaid = async (installmentId: string) => {
+    if (!window.confirm('Are you sure you want to reverse this payment to UNPAID?')) return;
+    try {
+      await api.put(`/api/admin/installments/${installmentId}`, {
+        status: 'Unpaid',
+        payment_date: null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      alert('Installment payment reversed successfully.');
+
+      if (selectedLoan) {
+        fetchInstallments(selectedLoan.id);
+        fetchActiveLoans(); // Refresh left panel counts
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to reverse payment.');
+    }
+  };
+
+  const handleBulkAction = async () => {
+    if (!selectedLoan) return;
+    const fromVal = Number(bulkFrom);
+    const toVal = Number(bulkTo);
+    if (fromVal > toVal) {
+      alert('From Day must be less than or equal to To Day.');
+      return;
+    }
+
+    const actionText = bulkAction === 'Paid' ? 'MARK AS PAID' : 'REVERSE TO UNPAID';
+    const confirmMsg = `Are you sure you want to ${actionText} from Day ${fromVal} to Day ${toVal}? This will adjust the remaining ledger balance.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setBulkLoading(true);
+      const response = await api.post('/api/admin/payments/bulk-update', {
+        loanId: selectedLoan.id,
+        fromIndex: fromVal,
+        toIndex: toVal,
+        status: bulkAction
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      alert(`Successfully updated Day ${fromVal} to Day ${toVal} as ${bulkAction === 'Paid' ? 'Paid' : 'Unpaid'}!`);
+      
+      const updatedLoan = response.data.loan;
+      // If loan was completed, reset details
+      if (updatedLoan.status === 'Completed') {
+        alert('Congratulations! This loan is now fully settled and closed.');
+        setSelectedLoan(null);
+        setInstallments([]);
+        fetchActiveLoans();
+      } else {
+        fetchInstallments(selectedLoan.id);
+        fetchActiveLoans();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to apply bulk update.');
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -358,29 +433,100 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                         </button>
                       )}
                     </div>
-                    <button
-                      onClick={async () => {
-                        if (!window.confirm(`Approve foreclosure? This will mark all ${pendingInsts.length} remaining installments as paid and close the loan permanently.`)) return;
-                        try {
-                          await api.post(`/api/admin/loans/${selectedLoan.id}/approve-foreclosure`, {}, {
-                            headers: { Authorization: `Bearer ${token}` }
-                          });
-                          alert('Foreclosure approved! Loan has been successfully settled and closed.');
-                          setSelectedLoan(null);
-                          setInstallments([]);
-                          fetchActiveLoans();
-                        } catch (e: any) {
-                          console.error(e);
-                          alert(e.response?.data?.error || 'Failed to approve foreclosure.');
-                        }
-                      }}
-                      className="mt-3 w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors"
-                    >
-                      ✅ Approve Foreclosure — Close Loan Now
-                    </button>
+                    <div className="flex gap-3 mt-3">
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm(`Reject foreclosure request? This will reset the pending foreclosure installments back to unpaid.`)) return;
+                          try {
+                            await api.post(`/api/admin/loans/${selectedLoan.id}/reject-foreclosure`, {}, {
+                              headers: { Authorization: `Bearer ${token}` }
+                            });
+                            alert('Foreclosure request rejected. Installments have been reset to unpaid.');
+                            fetchInstallments(selectedLoan.id);
+                            fetchActiveLoans();
+                          } catch (e: any) {
+                            console.error(e);
+                            alert(e.response?.data?.error || 'Failed to reject foreclosure.');
+                          }
+                        }}
+                        className="w-1/2 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 hover:text-slate-900 text-xs font-bold rounded-xl transition-colors cursor-pointer border border-slate-300"
+                      >
+                        ❌ Reject Request
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm(`Approve foreclosure? This will mark all ${pendingInsts.length} remaining installments as paid and close the loan permanently.`)) return;
+                          try {
+                            await api.post(`/api/admin/loans/${selectedLoan.id}/approve-foreclosure`, {}, {
+                              headers: { Authorization: `Bearer ${token}` }
+                            });
+                            alert('Foreclosure approved! Loan has been successfully settled and closed.');
+                            setSelectedLoan(null);
+                            setInstallments([]);
+                            fetchActiveLoans();
+                          } catch (e: any) {
+                            console.error(e);
+                            alert(e.response?.data?.error || 'Failed to approve foreclosure.');
+                          }
+                        }}
+                        className="w-1/2 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                      >
+                        ✅ Approve & Close
+                      </button>
+                    </div>
                   </div>
                 );
               })()}
+
+              {/* Bulk Actions Section */}
+              <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                <h6 className="text-xs font-bold text-slate-600 uppercase tracking-wider">Bulk Ledger Collection / Adjustments</h6>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 block uppercase">From Day</label>
+                    <select
+                      value={bulkFrom}
+                      onChange={(e) => setBulkFrom(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 bg-white rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      {installments.map((_, idx) => (
+                        <option key={idx} value={idx + 1}>Day {idx + 1}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 block uppercase">To Day</label>
+                    <select
+                      value={bulkTo}
+                      onChange={(e) => setBulkTo(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 bg-white rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      {installments.map((_, idx) => (
+                        <option key={idx} value={idx + 1}>Day {idx + 1}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 block uppercase">Action Type</label>
+                    <select
+                      value={bulkAction}
+                      onChange={(e) => setBulkAction(e.target.value as 'Paid' | 'Unpaid')}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 bg-white rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="Paid">Mark as Paid</option>
+                      <option value="Unpaid">Reverse (Unpaid)</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleBulkAction}
+                    disabled={bulkLoading || installmentsLoading}
+                    className="w-full py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-50 h-8 flex items-center justify-center"
+                  >
+                    {bulkLoading ? 'Applying...' : 'Apply Bulk Action'}
+                  </button>
+                </div>
+              </div>
 
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h5 className="font-bold text-slate-900 flex items-center gap-1.5"><CalendarDays size={16} className="text-blue-600" /> Daily installment ledger</h5>
@@ -476,10 +622,19 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                         <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
                           <span className="text-sm font-bold text-slate-800">₹{selectedLoan.daily_installment}</span>
                           {inst.status === 'Paid' ? (
-                            <span className="text-emerald-600 flex items-center gap-1 font-bold text-xs bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                              <FileCheck2 size={12} />
-                              <span>Verified</span>
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-emerald-600 flex items-center gap-1 font-bold text-xs bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                                <FileCheck2 size={12} />
+                                <span>Verified</span>
+                              </span>
+                              <button
+                                onClick={() => handleUnmarkPaid(inst.id)}
+                                title="Reverse to Unpaid"
+                                className="px-2 py-1 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 text-[10px] font-bold rounded-lg transition-all shadow-sm cursor-pointer"
+                              >
+                                Reverse
+                              </button>
+                            </div>
                           ) : (
                             <div className="flex gap-2">
                               {inst.status === 'Pending' && (
