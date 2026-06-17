@@ -4,4 +4,4 @@ Disallow: /admin/
 Disallow: /api/
 Disallow: /uploads/
 
-Sitemap: https://dakshinamurthydaillyfinance.vercel.app/sitemap.xml
+Sitemap: https://www.dakshinamurthy.online/sitemap.xml
