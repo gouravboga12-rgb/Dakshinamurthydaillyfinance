@@ -36,6 +36,63 @@ export default function LoginScreen({ navigation }: any) {
   const [resetLoading, setResetLoading] = useState(false);
   const [otpSending, setOtpSending] = useState(false);
 
+  // PWA Install State & Logic
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(true);
+
+  React.useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    try {
+      const dismissed = sessionStorage.getItem('install_prompt_dismissed');
+      if (dismissed === 'true') {
+        setShowInstallBanner(false);
+      }
+    } catch (e) {}
+
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      try {
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setDeferredPrompt(null);
+          setShowInstallBanner(false);
+        }
+      } catch (err) {
+        console.error('PWA installation prompt error:', err);
+      }
+    } else {
+      if (Platform.OS === 'web') {
+        alert(
+          "To install Dakshinamurthy Daily Ledger as an App:\n\n" +
+          "• iOS Safari: Tap the Share button (square with up arrow) in the browser bottom menu, then scroll and tap 'Add to Home Screen'.\n\n" +
+          "• Chrome / Android: Tap the three-dot menu icon in the top-right corner, then tap 'Install App' or 'Add to Home Screen'.\n\n" +
+          "• Desktops (Chrome/Edge): Click the Install icon in the address bar at the top-right."
+        );
+      }
+    }
+  };
+
+  const handleDismiss = () => {
+    setShowInstallBanner(false);
+    try {
+      sessionStorage.setItem('install_prompt_dismissed', 'true');
+    } catch (e) {}
+  };
+
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
       if (Platform.OS === 'web') {
@@ -271,6 +328,22 @@ export default function LoginScreen({ navigation }: any) {
                 <Text style={styles.registerLinkText}>Register Here</Text>
               </Text>
             </TouchableOpacity>
+
+            {/* Inline PWA Install Box */}
+            {Platform.OS === 'web' && showInstallBanner && (
+              <View style={styles.installBox}>
+                <View style={styles.installBoxHeader}>
+                  <Text style={styles.installTitle}>📲 Install App</Text>
+                  <TouchableOpacity onPress={handleDismiss} activeOpacity={0.7} style={styles.installCloseBtn}>
+                    <Text style={styles.installCloseText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.installDesc}>Add shortcut to your home screen for quick ledger dashboard access.</Text>
+                <TouchableOpacity style={styles.installBtnInline} onPress={handleInstall} activeOpacity={0.8}>
+                  <Text style={styles.installBtnTextInline}>Install Now</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {/* Info Note */}
@@ -580,5 +653,49 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     fontSize: 13,
     fontWeight: '700',
+  },
+  installBox: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  installBoxHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  installTitle: {
+    fontWeight: '800',
+    color: COLORS.primary,
+    fontSize: 14,
+  },
+  installCloseBtn: {
+    padding: 4,
+  },
+  installCloseText: {
+    color: COLORS.muted,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  installDesc: {
+    color: COLORS.muted,
+    fontSize: 12,
+    marginTop: 6,
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  installBtnInline: {
+    backgroundColor: '#10B981',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  installBtnTextInline: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
   },
 });
