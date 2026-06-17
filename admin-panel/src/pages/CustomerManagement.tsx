@@ -169,6 +169,28 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
     }
   };
 
+  const handleResetAllLoanDelays = async (loanId: string) => {
+    if (!window.confirm('Are you sure you want to reset all paid installments of this ledger to be On-Time? This will remove all late payment history for this ledger.')) return;
+    try {
+      await axios.post('/api/admin/payments/reset-delays', { loanId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('All paid installments for this ledger have been reset to on-time!');
+      if (selectedCust) {
+        const response = await axios.get(`/api/admin/customers/${selectedCust.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data) {
+          setSelectedCustLoans(response.data.loans || []);
+          setSelectedCustStats(response.data.paymentStats || null);
+          setSelectedCustLatePayments(response.data.latePaymentsList || []);
+        }
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to reset ledger delays.');
+    }
+  };
+
   const getImageUrl = (path: string | null) => {
     if (!path) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) {
@@ -1131,6 +1153,23 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
 
                               {expandedLoans[l.id] && (
                                 <div className="mt-2.5 space-y-2 max-h-[260px] overflow-y-auto pr-1 bg-white p-2.5 rounded-xl border border-slate-200">
+                                  {l.installments && l.installments.some((inst: any) => {
+                                    const isPaid = inst.status === 'Paid';
+                                    const payDateOnly = inst.payment_date ? inst.payment_date.substring(0, 10) : '';
+                                    return isPaid && payDateOnly && payDateOnly > inst.due_date;
+                                  }) && (
+                                    <div className="flex justify-between items-center bg-amber-50 border border-amber-100 p-2 rounded-xl mb-1.5 sticky top-0 z-10 shadow-sm">
+                                      <span className="text-[10px] font-bold text-amber-850 pl-1">Late payments detected on this ledger.</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleResetAllLoanDelays(l.id)}
+                                        className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] transition-colors cursor-pointer"
+                                      >
+                                        <Check size={10} />
+                                        <span>Reset All to On-Time</span>
+                                      </button>
+                                    </div>
+                                  )}
                                   {l.installments && l.installments.length > 0 ? (
                                     l.installments.map((inst: any, idx: number) => {
                                       const isPaid = inst.status === 'Paid';
