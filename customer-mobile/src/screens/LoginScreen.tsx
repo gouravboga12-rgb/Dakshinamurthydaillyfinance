@@ -324,13 +324,13 @@ export default function LoginScreen({ navigation }: any) {
             {Platform.OS === 'web' && showInstallBanner && (
               <View style={styles.installBox}>
                 <View style={styles.installBoxHeader}>
-                  <Text style={styles.installTitle}>📲 Install App</Text>
+                  <Text style={styles.installTitle}>📲 Download App</Text>
                   <TouchableOpacity onPress={handleDismiss} activeOpacity={0.7} style={styles.installCloseBtn}>
                     <Text style={styles.installCloseText}>✕</Text>
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity style={styles.installBtnInline} onPress={handleInstall} activeOpacity={0.8}>
-                  <Text style={styles.installBtnTextInline}>Install Now</Text>
+                  <Text style={styles.installBtnTextInline}>Download Now</Text>
                 </TouchableOpacity>
               </View>
             )}
