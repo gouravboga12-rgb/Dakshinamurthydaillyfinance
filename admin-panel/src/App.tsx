@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
@@ -14,12 +14,17 @@ export default function App() {
   // Initial state check from localStorage
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin-token'));
   const [adminName, setAdminName] = useState<string>(localStorage.getItem('admin-name') || 'Dakshinamurthy');
-  const [currentPage, setCurrentPage] = useState<string>('dashboard');
+  const [currentPage, setCurrentPage] = useState<string>(localStorage.getItem('admin-current-page') || 'dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('admin-current-page', currentPage);
+  }, [currentPage]);
 
   const handleLogout = () => {
     localStorage.removeItem('admin-token');
     localStorage.removeItem('admin-name');
+    localStorage.removeItem('admin-current-page');
     setToken(null);
   };
 
