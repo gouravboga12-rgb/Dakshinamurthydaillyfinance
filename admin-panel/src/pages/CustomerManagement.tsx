@@ -147,6 +147,28 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
     }
   };
 
+  const handleResetInstallmentDelay = async (installmentId: string) => {
+    if (!window.confirm('Are you sure you want to reset this installment delay to be On-Time?')) return;
+    try {
+      await axios.post('/api/admin/payments/reset-delays', { installmentId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('Installment reset to on-time successfully!');
+      if (selectedCust) {
+        const response = await axios.get(`/api/admin/customers/${selectedCust.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data) {
+          setSelectedCustLoans(response.data.loans || []);
+          setSelectedCustStats(response.data.paymentStats || null);
+          setSelectedCustLatePayments(response.data.latePaymentsList || []);
+        }
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to reset installment delay.');
+    }
+  };
+
   const getImageUrl = (path: string | null) => {
     if (!path) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) {
@@ -1174,14 +1196,26 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                                             )}
                                           </div>
                                           
-                                          <button
-                                            type="button"
-                                            onClick={() => handleOpenInstallmentEdit(inst)}
-                                            className="self-end sm:self-center flex items-center gap-1 px-2.5 py-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-100 rounded-lg font-bold text-[10px] transition-colors"
-                                          >
-                                            <Edit size={10} />
-                                            <span>Edit Repayment</span>
-                                          </button>
+                                          <div className="flex gap-1.5 self-end sm:self-center">
+                                            {isLate && (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleResetInstallmentDelay(inst.id)}
+                                                className="flex items-center gap-1 px-2.5 py-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border border-emerald-100 rounded-lg font-bold text-[10px] transition-colors cursor-pointer"
+                                              >
+                                                <Check size={10} />
+                                                <span>Set On-Time</span>
+                                              </button>
+                                            )}
+                                            <button
+                                              type="button"
+                                              onClick={() => handleOpenInstallmentEdit(inst)}
+                                              className="flex items-center gap-1 px-2.5 py-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-100 rounded-lg font-bold text-[10px] transition-colors"
+                                            >
+                                              <Edit size={10} />
+                                              <span>Edit Repayment</span>
+                                            </button>
+                                          </div>
                                         </div>
                                       );
                                     })
@@ -1608,7 +1642,16 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
                       onChange={(e) => setEditInstPaymentDate(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
                     />
-                    <p className="text-[9px] text-slate-500 mt-1">If the payment date is later than the due date, this installment will automatically count as Paid Late.</p>
+                    <div className="flex justify-between items-center mt-1">
+                      <p className="text-[9px] text-slate-500">If the payment date is later than the due date, this installment will automatically count as Paid Late.</p>
+                      <button
+                        type="button"
+                        onClick={() => setEditInstPaymentDate(editInstDueDate)}
+                        className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline bg-transparent border-0 cursor-pointer p-0"
+                      >
+                        Set On-Time
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
