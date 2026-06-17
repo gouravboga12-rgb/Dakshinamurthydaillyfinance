@@ -18,6 +18,7 @@ import { loginStart, loginSuccess, loginFailure } from '../store/authSlice';
 import { RootState } from '../store';
 import api from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
+import { Feather } from '@expo/vector-icons';
 
 export default function LoginScreen({ navigation }: any) {
   const dispatch = useDispatch();
@@ -324,7 +325,10 @@ export default function LoginScreen({ navigation }: any) {
             {Platform.OS === 'web' && showInstallBanner && (
               <View style={styles.installBox}>
                 <View style={styles.installBoxHeader}>
-                  <Text style={styles.installTitle}>📲 Download App</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Feather name="download-cloud" size={18} color={COLORS.secondary} style={{ marginRight: 8 }} />
+                    <Text style={styles.installTitle}>Download App</Text>
+                  </View>
                   <TouchableOpacity onPress={handleDismiss} activeOpacity={0.7} style={styles.installCloseBtn}>
                     <Text style={styles.installCloseText}>✕</Text>
                   </TouchableOpacity>
