@@ -74,15 +74,6 @@ export default function LoginScreen({ navigation }: any) {
       } catch (err) {
         console.error('PWA installation prompt error:', err);
       }
-    } else {
-      if (Platform.OS === 'web') {
-        alert(
-          "To install Dakshinamurthy Daily Ledger as an App:\n\n" +
-          "• iOS Safari: Tap the Share button (square with up arrow) in the browser bottom menu, then scroll and tap 'Add to Home Screen'.\n\n" +
-          "• Chrome / Android: Tap the three-dot menu icon in the top-right corner, then tap 'Install App' or 'Add to Home Screen'.\n\n" +
-          "• Desktops (Chrome/Edge): Click the Install icon in the address bar at the top-right."
-        );
-      }
     }
   };
 
@@ -338,7 +329,6 @@ export default function LoginScreen({ navigation }: any) {
                     <Text style={styles.installCloseText}>✕</Text>
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.installDesc}>Add shortcut to your home screen for quick ledger dashboard access.</Text>
                 <TouchableOpacity style={styles.installBtnInline} onPress={handleInstall} activeOpacity={0.8}>
                   <Text style={styles.installBtnTextInline}>Install Now</Text>
                 </TouchableOpacity>
