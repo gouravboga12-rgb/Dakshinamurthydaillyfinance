@@ -145,7 +145,11 @@ if (IS_DEV) {
 
   // ─── Admin Panel Static Files (/admin/*) ──────────────────────────────────────
   // Vite builds to admin-panel/dist with base: '/admin/'
-  const adminDist = path.resolve(__dirname, '../../admin-panel/dist');
+  let adminDist = path.resolve(process.cwd(), 'admin-panel/dist');
+  if (!fs.existsSync(adminDist)) {
+    adminDist = path.resolve(__dirname, '../../admin-panel/dist');
+  }
+
   if (fs.existsSync(adminDist)) {
     // Serve admin static assets (excluding index.html automatically)
     app.use('/admin', express.static(adminDist, { index: false }));
@@ -177,7 +181,13 @@ if (IS_DEV) {
 
   // ─── Customer Mobile Web App (/) ──────────────────────────────────────────────
   // Expo exports to customer-mobile/dist or web-build
-  let customerDist = path.resolve(__dirname, '../../customer-mobile/dist');
+  let customerDist = path.resolve(process.cwd(), 'customer-mobile/dist');
+  if (!fs.existsSync(customerDist)) {
+    customerDist = path.resolve(__dirname, '../../customer-mobile/dist');
+  }
+  if (!fs.existsSync(customerDist)) {
+    customerDist = path.resolve(process.cwd(), 'customer-mobile/web-build');
+  }
   if (!fs.existsSync(customerDist)) {
     customerDist = path.resolve(__dirname, '../../customer-mobile/web-build');
   }
@@ -192,7 +202,6 @@ if (IS_DEV) {
     });
     console.log(`✅ Customer web build found at ${customerDist} and will be served at /`);
   } else {
-    // On Vercel: the customer app is an APK, not a web app.
     // Redirect root to the admin panel, and return a clean status for API pings.
     app.get('/', (_req, res) => {
       res.redirect(301, '/admin');

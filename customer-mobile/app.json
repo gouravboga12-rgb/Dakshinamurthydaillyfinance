@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dakshinamurthy Daily Ledger",
     "slug": "daily-finance-customer",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -25,11 +25,16 @@
       },
       "permissions": [],
       "package": "com.dakshinamurthy.dailyledger",
-      "versionCode": 2
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "port": 8082
+      "port": 8082,
+      "name": "Dakshinamurthy Daily Ledger",
+      "shortName": "Daily Ledger",
+      "themeColor": "#0F172A",
+      "backgroundColor": "#0F172A",
+      "display": "standalone"
     },
     "plugins": [
       [
