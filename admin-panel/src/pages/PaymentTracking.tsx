@@ -112,6 +112,13 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
     fetchInstallments(loan.id);
   };
 
+  // Calculate correct remaining balance from approved_amount and paid installments count
+  const calcRemainingBalance = (loan: ActiveLoan, insts: Installment[]): number => {
+    const paidCount = insts.filter(i => i.status === 'Paid').length;
+    const remaining = loan.approved_amount - (paidCount * loan.daily_installment);
+    return Math.max(0, remaining);
+  };
+
   const handleMarkPaid = async (installmentId: string) => {
     try {
       const response = await api.post('/api/admin/payments/mark-paid', {
@@ -293,7 +300,11 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                   </div>
                   <div>
                     <span className="text-[9px] text-slate-500 block uppercase font-bold">Remaining Balance</span>
-                    <span className="text-emerald-400 text-sm font-bold">₹{selectedLoan.remaining_balance}</span>
+                    <span className="text-emerald-400 text-sm font-bold">₹{calcRemainingBalance(selectedLoan, installments)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-500 block uppercase font-bold">Paid Days</span>
+                    <span className="text-blue-300 text-sm font-bold">{installments.filter(i => i.status === 'Paid').length} / {installments.length}</span>
                   </div>
                   <div>
                     <span className="text-[9px] text-slate-500 block uppercase font-bold">Daily Installment</span>

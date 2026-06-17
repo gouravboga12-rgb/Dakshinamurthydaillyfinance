@@ -328,7 +328,7 @@ export const getLoans = async (req: AuthRequest, res: Response) => {
 
 export const createLoan = async (req: AuthRequest, res: Response) => {
   try {
-    const { customer_id, approved_amount, platform_charges, daily_installment, duration_days, total_repayment, interest_rate } = req.body;
+    const { customer_id, approved_amount, platform_charges, daily_installment, duration_days, total_repayment, interest_rate, start_date } = req.body;
 
     if (!customer_id || !approved_amount || !platform_charges || !daily_installment || !duration_days) {
       return res.status(400).json({ error: 'Missing required loan parameters.' });
@@ -365,13 +365,14 @@ export const createLoan = async (req: AuthRequest, res: Response) => {
       total_repayment: repaymentTarget,
       remaining_balance,
       status: 'Active', // Auto-approved and set to Active directly
-      approval_date: now, // Approved immediately
+      approval_date: start_date || now, // Use provided start date or current IST time
       interest_rate: interest_rate !== undefined ? Number(interest_rate) : 0
     });
 
-    // Automatically generate daily installments immediately
+    // Automatically generate daily installments from the specified start date
     const installments = [];
-    const startDate = new Date(); // Start from today
+    // Use provided start_date or default to current date
+    const startDate = start_date ? new Date(start_date) : new Date();
     for (let i = 1; i <= newLoan.duration_days; i++) {
       const dueDate = new Date(startDate);
       dueDate.setDate(startDate.getDate() + i);

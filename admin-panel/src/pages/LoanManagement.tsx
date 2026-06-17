@@ -70,6 +70,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   const [formPlatformCharges, setFormPlatformCharges] = useState('1000');
   const [formDailyInstallment, setFormDailyInstallment] = useState('');
   const [formDurationDays, setFormDurationDays] = useState('50');
+  const [formStartDate, setFormStartDate] = useState('');
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
 
@@ -170,6 +171,15 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     fetchLoans();
   }, [statusFilter, search, sortOrder, token]);
 
+  // Get local IST date string (YYYY-MM-DD) to avoid UTC offset issues
+  const getLocalDateString = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   useEffect(() => {
     if (showCreateModal) {
       fetchEligibleCustomers();
@@ -177,6 +187,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
       setFormPlatformCharges(defaultPlatformFee);
       setFormInterestPct('10');
       setFormInterestPctOption('10');
+      setFormStartDate(getLocalDateString()); // Default to today (IST)
     }
   }, [showCreateModal, defaultDurationVal, defaultPlatformFee]);
 
@@ -235,7 +246,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     setApprovalDurationDays(String(loan.duration_days));
     setIsEditingActive(loan.status === 'Active');
     setApprovalLoan(loan);
-    setApprovalDate(loan.approval_date ? loan.approval_date.substring(0, 10) : new Date().toISOString().substring(0, 10));
+    setApprovalDate(loan.approval_date ? loan.approval_date.substring(0, 10) : getLocalDateString()); // Use local IST date, not UTC
     
     // Calculate existing interest rate: interest = total_repayment - (approved_amount - platform_charges)
     // i.e. interest = total_repayment + platform_charges - approved_amount
@@ -370,7 +381,8 @@ export default function LoanManagement({ token }: LoanManagementProps) {
         daily_installment: Number(formDailyInstallment),
         duration_days: Number(formDurationDays),
         total_repayment: totalRepay,
-        interest_rate: Number(formInterestPct) || 0
+        interest_rate: Number(formInterestPct) || 0,
+        start_date: formStartDate || getLocalDateString() // Pass start date for installment generation
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -381,6 +393,7 @@ export default function LoanManagement({ token }: LoanManagementProps) {
       setFormPlatformCharges(defaultPlatformFee);
       setFormDailyInstallment('');
       setFormDurationDays(defaultDurationVal);
+      setFormStartDate('');
       setShowCreateModal(false);
       fetchLoans();
     } catch (err: any) {
@@ -825,6 +838,17 @@ export default function LoanManagement({ token }: LoanManagementProps) {
                       placeholder="e.g. 50"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Ledger Start Date (Disbursal) *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formStartDate}
+                    onChange={(e) => setFormStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-semibold"
+                  />
                 </div>
 
                 {/* Real-time Disbursal/Repayment Calculations panel */}
