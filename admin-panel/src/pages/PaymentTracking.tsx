@@ -197,7 +197,9 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
     try {
       await api.put(`/api/admin/installments/${installmentId}`, {
         status: 'Unpaid',
-        payment_date: null
+        payment_date: null,
+        transaction_id: null,
+        proof_url: null
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -212,6 +214,7 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
       alert(err.response?.data?.error || 'Failed to reverse payment.');
     }
   };
+
 
   const handleBulkAction = async () => {
     if (!selectedLoan) return;

@@ -1178,7 +1178,7 @@ export const getPaidLatePayments = async (req: AuthRequest, res: Response) => {
 export const updateInstallment = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { due_date, payment_date, status } = req.body;
+    const { due_date, payment_date, status, transaction_id, proof_url } = req.body;
     
     const installment = await db.getInstallmentById(id);
     if (!installment) {
@@ -1189,6 +1189,9 @@ export const updateInstallment = async (req: AuthRequest, res: Response) => {
     if (due_date !== undefined) updates.due_date = due_date;
     if (payment_date !== undefined) updates.payment_date = payment_date || null;
     if (status !== undefined) updates.status = status;
+    // Allow clearing transaction_id and proof_url (e.g., when reversing a UPI payment)
+    if (transaction_id !== undefined) updates.transaction_id = transaction_id || null;
+    if (proof_url !== undefined) updates.proof_url = proof_url || null;
     
     const updated = await db.updateInstallmentFields(id, updates);
 
@@ -1203,7 +1206,14 @@ export const updateInstallment = async (req: AuthRequest, res: Response) => {
         const unpaidCount = installments.filter((i: any) => i.status !== 'Paid').length;
         let newLoanStatus = unpaidCount === 0 ? 'Completed' : 'Active';
         
-        await db.updateLoanStatus(loan.id, newLoanStatus, { remaining_balance: newBalance });
+        // If loan was Completed but now has unpaid installments (due to reversal),
+        // reset completion_date so it doesn't show as incorrectly completed
+        const extraFields: any = { remaining_balance: newBalance };
+        if (newLoanStatus === 'Active' && loan.status === 'Completed') {
+          extraFields.completion_date = null;
+        }
+        
+        await db.updateLoanStatus(loan.id, newLoanStatus, extraFields);
       }
     }
     
