@@ -121,7 +121,13 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
       const payload = {
         due_date: editInstDueDate,
         status: editInstStatus,
-        payment_date: editInstStatus === 'Paid' ? (editInstPaymentDate || new Date().toISOString().split('T')[0]) : null
+        // Store a full ISO datetime string. If admin picked a date, use noon IST on that date.
+        // If no date provided, use current UTC time. Never store just a plain date string.
+        payment_date: editInstStatus === 'Paid'
+          ? (editInstPaymentDate
+              ? new Date(`${editInstPaymentDate}T06:30:00.000Z`).toISOString() // noon IST = 06:30 UTC
+              : new Date().toISOString())
+          : null
       };
       await axios.put(`/api/admin/installments/${editingInstallment.id}`, payload, {
         headers: { Authorization: `Bearer ${token}` }

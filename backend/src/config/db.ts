@@ -15,7 +15,10 @@ export function getISTDateString() {
   return getISTDate().toISOString().split('T')[0];
 }
 export function getISTDateTimeString() {
-  return getISTDate().toISOString();
+  // Return actual UTC ISO string — Supabase TIMESTAMPTZ stores UTC natively.
+  // getISTDate() was adding +5.5h before toISOString(), which stored a "fake UTC"
+  // that was 5.5h ahead; browsers then added another +5.5h for IST display = 11h drift.
+  return new Date().toISOString();
 }
 
 // Load environment variables (done in index.ts, but let's make sure we have access)
@@ -960,14 +963,23 @@ export const db = {
   },
 
   async getInstallmentsPaidToday() {
-    const today = new Date().toISOString().split('T')[0];
+    // Use IST date (India Standard Time = UTC+5:30) to determine "today"
+    // so the report reflects Indian calendar dates, not UTC dates
+    const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const today = istNow.toISOString().split('T')[0]; // YYYY-MM-DD in IST
+    // today in IST starts at 00:00 IST = previous day 18:30 UTC
+    // tomorrow in IST starts at 00:00 IST next day = today 18:30 UTC
+    const todayStartUTC = new Date(`${today}T00:00:00+05:30`).toISOString();
+    const tomorrowIST = new Date(istNow);
+    tomorrowIST.setUTCDate(tomorrowIST.getUTCDate() + 1);
+    const tomorrow = tomorrowIST.toISOString().split('T')[0];
+    const tomorrowStartUTC = new Date(`${tomorrow}T00:00:00+05:30`).toISOString();
     if (useSupabase) {
-      const tomorrow = new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0];
       const { data, error } = await supabaseClient.from('installments')
         .select('*, loan:loans(*, customer:users(*))')
         .eq('status', 'Paid')
-        .gte('payment_date', today)
-        .lt('payment_date', tomorrow);
+        .gte('payment_date', todayStartUTC)
+        .lt('payment_date', tomorrowStartUTC);
       if (error) throw error;
       return data;
     } else {
