@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import api from '../utils/api';
 import { 
   Search, 
@@ -8,7 +8,8 @@ import {
   ChevronRight,
   Loader2,
   FileCheck2,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 
 interface ActiveLoan {
@@ -57,6 +58,22 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
   const [bulkTo, setBulkTo] = useState('1');
   const [bulkAction, setBulkAction] = useState<'Paid' | 'Unpaid'>('Paid');
   const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Custom confirmation modal state (replaces window.confirm which is blocked in deployed HTTPS)
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ open: false, title: '', message: '', onConfirm: () => {} });
+
+  const showConfirm = useCallback((title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ open: true, title, message, onConfirm });
+  }, []);
+
+  const closeConfirm = useCallback(() => {
+    setConfirmModal(prev => ({ ...prev, open: false }));
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -167,56 +184,56 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
   };
 
   const handleRejectPayment = async (installmentId: string) => {
-    if (!window.confirm('Are you sure you want to REJECT this payment proof? This will notify the customer to re-submit proof.')) return;
-    try {
-      await api.post('/api/admin/payments/reject', {
-        installmentId
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      alert('Payment proof rejected and customer notified!');
-
-      if (selectedLoan) {
-        // Refresh local details
-        fetchInstallments(selectedLoan.id);
-        fetchActiveLoans(); // Auto-refresh left panel counts
-        
-        setSelectedLoan(prev => prev ? { 
-          ...prev, 
-          pendingCount: Math.max(0, (prev.pendingCount || 0) - 1)
-        } : null);
+    showConfirm(
+      'Reject Payment Proof',
+      'Are you sure you want to REJECT this payment proof? This will notify the customer to re-submit proof.',
+      async () => {
+        closeConfirm();
+        try {
+          await api.post('/api/admin/payments/reject', { installmentId }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          alert('Payment proof rejected and customer notified!');
+          if (selectedLoan) {
+            fetchInstallments(selectedLoan.id);
+            fetchActiveLoans();
+            setSelectedLoan(prev => prev ? { ...prev, pendingCount: Math.max(0, (prev.pendingCount || 0) - 1) } : null);
+          }
+        } catch (err: any) {
+          alert(err.response?.data?.error || 'Failed to reject payment proof.');
+        }
       }
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to reject payment proof.');
-    }
+    );
   };
 
-  const handleUnmarkPaid = async (installmentId: string) => {
-    if (!window.confirm('Are you sure you want to reverse this payment to UNPAID?')) return;
-    try {
-      await api.put(`/api/admin/installments/${installmentId}`, {
-        status: 'Unpaid',
-        payment_date: null,
-        transaction_id: null,
-        proof_url: null
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      alert('Installment payment reversed successfully.');
-
-      if (selectedLoan) {
-        fetchInstallments(selectedLoan.id);
-        fetchActiveLoans(); // Refresh left panel counts
+  const handleUnmarkPaid = (installmentId: string) => {
+    showConfirm(
+      'Reverse Payment',
+      'Are you sure you want to reverse this payment back to UNPAID? The installment balance will be restored.',
+      async () => {
+        closeConfirm();
+        try {
+          await api.put(`/api/admin/installments/${installmentId}`, {
+            status: 'Unpaid',
+            payment_date: null,
+            transaction_id: null,
+            proof_url: null
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          alert('Installment payment reversed successfully.');
+          if (selectedLoan) {
+            fetchInstallments(selectedLoan.id);
+            fetchActiveLoans();
+          }
+        } catch (err: any) {
+          alert(err.response?.data?.error || 'Failed to reverse payment.');
+        }
       }
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to reverse payment.');
-    }
+    );
   };
 
-
-  const handleBulkAction = async () => {
+  const handleBulkAction = () => {
     if (!selectedLoan) return;
     const fromVal = Number(bulkFrom);
     const toVal = Number(bulkTo);
@@ -224,40 +241,40 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
       alert('From Day must be less than or equal to To Day.');
       return;
     }
-
-    const actionText = bulkAction === 'Paid' ? 'MARK AS PAID' : 'REVERSE TO UNPAID';
-    const confirmMsg = `Are you sure you want to ${actionText} from Day ${fromVal} to Day ${toVal}? This will adjust the remaining ledger balance.`;
-    if (!window.confirm(confirmMsg)) return;
-
-    try {
-      setBulkLoading(true);
-      const response = await api.post('/api/admin/payments/bulk-update', {
-        loanId: selectedLoan.id,
-        fromIndex: fromVal,
-        toIndex: toVal,
-        status: bulkAction
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      alert(`Successfully updated Day ${fromVal} to Day ${toVal} as ${bulkAction === 'Paid' ? 'Paid' : 'Unpaid'}!`);
-      
-      const updatedLoan = response.data.loan;
-      // If loan was completed, reset details
-      if (updatedLoan.status === 'Completed') {
-        alert('Congratulations! This loan is now fully settled and closed.');
-        setSelectedLoan(null);
-        setInstallments([]);
-        fetchActiveLoans();
-      } else {
-        fetchInstallments(selectedLoan.id);
-        fetchActiveLoans();
+    const actionText = bulkAction === 'Paid' ? 'Mark as Paid' : 'Reverse to Unpaid';
+    showConfirm(
+      `Bulk Action: ${actionText}`,
+      `Are you sure you want to ${actionText.toUpperCase()} from Day ${fromVal} to Day ${toVal}? This will adjust the remaining ledger balance.`,
+      async () => {
+        closeConfirm();
+        try {
+          setBulkLoading(true);
+          const response = await api.post('/api/admin/payments/bulk-update', {
+            loanId: selectedLoan.id,
+            fromIndex: fromVal,
+            toIndex: toVal,
+            status: bulkAction
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          alert(`Successfully updated Day ${fromVal} to Day ${toVal} as ${bulkAction === 'Paid' ? 'Paid' : 'Unpaid'}!`);
+          const updatedLoan = response.data.loan;
+          if (updatedLoan.status === 'Completed') {
+            alert('Congratulations! This loan is now fully settled and closed.');
+            setSelectedLoan(null);
+            setInstallments([]);
+            fetchActiveLoans();
+          } else {
+            fetchInstallments(selectedLoan.id);
+            fetchActiveLoans();
+          }
+        } catch (err: any) {
+          alert(err.response?.data?.error || 'Failed to apply bulk update.');
+        } finally {
+          setBulkLoading(false);
+        }
       }
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to apply bulk update.');
-    } finally {
-      setBulkLoading(false);
-    }
+    );
   };
 
   const filteredLoans = activeLoans.filter(l => {
@@ -269,7 +286,42 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 animate-fade-in">
-      
+
+      {/* ── Custom Confirm Modal (replaces window.confirm — never blocked by browser) ─── */}
+      {confirmModal.open && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <AlertTriangle size={20} className="text-amber-600" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">{confirmModal.title}</h3>
+            </div>
+            {/* Body */}
+            <div className="px-6 pb-6">
+              <p className="text-sm text-slate-600 leading-relaxed">{confirmModal.message}</p>
+              {/* Buttons */}
+              <div className="flex gap-3 mt-6 justify-end">
+                <button
+                  onClick={closeConfirm}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmModal.onConfirm}
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-md shadow-rose-500/20"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* Left Pane: Search and Active Loans Selector */}
       <div className="lg:col-span-5 space-y-6">
         <div>
