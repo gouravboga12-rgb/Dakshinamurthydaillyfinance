@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { 
   Search, 
@@ -11,7 +11,8 @@ import {
   Loader2,
   AlertCircle,
   Edit,
-  ChevronDown
+  ChevronDown,
+  AlertTriangle
 } from 'lucide-react';
 
 interface Loan {
@@ -51,6 +52,22 @@ export default function LoanManagement({ token }: LoanManagementProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Custom confirmation modal (replaces window.confirm — blocked in HTTPS deployed environments)
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ open: false, title: '', message: '', onConfirm: () => {} });
+
+  const showConfirm = useCallback((title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ open: true, title, message, onConfirm });
+  }, []);
+
+  const closeConfirm = useCallback(() => {
+    setConfirmModal(prev => ({ ...prev, open: false }));
+  }, []);
   
   // Filters
   const [statusFilter, setStatusFilter] = useState('');
@@ -321,30 +338,42 @@ export default function LoanManagement({ token }: LoanManagementProps) {
     }
   };
 
-  const handleReject = async (id: string) => {
-    if (!window.confirm('Are you sure you want to Reject this ledger request?')) return;
-    try {
-      await axios.post(`/api/admin/loans/${id}/reject`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert('Ledger request rejected.');
-      fetchLoans();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to reject loan.');
-    }
+  const handleReject = (id: string) => {
+    showConfirm(
+      'Reject Ledger Request',
+      'Are you sure you want to Reject this ledger request?',
+      async () => {
+        closeConfirm();
+        try {
+          await axios.post(`/api/admin/loans/${id}/reject`, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          alert('Ledger request rejected.');
+          fetchLoans();
+        } catch (err: any) {
+          alert(err.response?.data?.error || 'Failed to reject loan.');
+        }
+      }
+    );
   };
 
-  const handleCloseLoan = async (id: string) => {
-    if (!window.confirm('Are you sure you want to Close this loan manually? Remaining balance will be set to zero.')) return;
-    try {
-      await axios.post(`/api/admin/loans/${id}/close`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert('Loan marked as Completed.');
-      fetchLoans();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to close loan.');
-    }
+  const handleCloseLoan = (id: string) => {
+    showConfirm(
+      'Force Settle Loan',
+      'Are you sure you want to Close this loan manually? Remaining balance will be set to zero.',
+      async () => {
+        closeConfirm();
+        try {
+          await axios.post(`/api/admin/loans/${id}/close`, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          alert('Loan marked as Completed.');
+          fetchLoans();
+        } catch (err: any) {
+          alert(err.response?.data?.error || 'Failed to close loan.');
+        }
+      }
+    );
   };
 
   const handleViewDetails = async (id: string) => {
@@ -1093,6 +1122,36 @@ export default function LoanManagement({ token }: LoanManagementProps) {
         </div>
       )}
 
+      {/* ── Custom Confirm Modal ─────────────────────────────────────────── */}
+      {confirmModal.open && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <AlertTriangle size={20} className="text-amber-600" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">{confirmModal.title}</h3>
+            </div>
+            <div className="px-6 pb-6">
+              <p className="text-sm text-slate-600 leading-relaxed">{confirmModal.message}</p>
+              <div className="flex gap-3 mt-6 justify-end">
+                <button
+                  onClick={closeConfirm}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmModal.onConfirm}
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-md shadow-rose-500/20"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

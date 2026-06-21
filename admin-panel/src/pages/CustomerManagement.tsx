@@ -342,35 +342,45 @@ export default function CustomerManagement({ token }: CustomerManagementProps) {
     fetchCustomers();
   }, [statusFilter, search, token]);
 
-  const handleUpdateStatus = async (id: string, newStatus: string) => {
-    if (!window.confirm(`Are you sure you want to set status to ${newStatus}?`)) return;
-    try {
-      await axios.patch(`/api/admin/customers/${id}/status`, { status: newStatus }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      fetchCustomers();
-      if (selectedCust && selectedCust.id === id) {
-        setSelectedCust(prev => prev ? { ...prev, status: newStatus as any } : null);
+  const handleUpdateStatus = (id: string, newStatus: string) => {
+    showConfirm(
+      'Update Customer Status',
+      `Are you sure you want to set status to ${newStatus}?`,
+      async () => {
+        closeConfirm();
+        try {
+          await axios.patch(`/api/admin/customers/${id}/status`, { status: newStatus }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          fetchCustomers();
+          if (selectedCust && selectedCust.id === id) {
+            setSelectedCust(prev => prev ? { ...prev, status: newStatus as any } : null);
+          }
+        } catch (err: any) {
+          alert(err.response?.data?.error || 'Failed to update customer status.');
+        }
       }
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to update customer status.');
-    }
+    );
   };
 
-  const handleDeleteCustomer = async (id: string, name: string) => {
-    if (!window.confirm(`⚠️ WARNING: Are you sure you want to permanently delete customer "${name}"?\n\nThis will also delete all their loans, installments, and notifications. This action CANNOT be undone.`)) {
-      return;
-    }
-    try {
-      await axios.delete(`/api/admin/customers/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert(`Customer "${name}" deleted successfully.`);
-      setSelectedCust(null); // Close modal if open
-      fetchCustomers();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to delete customer.');
-    }
+  const handleDeleteCustomer = (id: string, name: string) => {
+    showConfirm(
+      'Delete Customer Account',
+      `⚠️ WARNING: Are you sure you want to permanently delete customer "${name}"?\n\nThis will also delete all their loans, installments, and notifications. This action CANNOT be undone.`,
+      async () => {
+        closeConfirm();
+        try {
+          await axios.delete(`/api/admin/customers/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          alert(`Customer "${name}" deleted successfully.`);
+          setSelectedCust(null); // Close modal if open
+          fetchCustomers();
+        } catch (err: any) {
+          alert(err.response?.data?.error || 'Failed to delete customer.');
+        }
+      }
+    );
   };
 
   const handleCreateCustomer = async (e: React.FormEvent) => {

@@ -490,39 +490,51 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                     </div>
                     <div className="flex gap-3 mt-3">
                       <button
-                        onClick={async () => {
-                          if (!window.confirm(`Reject foreclosure request? This will reset the pending foreclosure installments back to unpaid.`)) return;
-                          try {
-                            await api.post(`/api/admin/loans/${selectedLoan.id}/reject-foreclosure`, {}, {
-                              headers: { Authorization: `Bearer ${token}` }
-                            });
-                            alert('Foreclosure request rejected. Installments have been reset to unpaid.');
-                            fetchInstallments(selectedLoan.id);
-                            fetchActiveLoans();
-                          } catch (e: any) {
-                            console.error(e);
-                            alert(e.response?.data?.error || 'Failed to reject foreclosure.');
-                          }
+                        onClick={() => {
+                          showConfirm(
+                            'Reject Foreclosure',
+                            'Reject foreclosure request? This will reset the pending foreclosure installments back to unpaid.',
+                            async () => {
+                              closeConfirm();
+                              try {
+                                await api.post(`/api/admin/loans/${selectedLoan.id}/reject-foreclosure`, {}, {
+                                  headers: { Authorization: `Bearer ${token}` }
+                                });
+                                alert('Foreclosure request rejected. Installments have been reset to unpaid.');
+                                fetchInstallments(selectedLoan.id);
+                                fetchActiveLoans();
+                              } catch (e: any) {
+                                console.error(e);
+                                alert(e.response?.data?.error || 'Failed to reject foreclosure.');
+                              }
+                            }
+                          );
                         }}
                         className="w-1/2 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 hover:text-slate-900 text-xs font-bold rounded-xl transition-colors cursor-pointer border border-slate-300"
                       >
                         ❌ Reject Request
                       </button>
                       <button
-                        onClick={async () => {
-                          if (!window.confirm(`Approve foreclosure? This will mark all ${pendingInsts.length} remaining installments as paid and close the loan permanently.`)) return;
-                          try {
-                            await api.post(`/api/admin/loans/${selectedLoan.id}/approve-foreclosure`, {}, {
-                              headers: { Authorization: `Bearer ${token}` }
-                            });
-                            alert('Foreclosure approved! Loan has been successfully settled and closed.');
-                            setSelectedLoan(null);
-                            setInstallments([]);
-                            fetchActiveLoans();
-                          } catch (e: any) {
-                            console.error(e);
-                            alert(e.response?.data?.error || 'Failed to approve foreclosure.');
-                          }
+                        onClick={() => {
+                          showConfirm(
+                            'Approve Foreclosure',
+                            `Approve foreclosure? This will mark all ${pendingInsts.length} remaining installments as paid and close the loan permanently.`,
+                            async () => {
+                              closeConfirm();
+                              try {
+                                await api.post(`/api/admin/loans/${selectedLoan.id}/approve-foreclosure`, {}, {
+                                  headers: { Authorization: `Bearer ${token}` }
+                                });
+                                alert('Foreclosure approved! Loan has been successfully settled and closed.');
+                                setSelectedLoan(null);
+                                setInstallments([]);
+                                fetchActiveLoans();
+                              } catch (e: any) {
+                                console.error(e);
+                                alert(e.response?.data?.error || 'Failed to approve foreclosure.');
+                              }
+                            }
+                          );
                         }}
                         className="w-1/2 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
                       >
