@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import api from '../utils/api';
 import { 
   AlertCircle, 
+  AlertTriangle,
   Loader2, 
   MessageCircle, 
   Coins, 
@@ -35,6 +36,22 @@ export default function DelayedPayments({ token }: DelayedPaymentsProps) {
   const [activeTab, setActiveTab] = useState<'overdue' | 'late'>('overdue');
   const [latePayments, setLatePayments] = useState<any[]>([]);
   const [lateLoading, setLateLoading] = useState(false);
+
+  // Custom confirmation modal (replaces window.confirm — blocked in HTTPS deployed environments)
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ open: false, title: '', message: '', onConfirm: () => {} });
+
+  const showConfirm = useCallback((title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ open: true, title, message, onConfirm });
+  }, []);
+
+  const closeConfirm = useCallback(() => {
+    setConfirmModal(prev => ({ ...prev, open: false }));
+  }, []);
 
   const fetchOverduePayments = async () => {
     try {
@@ -80,47 +97,53 @@ export default function DelayedPayments({ token }: DelayedPaymentsProps) {
     fetchLatePayments();
   }, [token]);
 
-  const handleMarkPaid = async (installmentId: string) => {
-    if (!window.confirm('Verify that you have physically collected the cash/payment for this daily installment?')) return;
-    try {
-      setActionLoading(installmentId);
-      await api.post('/api/admin/payments/mark-paid', {
-        installmentId
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert('Repayment recorded and verified successfully!');
-      // Refetch both payments list
-      fetchOverduePayments();
-      fetchLatePayments();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to record manual payment verification.');
-    } finally {
-      setActionLoading(null);
-    }
+  const handleMarkPaid = (installmentId: string) => {
+    showConfirm(
+      'Confirm Cash Collection',
+      'Confirm that you have physically collected the cash/payment for this daily installment?',
+      async () => {
+        closeConfirm();
+        try {
+          setActionLoading(installmentId);
+          await api.post('/api/admin/payments/mark-paid', { installmentId }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          alert('Repayment recorded and verified successfully!');
+          fetchOverduePayments();
+          fetchLatePayments();
+        } catch (err: any) {
+          alert(err.response?.data?.error || 'Failed to record manual payment verification.');
+        } finally {
+          setActionLoading(null);
+        }
+      }
+    );
   };
 
-  const handleResetDelay = async (params: { installmentId?: string; loanId?: string }) => {
+  const handleResetDelay = (params: { installmentId?: string; loanId?: string }) => {
     const isBulk = !!params.loanId;
-    const confirmMsg = isBulk 
-      ? 'Are you sure you want to reset ALL paid installments of this loan to be marked as On-Time (due date matches payment date)? This will clear their delay history.'
-      : 'Are you sure you want to reset this paid installment to be marked as On-Time?';
-      
-    if (!window.confirm(confirmMsg)) return;
-
-    try {
-      setActionLoading(params.installmentId || params.loanId || 'bulk');
-      await api.post('/api/admin/payments/reset-delays', params, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert(isBulk ? 'All paid installments reset to on-time!' : 'Installment payment date adjusted successfully.');
-      fetchOverduePayments();
-      fetchLatePayments();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to reset delay.');
-    } finally {
-      setActionLoading(null);
-    }
+    showConfirm(
+      isBulk ? 'Reset All to On-Time' : 'Set Installment On-Time',
+      isBulk
+        ? 'Are you sure you want to reset ALL paid installments of this loan to be marked as On-Time? This will clear their delay history.'
+        : 'Are you sure you want to reset this paid installment to be marked as On-Time?',
+      async () => {
+        closeConfirm();
+        try {
+          setActionLoading(params.installmentId || params.loanId || 'bulk');
+          await api.post('/api/admin/payments/reset-delays', params, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          alert(isBulk ? 'All paid installments reset to on-time!' : 'Installment payment date adjusted successfully.');
+          fetchOverduePayments();
+          fetchLatePayments();
+        } catch (err: any) {
+          alert(err.response?.data?.error || 'Failed to reset delay.');
+        } finally {
+          setActionLoading(null);
+        }
+      }
+    );
   };
 
   const filteredPayments = payments.filter(p => 
@@ -137,7 +160,38 @@ export default function DelayedPayments({ token }: DelayedPaymentsProps) {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8 animate-fade-in">
-      
+
+      {/* ── Custom Confirm Modal ──────────────────────────────────── */}
+      {confirmModal.open && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <AlertTriangle size={20} className="text-amber-600" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">{confirmModal.title}</h3>
+            </div>
+            <div className="px-6 pb-6">
+              <p className="text-sm text-slate-600 leading-relaxed">{confirmModal.message}</p>
+              <div className="flex gap-3 mt-6 justify-end">
+                <button
+                  onClick={closeConfirm}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmModal.onConfirm}
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-md shadow-rose-500/20"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center border-b border-slate-100 pb-5">
         <div>
