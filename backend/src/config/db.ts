@@ -1153,7 +1153,19 @@ export const db = {
         const completedLoans = loans?.filter((l: any) => l.status === 'Completed') || [];
         const totalCustomers = users?.filter((u: any) => u.role === 'customer').length || 0;
 
-        const outstanding = activeLoans.reduce((sum: number, l: any) => sum + l.remaining_balance, 0);
+        const { data: paidInsts, error: paidFetchErr } = await supabaseClient.from('installments').select('loan_id').eq('status', 'Paid');
+        if (paidFetchErr) throw paidFetchErr;
+        const paidInstsData = paidInsts || [];
+        const paidCounts: Record<string, number> = {};
+        paidInstsData.forEach((inst: any) => {
+          paidCounts[inst.loan_id] = (paidCounts[inst.loan_id] || 0) + 1;
+        });
+
+        const outstanding = activeLoans.reduce((sum: number, l: any) => {
+          const count = paidCounts[l.id] || 0;
+          const calcRemaining = Math.max(0, (l.total_repayment || 0) - (count * (l.daily_installment || 0)));
+          return sum + calcRemaining;
+        }, 0);
         const todayCollection = instToday.reduce((sum: number, inst: any) => sum + (inst.loan?.daily_installment || 0), 0);
 
         // Overdue payments: Active loans where due date is passed and installment is unpaid
@@ -1186,8 +1198,6 @@ export const db = {
         const averageLoanSize = activeLoans.length ? Math.round(activeLoans.reduce((sum: number, l: any) => sum + l.approved_amount, 0) / activeLoans.length) : 0;
 
         // 4. Avg Days to Repay
-        const paidInsts = await supabaseClient.from('installments').select('loan_id').eq('status', 'Paid');
-        const paidInstsData = paidInsts.data || [];
         const loanIdsWithPaid = new Set(paidInstsData.map((x: any) => x.loan_id));
         const avgDaysToRepay = loanIdsWithPaid.size ? Math.round(paidInstsData.length / loanIdsWithPaid.size) : 0;
 
@@ -1247,7 +1257,17 @@ export const db = {
     const activeLoansCount = (await getSqlAsync("SELECT COUNT(*) as cnt FROM loans WHERE status = 'Active'")).cnt;
     const completedLoansCount = (await getSqlAsync("SELECT COUNT(*) as cnt FROM loans WHERE status = 'Completed'")).cnt;
     const pendingLoansCount = (await getSqlAsync("SELECT COUNT(*) as cnt FROM loans WHERE status = 'Pending'")).cnt;
-    const outstandingAmount = (await getSqlAsync("SELECT SUM(remaining_balance) as sum FROM loans WHERE status = 'Active'")).sum || 0;
+    const activeLoansDetails = await allSqlAsync(`
+      SELECT l.total_repayment, l.daily_installment, COUNT(i.id) as paid_count
+      FROM loans l
+      LEFT JOIN installments i ON l.id = i.loan_id AND i.status = 'Paid'
+      WHERE l.status = 'Active'
+      GROUP BY l.id
+    `);
+    const outstandingAmount = activeLoansDetails.reduce((sum: number, l: any) => {
+      const calcRemaining = Math.max(0, (l.total_repayment || 0) - (l.paid_count * (l.daily_installment || 0)));
+      return sum + calcRemaining;
+    }, 0);
 
     const today = new Date().toISOString().split('T')[0];
     // Today collections sum daily installments
