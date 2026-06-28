@@ -69,3 +69,7 @@ App assest verification photos/
 
 # Temp build outputs
 admin-panel/vite.config.ts.timestamp*
+
+# Scratch files
+backend/scratch_*.js
+

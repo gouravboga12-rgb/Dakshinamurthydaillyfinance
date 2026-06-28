@@ -580,7 +580,7 @@ export const markInstallmentPaid = async (req: AuthRequest, res: Response) => {
     const unpaidCount = installments.filter((i: any) => i.status !== 'Paid').length;
     
     // Calculate new balance based on actual paid count
-    const newBalance = Math.max(0, loan.approved_amount - (paidCount * loan.daily_installment));
+    const newBalance = Math.max(0, loan.total_repayment - (paidCount * loan.daily_installment));
     let isCompleted = unpaidCount === 0;
 
     let updatedLoan;
@@ -1003,7 +1003,7 @@ export const rejectForeclosure = async (req: AuthRequest, res: Response) => {
     // Recalculate remaining balance and ensure loan is Active
     const updatedInstallments = await db.getInstallmentsByLoanId(id);
     const paidCount = updatedInstallments.filter((i: any) => i.status === 'Paid').length;
-    const newBalance = Math.max(0, loan.approved_amount - (paidCount * loan.daily_installment));
+    const newBalance = Math.max(0, loan.total_repayment - (paidCount * loan.daily_installment));
 
     const updatedLoan = await db.updateLoanStatus(id, 'Active', {
       remaining_balance: newBalance
@@ -1201,7 +1201,7 @@ export const updateInstallment = async (req: AuthRequest, res: Response) => {
       if (loan) {
         const installments = await db.getInstallmentsByLoanId(loan.id);
         const paidCount = installments.filter((i: any) => i.status === 'Paid').length;
-        const newBalance = Math.max(0, loan.approved_amount - (paidCount * loan.daily_installment));
+        const newBalance = Math.max(0, loan.total_repayment - (paidCount * loan.daily_installment));
         
         const unpaidCount = installments.filter((i: any) => i.status !== 'Paid').length;
         let newLoanStatus = unpaidCount === 0 ? 'Completed' : 'Active';
@@ -1280,7 +1280,7 @@ export const bulkUpdateInstallments = async (req: AuthRequest, res: Response) =>
     const paidCount = updatedInstallments.filter((i: any) => i.status === 'Paid').length;
     const unpaidCount = updatedInstallments.filter((i: any) => i.status !== 'Paid').length;
 
-    const newBalance = Math.max(0, loan.approved_amount - (paidCount * loan.daily_installment));
+    const newBalance = Math.max(0, loan.total_repayment - (paidCount * loan.daily_installment));
     const isCompleted = unpaidCount === 0;
 
     let newLoanStatus = isCompleted ? 'Completed' : 'Active';

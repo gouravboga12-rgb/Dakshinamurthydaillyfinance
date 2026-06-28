@@ -522,7 +522,7 @@ export const db = {
           .eq('loan_id', data.id)
           .eq('status', 'Paid');
         if (!countErr && count !== null) {
-          const calcRemaining = Math.max(0, data.approved_amount - (count * data.daily_installment));
+          const calcRemaining = Math.max(0, data.total_repayment - (count * data.daily_installment));
           data.remaining_balance = data.status === 'Completed' ? 0 : calcRemaining;
         }
       }
@@ -532,7 +532,7 @@ export const db = {
       if (row) {
         const countRow = await getSqlAsync("SELECT COUNT(*) as cnt FROM installments WHERE loan_id = ? AND status = 'Paid'", [row.id]);
         const count = countRow ? countRow.cnt : 0;
-        const calcRemaining = Math.max(0, row.approved_amount - (count * row.daily_installment));
+        const calcRemaining = Math.max(0, row.total_repayment - (count * row.daily_installment));
         row.remaining_balance = row.status === 'Completed' ? 0 : calcRemaining;
       }
       return row;
@@ -550,7 +550,7 @@ export const db = {
           .eq('loan_id', id)
           .eq('status', 'Paid');
         if (!countErr && count !== null) {
-          const calcRemaining = Math.max(0, data.approved_amount - (count * data.daily_installment));
+          const calcRemaining = Math.max(0, data.total_repayment - (count * data.daily_installment));
           data.remaining_balance = data.status === 'Completed' ? 0 : calcRemaining;
         }
       }
@@ -560,7 +560,7 @@ export const db = {
       if (row) {
         const countRow = await getSqlAsync("SELECT COUNT(*) as cnt FROM installments WHERE loan_id = ? AND status = 'Paid'", [id]);
         const count = countRow ? countRow.cnt : 0;
-        const calcRemaining = Math.max(0, row.approved_amount - (count * row.daily_installment));
+        const calcRemaining = Math.max(0, row.total_repayment - (count * row.daily_installment));
         row.remaining_balance = row.status === 'Completed' ? 0 : calcRemaining;
       }
       return row;
@@ -586,7 +586,7 @@ export const db = {
           });
           data.forEach((l: any) => {
             const count = paidCounts[l.id] || 0;
-            const calcRemaining = Math.max(0, l.approved_amount - (count * l.daily_installment));
+            const calcRemaining = Math.max(0, l.total_repayment - (count * l.daily_installment));
             l.remaining_balance = l.status === 'Completed' ? 0 : calcRemaining;
           });
         }
@@ -602,7 +602,7 @@ export const db = {
         });
         rows.forEach((r: any) => {
           const count = paidCounts[r.id] || 0;
-          const calcRemaining = Math.max(0, r.approved_amount - (count * r.daily_installment));
+          const calcRemaining = Math.max(0, r.total_repayment - (count * r.daily_installment));
           r.remaining_balance = r.status === 'Completed' ? 0 : calcRemaining;
         });
       }
@@ -699,7 +699,7 @@ export const db = {
       }
       return result.map((l: any) => {
         const paidCount = paidCounts[l.id] || 0;
-        const calcRemaining = Math.max(0, l.approved_amount - (paidCount * l.daily_installment));
+        const calcRemaining = Math.max(0, l.total_repayment - (paidCount * l.daily_installment));
         return {
           ...l,
           remaining_balance: l.status === 'Completed' ? 0 : calcRemaining,
@@ -755,7 +755,7 @@ export const db = {
       const rows = await allSqlAsync(sql, params);
       return rows.map((r: any) => {
         const paidCount = paidCounts[r.id] || 0;
-        const calcRemaining = Math.max(0, r.approved_amount - (paidCount * r.daily_installment));
+        const calcRemaining = Math.max(0, r.total_repayment - (paidCount * r.daily_installment));
         return {
           ...r,
           remaining_balance: r.status === 'Completed' ? 0 : calcRemaining,
@@ -1206,7 +1206,8 @@ export const db = {
         const npaRate = outstanding ? Math.round((overdueAmount / outstanding) * 100) : 0;
 
         const nonPendingLoans = loans?.filter((l: any) => l.status === 'Active' || l.status === 'Completed') || [];
-        const totalDisbursedAmount = nonPendingLoans.reduce((sum: number, l: any) => sum + (l.approved_amount || 0), 0);
+        const activeLoansOnly = loans?.filter((l: any) => l.status === 'Active') || [];
+        const totalDisbursedAmount = activeLoansOnly.reduce((sum: number, l: any) => sum + (l.approved_amount || 0), 0);
         
         const approvedToday = loans?.filter((l: any) => (l.status === 'Active' || l.status === 'Completed') && l.approval_date && l.approval_date.startsWith(todayStr)) || [];
         const todayDisbursedAmount = approvedToday.reduce((sum: number, l: any) => sum + (l.approved_amount || 0), 0);
@@ -1317,7 +1318,7 @@ export const db = {
     const overdueAmount = overdueAmtResult.sum || 0;
     const npaRate = outstandingAmount ? Math.round((overdueAmount / outstandingAmount) * 100) : 0;
 
-    const totalDisbursedResult = await getSqlAsync("SELECT SUM(approved_amount) as sum FROM loans WHERE status IN ('Active', 'Completed')");
+    const totalDisbursedResult = await getSqlAsync("SELECT SUM(approved_amount) as sum FROM loans WHERE status = 'Active'");
     const totalDisbursedAmount = totalDisbursedResult.sum || 0;
 
     const todayDisbursedResult = await getSqlAsync("SELECT SUM(approved_amount) as sum, COUNT(*) as cnt FROM loans WHERE status IN ('Active', 'Completed') AND approval_date LIKE ?", [`${today}%`]);

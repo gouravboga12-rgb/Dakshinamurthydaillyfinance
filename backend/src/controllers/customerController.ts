@@ -273,7 +273,7 @@ export const payInstallment = async (req: AuthRequest, res: Response) => {
     const unpaidCount = installmentsAfterUpdate.filter((i: any) => i.status !== 'Paid').length;
     
     // Calculate new balance based on actual paid count
-    const newBalance = Math.max(0, activeLoan.approved_amount - (paidCount * activeLoan.daily_installment));
+    const newBalance = Math.max(0, activeLoan.total_repayment - (paidCount * activeLoan.daily_installment));
     let isCompleted = unpaidCount === 0;
 
     let updatedLoan;

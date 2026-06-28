@@ -16,6 +16,7 @@ interface ActiveLoan {
   id: string;
   customer_id: string;
   approved_amount: number;
+  total_repayment?: number;
   daily_installment: number;
   remaining_balance: number;
   status: string;
@@ -139,10 +140,11 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
     fetchInstallments(loan.id);
   };
 
-  // Calculate correct remaining balance from approved_amount and paid installments count
+  // Calculate correct remaining balance from total_repayment (or approved_amount) and paid installments count
   const calcRemainingBalance = (loan: ActiveLoan, insts: Installment[]): number => {
     const paidCount = insts.filter(i => i.status === 'Paid').length;
-    const remaining = loan.approved_amount - (paidCount * loan.daily_installment);
+    const baseAmount = loan.total_repayment !== undefined ? loan.total_repayment : loan.approved_amount;
+    const remaining = baseAmount - (paidCount * loan.daily_installment);
     return Math.max(0, remaining);
   };
 
