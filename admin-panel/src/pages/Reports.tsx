@@ -22,6 +22,14 @@ interface ReportsProps {
 
 export default function Reports({ token }: ReportsProps) {
   const [reportType, setReportType] = useState('daily_collection');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    const localTime = d.getTime();
+    const localOffset = d.getTimezoneOffset() * 60000;
+    const utc = localTime + localOffset;
+    const ist = new Date(utc + (3600000 * 5.5));
+    return ist.toISOString().split('T')[0];
+  });
   const [reportData, setReportData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -70,7 +78,7 @@ export default function Reports({ token }: ReportsProps) {
     try {
       const response = await axios.get('/api/admin/reports', {
         headers: { Authorization: `Bearer ${token}` },
-        params: { type: reportType }
+        params: { type: reportType, date: selectedDate }
       });
       if (response.data && response.data.error) {
         const errVal = response.data.error;
@@ -227,10 +235,12 @@ export default function Reports({ token }: ReportsProps) {
           </div>
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Date Filter</label>
-            <div className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm text-slate-500">
-              <Calendar size={15} />
-              <span className="font-medium text-slate-600">{new Date().toISOString().split('T')[0]} (Today)</span>
-            </div>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-600 font-semibold"
+            />
           </div>
         </div>
 

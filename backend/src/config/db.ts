@@ -20,6 +20,13 @@ export function getISTDateTimeString() {
   // that was 5.5h ahead; browsers then added another +5.5h for IST display = 11h drift.
   return new Date().toISOString();
 }
+export function convertToISTDateString(timestamp: string | Date | null) {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  // Add 5.5 hours to get IST
+  const istDate = new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
+  return istDate.toISOString().split('T')[0];
+}
 
 // Load environment variables (done in index.ts, but let's make sure we have access)
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
@@ -962,18 +969,18 @@ export const db = {
     }
   },
 
-  async getInstallmentsPaidToday() {
+  async getInstallmentsPaidToday(dateString?: string) {
     // Use IST date (India Standard Time = UTC+5:30) to determine "today"
     // so the report reflects Indian calendar dates, not UTC dates
-    const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-    const today = istNow.toISOString().split('T')[0]; // YYYY-MM-DD in IST
+    const today = (dateString && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) ? dateString : this.getISTDateString();
+    
     // today in IST starts at 00:00 IST = previous day 18:30 UTC
     // tomorrow in IST starts at 00:00 IST next day = today 18:30 UTC
     const todayStartUTC = new Date(`${today}T00:00:00+05:30`).toISOString();
-    const tomorrowIST = new Date(istNow);
-    tomorrowIST.setUTCDate(tomorrowIST.getUTCDate() + 1);
-    const tomorrow = tomorrowIST.toISOString().split('T')[0];
+    const tomorrowDate = new Date(new Date(today).getTime() + 24 * 60 * 60 * 1000);
+    const tomorrow = tomorrowDate.toISOString().split('T')[0];
     const tomorrowStartUTC = new Date(`${tomorrow}T00:00:00+05:30`).toISOString();
+    
     if (useSupabase) {
       const { data, error } = await supabaseClient.from('installments')
         .select('*, loan:loans(*, customer:users(*))')
@@ -984,16 +991,20 @@ export const db = {
       return data;
     } else {
       const sql = `
-        SELECT i.*, l.daily_installment, u.full_name as customer_name, u.mobile_number as customer_mobile, u.email as customer_email
+        SELECT i.*, l.daily_installment, l.status as loan_status, l.completion_date as loan_completion_date, u.full_name as customer_name, u.mobile_number as customer_mobile, u.email as customer_email
         FROM installments i
         JOIN loans l ON i.loan_id = l.id
         JOIN users u ON l.customer_id = u.id
-        WHERE i.status = 'Paid' AND i.payment_date LIKE ?
+        WHERE i.status = 'Paid' 
+          AND datetime(i.payment_date, '+5 hours', '+30 minutes') LIKE ?
+          AND (l.status != 'Completed' OR datetime(i.payment_date, '+5 hours', '+30 minutes') <= datetime(l.completion_date, '+5 hours', '+30 minutes'))
       `;
       const rows = await allSqlAsync(sql, [`${today}%`]);
       return rows.map((r: any) => ({
         ...r,
         loan: {
+          status: r.loan_status,
+          completion_date: r.loan_completion_date,
           daily_installment: r.daily_installment,
           customer: {
             full_name: r.customer_name,
@@ -1202,14 +1213,30 @@ export const db = {
         const avgDaysToRepay = loanIdsWithPaid.size ? Math.round(paidInstsData.length / loanIdsWithPaid.size) : 0;
 
         // 5. Monthly Collection Total
-        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-        const tomorrow = new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0];
+        const istDate = this.getISTDate();
+        const year = istDate.getFullYear();
+        const month = String(istDate.getMonth() + 1).padStart(2, '0');
+        const monthStart = `${year}-${month}-01`;
+        const monthStartUTC = new Date(`${monthStart}T00:00:00+05:30`).toISOString();
+        
+        const tomorrowStr = this.convertToISTDateString(new Date(Date.now() + 24 * 60 * 60 * 1000));
+        const monthEndUTC = new Date(`${tomorrowStr}T00:00:00+05:30`).toISOString();
+        
         const { data: monthlyPaidInst } = await supabaseClient.from('installments')
-          .select('*, loan:loans(daily_installment)')
+          .select('*, loan:loans(status, completion_date, daily_installment)')
           .eq('status', 'Paid')
-          .gte('payment_date', `${currentMonth}-01`)
-          .lt('payment_date', tomorrow);
-        const monthlyCollectionTotal = monthlyPaidInst?.reduce((sum: number, i: any) => sum + (i.loan?.daily_installment || 0), 0) || 0;
+          .gte('payment_date', monthStartUTC)
+          .lt('payment_date', monthEndUTC);
+        const monthlyCollectionTotal = (monthlyPaidInst || [])
+          .filter((i: any) => {
+            if (i.loan?.status === 'Completed' && i.loan?.completion_date) {
+              const completionIST = this.convertToISTDateString(i.loan.completion_date);
+              const paymentIST = this.convertToISTDateString(i.payment_date);
+              return paymentIST <= completionIST;
+            }
+            return i.loan?.status === 'Active' || i.loan?.status === 'Completed';
+          })
+          .reduce((sum: number, i: any) => sum + (i.loan?.daily_installment || 0), 0) || 0;
 
         // 6. NPA Rate
         const overdueAmount = overdueInst?.reduce((sum: number, i: any) => sum + (i.loan?.daily_installment || 0), 0) || 0;
@@ -1269,13 +1296,13 @@ export const db = {
       return sum + calcRemaining;
     }, 0);
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.getISTDateString();
     // Today collections sum daily installments
     const todayCollectionResult = await getSqlAsync(`
       SELECT SUM(l.daily_installment) as sum
       FROM installments i
       JOIN loans l ON i.loan_id = l.id
-      WHERE i.status = 'Paid' AND i.payment_date LIKE ?
+      WHERE i.status = 'Paid' AND datetime(i.payment_date, '+5 hours', '+30 minutes') LIKE ?
     `, [`${today}%`]);
     const todayCollection = todayCollectionResult.sum || 0;
 
@@ -1283,21 +1310,23 @@ export const db = {
     const platformChargesTodayResult = await getSqlAsync(`
       SELECT SUM(platform_charges) as sum
       FROM loans
-      WHERE status = 'Active' AND approval_date LIKE ?
+      WHERE status = 'Active' AND datetime(approval_date, '+5 hours', '+30 minutes') LIKE ?
     `, [`${today}%`]);
     const todayRevenue = (platformChargesTodayResult.sum || 0) + (todayCollection * 0.1); // interest yield projection
     const todayProfit = platformChargesTodayResult.sum || 0; // standard setup charges are full profit
 
     // Monthly revenue sum platform charges + paid installments
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const currentMonth = today.slice(0, 7); // YYYY-MM in IST
     const monthlyPlatformCharges = (await getSqlAsync(`
-      SELECT SUM(platform_charges) as sum FROM loans WHERE approval_date LIKE ?
+      SELECT SUM(platform_charges) as sum FROM loans WHERE datetime(approval_date, '+5 hours', '+30 minutes') LIKE ?
     `, [`${currentMonth}%`])).sum || 0;
     const monthlyInstallments = (await getSqlAsync(`
       SELECT SUM(l.daily_installment) as sum
       FROM installments i
       JOIN loans l ON i.loan_id = l.id
-      WHERE i.status = 'Paid' AND i.payment_date LIKE ?
+      WHERE i.status = 'Paid' 
+        AND datetime(i.payment_date, '+5 hours', '+30 minutes') LIKE ?
+        AND (l.status != 'Completed' OR datetime(i.payment_date, '+5 hours', '+30 minutes') <= datetime(l.completion_date, '+5 hours', '+30 minutes'))
     `, [`${currentMonth}%`])).sum || 0;
 
     // Overdue payments count
@@ -1341,7 +1370,7 @@ export const db = {
     const totalDisbursedResult = await getSqlAsync("SELECT SUM(approved_amount) as sum FROM loans WHERE status = 'Active'");
     const totalDisbursedAmount = totalDisbursedResult.sum || 0;
 
-    const todayDisbursedResult = await getSqlAsync("SELECT SUM(approved_amount) as sum, COUNT(*) as cnt FROM loans WHERE status IN ('Active', 'Completed') AND approval_date LIKE ?", [`${today}%`]);
+    const todayDisbursedResult = await getSqlAsync("SELECT SUM(approved_amount) as sum, COUNT(*) as cnt FROM loans WHERE status IN ('Active', 'Completed') AND datetime(approval_date, '+5 hours', '+30 minutes') LIKE ?", [`${today}%`]);
     const todayDisbursedAmount = todayDisbursedResult.sum || 0;
     const todayDisbursedCount = todayDisbursedResult.cnt || 0;
 

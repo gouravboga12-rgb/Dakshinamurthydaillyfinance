@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { db } from '../config/db';
+import { db, convertToISTDateString } from '../config/db';
 import { AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -633,15 +633,24 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
 export const getReports = async (req: AuthRequest, res: Response) => {
   try {
-    const { type } = req.query; // 'daily_collection' | 'daily_profit' | 'outstanding' | 'efficiency'
-    const today = db.getISTDateString();
+    const { type, date } = req.query; // 'daily_collection' | 'daily_profit' | 'portfolio_outstanding' | 'pending_approvals' | 'monthly_summary'
+    const today = (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : db.getISTDateString();
 
     if (type === 'daily_collection') {
-      const collections = await db.getInstallmentsPaidToday();
+      const collections = await db.getInstallmentsPaidToday(today);
+      const filtered = (collections || []).filter((inst: any) => {
+        if (inst.loan?.status === 'Completed' && inst.loan?.completion_date) {
+          const completionIST = convertToISTDateString(inst.loan.completion_date);
+          const paymentIST = convertToISTDateString(inst.payment_date);
+          return paymentIST <= completionIST;
+        }
+        return inst.loan?.status === 'Active' || inst.loan?.status === 'Completed';
+      });
+
       return res.status(200).json({
         reportName: 'Daily Collection Report',
         date: today,
-        data: collections
+        data: filtered
       });
     }
 
@@ -655,9 +664,17 @@ export const getReports = async (req: AuthRequest, res: Response) => {
     }
 
     if (type === 'monthly_summary') {
-      const currentYear = new Date().getFullYear();
+      const currentYear = (today && today.length >= 4) ? parseInt(today.substring(0, 4)) : new Date().getFullYear();
       const allLoans = await db.getLoans();
-      const paidInstallments = await db.getPaidInstallments();
+      const rawPaidInstallments = await db.getPaidInstallments();
+      const paidInstallments = (rawPaidInstallments || []).filter((inst: any) => {
+        if (inst.loan?.status === 'Completed' && inst.loan?.completion_date) {
+          const completionIST = convertToISTDateString(inst.loan.completion_date);
+          const paymentIST = convertToISTDateString(inst.payment_date);
+          return paymentIST <= completionIST;
+        }
+        return inst.loan?.status === 'Active' || inst.loan?.status === 'Completed';
+      });
 
       const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -670,7 +687,7 @@ export const getReports = async (req: AuthRequest, res: Response) => {
 
         // Loans disbursed in this month
         const disbursedLoans = allLoans.filter((l: any) => 
-          l.approval_date && l.approval_date.startsWith(monthPrefix)
+          l.approval_date && convertToISTDateString(l.approval_date).startsWith(monthPrefix)
         );
         const loansCount = disbursedLoans.length;
         const totalDisbursed = disbursedLoans.reduce((sum: number, l: any) => sum + (l.approved_amount || 0), 0);
@@ -678,7 +695,7 @@ export const getReports = async (req: AuthRequest, res: Response) => {
 
         // Collections in this month
         const collections = paidInstallments.filter((inst: any) => 
-          inst.payment_date && inst.payment_date.startsWith(monthPrefix)
+          inst.payment_date && convertToISTDateString(inst.payment_date).startsWith(monthPrefix)
         );
         const totalCollected = collections.reduce((sum: number, inst: any) => 
           sum + (inst.loan?.daily_installment || inst.amount || 0), 0
@@ -704,7 +721,7 @@ export const getReports = async (req: AuthRequest, res: Response) => {
     if (type === 'daily_profit') {
       // In our model: Profit = Sum of Platform charges of active loans approved today
       const loans = await db.getLoans();
-      const approvedToday = loans.filter((l: any) => l.approval_date && l.approval_date.startsWith(today));
+      const approvedToday = loans.filter((l: any) => l.approval_date && convertToISTDateString(l.approval_date) === today);
       const platformFeeProfit = approvedToday.reduce((sum: number, l: any) => sum + (l.platform_charges || 0), 0);
 
       return res.status(200).json({
@@ -745,11 +762,13 @@ export const getReports = async (req: AuthRequest, res: Response) => {
       allLoans.forEach((l: any) => {
         const cust = customerMap.get(l.customer_id);
         if (cust) {
-          if (l.status === 'Active') {
-            cust.activeLoans += 1;
+          if (l.status === 'Active' || l.status === 'Completed') {
+            if (l.status === 'Active') {
+              cust.activeLoans += 1;
+              cust.remainingBalance += l.remaining_balance || 0;
+            }
             cust.totalApproved += l.approved_amount || 0;
             cust.totalPaid += ((l.total_repayment || 0) - (l.remaining_balance || 0));
-            cust.remainingBalance += l.remaining_balance || 0;
           }
         }
       });
@@ -759,6 +778,11 @@ export const getReports = async (req: AuthRequest, res: Response) => {
       const pendingPayments: any[] = [];
 
       installments.forEach((inst: any) => {
+        // Only evaluate installments of ACTIVE loans for outstanding/losses/pending tracking
+        if (inst.loan?.status !== 'Active') {
+          return;
+        }
+
         const custId = inst.loan?.customer_id;
         const cust = customerMap.get(custId);
         const dailyInst = inst.loan?.daily_installment || inst.daily_installment || 0;
