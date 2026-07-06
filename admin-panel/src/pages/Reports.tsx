@@ -222,7 +222,11 @@ export default function Reports({ token }: ReportsProps) {
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Select Report Type</label>
             <select
               value={reportType}
-              onChange={(e) => setReportType(e.target.value)}
+              onChange={(e) => {
+                setReportType(e.target.value);
+                setReportData(null);
+                setError('');
+              }}
               className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
             >
               <option value="daily_collection">Daily Collections Report</option>

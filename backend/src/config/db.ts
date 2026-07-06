@@ -972,7 +972,7 @@ export const db = {
   async getInstallmentsPaidToday(dateString?: string) {
     // Use IST date (India Standard Time = UTC+5:30) to determine "today"
     // so the report reflects Indian calendar dates, not UTC dates
-    const today = (dateString && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) ? dateString : this.getISTDateString();
+    const today = (dateString && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) ? dateString : getISTDateString();
     
     // today in IST starts at 00:00 IST = previous day 18:30 UTC
     // tomorrow in IST starts at 00:00 IST next day = today 18:30 UTC
@@ -1213,13 +1213,13 @@ export const db = {
         const avgDaysToRepay = loanIdsWithPaid.size ? Math.round(paidInstsData.length / loanIdsWithPaid.size) : 0;
 
         // 5. Monthly Collection Total
-        const istDate = this.getISTDate();
+        const istDate = getISTDate();
         const year = istDate.getFullYear();
         const month = String(istDate.getMonth() + 1).padStart(2, '0');
         const monthStart = `${year}-${month}-01`;
         const monthStartUTC = new Date(`${monthStart}T00:00:00+05:30`).toISOString();
         
-        const tomorrowStr = this.convertToISTDateString(new Date(Date.now() + 24 * 60 * 60 * 1000));
+        const tomorrowStr = convertToISTDateString(new Date(Date.now() + 24 * 60 * 60 * 1000));
         const monthEndUTC = new Date(`${tomorrowStr}T00:00:00+05:30`).toISOString();
         
         const { data: monthlyPaidInst } = await supabaseClient.from('installments')
@@ -1230,8 +1230,8 @@ export const db = {
         const monthlyCollectionTotal = (monthlyPaidInst || [])
           .filter((i: any) => {
             if (i.loan?.status === 'Completed' && i.loan?.completion_date) {
-              const completionIST = this.convertToISTDateString(i.loan.completion_date);
-              const paymentIST = this.convertToISTDateString(i.payment_date);
+              const completionIST = convertToISTDateString(i.loan.completion_date);
+              const paymentIST = convertToISTDateString(i.payment_date);
               return paymentIST <= completionIST;
             }
             return i.loan?.status === 'Active' || i.loan?.status === 'Completed';
