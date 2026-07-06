@@ -24,11 +24,10 @@ export default function Reports({ token }: ReportsProps) {
   const [reportType, setReportType] = useState('daily_collection');
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date();
-    const localTime = d.getTime();
-    const localOffset = d.getTimezoneOffset() * 60000;
-    const utc = localTime + localOffset;
-    const ist = new Date(utc + (3600000 * 5.5));
-    return ist.toISOString().split('T')[0];
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const date = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${date}`;
   });
   const [reportData, setReportData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
