@@ -664,10 +664,12 @@ export const db = {
       if (error) throw error;
 
       // Fetch pending installments counts grouped by loan_id
+      // NOTE: .limit(50000) prevents Supabase's default 1000-row cap from truncating results
       const { data: pendingInsts, error: piErr } = await supabaseClient
         .from('installments')
         .select('loan_id')
-        .eq('status', 'Pending');
+        .eq('status', 'Pending')
+        .limit(50000);
       if (piErr) throw piErr;
       
       const pendingCounts: Record<string, number> = {};
@@ -676,10 +678,12 @@ export const db = {
       });
 
       // Fetch paid installments counts grouped by loan_id
+      // NOTE: .limit(50000) prevents Supabase's default 1000-row cap from truncating results
       const { data: paidInsts, error: paidErr } = await supabaseClient
         .from('installments')
         .select('loan_id')
-        .eq('status', 'Paid');
+        .eq('status', 'Paid')
+        .limit(50000);
       if (paidErr) throw paidErr;
 
       const paidCounts: Record<string, number> = {};
@@ -710,6 +714,7 @@ export const db = {
         return {
           ...l,
           remaining_balance: l.status === 'Completed' ? 0 : calcRemaining,
+          paidCount: paidCount,
           pendingCount: pendingCounts[l.id] || 0
         };
       });
@@ -766,6 +771,7 @@ export const db = {
         return {
           ...r,
           remaining_balance: r.status === 'Completed' ? 0 : calcRemaining,
+          paidCount: paidCount,
           customer: {
             id: r.customer_id,
             full_name: r.customer_name,

@@ -25,6 +25,7 @@ interface ActiveLoan {
     mobile_number: string;
   };
   pendingCount?: number;
+  paidCount?: number;
 }
 
 interface Installment {
@@ -395,7 +396,13 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                   <p className="text-[10px] text-slate-400 mt-0.5 font-mono">Loan ID: DMF-{l.id.split('-')[0].toUpperCase()}</p>
                   <div className="flex gap-4 text-xs font-semibold text-slate-500 mt-2">
                     <span className="flex items-center gap-1"><Coins size={12} className="text-emerald-500" /> ₹{l.daily_installment}/day</span>
-                    <span>Bal: ₹{selectedLoan?.id === l.id && installments ? calcRemainingBalance(l, installments) : l.remaining_balance}</span>
+                    <span>Bal: ₹{
+                      l.paidCount !== undefined
+                        ? Math.max(0, (l.approved_amount || l.total_repayment || 0) - (l.paidCount * l.daily_installment))
+                        : selectedLoan?.id === l.id && installments
+                          ? calcRemainingBalance(l, installments)
+                          : l.remaining_balance
+                    }</span>
                   </div>
                 </div>
                 <ChevronRight size={16} className="text-slate-400" />
