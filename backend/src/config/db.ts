@@ -36,6 +36,41 @@ const useSupabase = SUPABASE_URL && SUPABASE_KEY;
 let sqliteDb: any = null;
 let supabaseClient: any = null;
 
+// Paginated fetcher for Supabase installments to prevent PostgREST 1000-row cap from truncating counts
+async function getSupabasePaidAndPendingCounts() {
+  const paidCounts: Record<string, number> = {};
+  const pendingCounts: Record<string, number> = {};
+  const paidInstsData: { loan_id: string }[] = [];
+  
+  if (!supabaseClient) return { paidCounts, pendingCounts, paidInstsData };
+
+  let from = 0;
+  const pageSize = 1000;
+  
+  while (true) {
+    const { data, error } = await supabaseClient
+      .from('installments')
+      .select('loan_id, status')
+      .range(from, from + pageSize - 1);
+      
+    if (error || !data || data.length === 0) break;
+    
+    for (const inst of data) {
+      if (inst.status === 'Paid') {
+        paidCounts[inst.loan_id] = (paidCounts[inst.loan_id] || 0) + 1;
+        paidInstsData.push({ loan_id: inst.loan_id });
+      } else if (inst.status === 'Pending') {
+        pendingCounts[inst.loan_id] = (pendingCounts[inst.loan_id] || 0) + 1;
+      }
+    }
+    
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  
+  return { paidCounts, pendingCounts, paidInstsData };
+}
+
 // Initialize Database connection
 export async function initDatabase() {
   if (useSupabase) {
@@ -582,21 +617,13 @@ export const db = {
         .order('created_at', { ascending: false });
       if (error) throw error;
       if (data && data.length > 0) {
-        const { data: paidInsts, error: paidErr } = await supabaseClient
-          .from('installments')
-          .select('loan_id')
-          .eq('status', 'Paid');
-        if (!paidErr && paidInsts) {
-          const paidCounts: Record<string, number> = {};
-          paidInsts.forEach((inst: any) => {
-            paidCounts[inst.loan_id] = (paidCounts[inst.loan_id] || 0) + 1;
-          });
-          data.forEach((l: any) => {
-            const count = paidCounts[l.id] || 0;
-            const calcRemaining = Math.max(0, (l.approved_amount || l.total_repayment) - (count * l.daily_installment));
-            l.remaining_balance = l.status === 'Completed' ? 0 : calcRemaining;
-          });
-        }
+        const { paidCounts } = await getSupabasePaidAndPendingCounts();
+        data.forEach((l: any) => {
+          const count = paidCounts[l.id] || 0;
+          const calcRemaining = Math.max(0, (l.approved_amount || l.total_repayment) - (count * l.daily_installment));
+          l.remaining_balance = l.status === 'Completed' ? 0 : calcRemaining;
+          l.paidCount = count;
+        });
       }
       return data;
     } else {
@@ -663,33 +690,8 @@ export const db = {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Fetch pending installments counts grouped by loan_id
-      // NOTE: .limit(50000) prevents Supabase's default 1000-row cap from truncating results
-      const { data: pendingInsts, error: piErr } = await supabaseClient
-        .from('installments')
-        .select('loan_id')
-        .eq('status', 'Pending')
-        .limit(50000);
-      if (piErr) throw piErr;
-      
-      const pendingCounts: Record<string, number> = {};
-      (pendingInsts || []).forEach((inst: any) => {
-        pendingCounts[inst.loan_id] = (pendingCounts[inst.loan_id] || 0) + 1;
-      });
-
-      // Fetch paid installments counts grouped by loan_id
-      // NOTE: .limit(50000) prevents Supabase's default 1000-row cap from truncating results
-      const { data: paidInsts, error: paidErr } = await supabaseClient
-        .from('installments')
-        .select('loan_id')
-        .eq('status', 'Paid')
-        .limit(50000);
-      if (paidErr) throw paidErr;
-
-      const paidCounts: Record<string, number> = {};
-      (paidInsts || []).forEach((inst: any) => {
-        paidCounts[inst.loan_id] = (paidCounts[inst.loan_id] || 0) + 1;
-      });
+      // Fetch all paid & pending installments with pagination (to prevent Supabase 1000-row cap)
+      const { paidCounts, pendingCounts } = await getSupabasePaidAndPendingCounts();
 
       // Handle search/sorting in memory if database complex bindings are bypassed
       let result = data || [];
@@ -1170,13 +1172,7 @@ export const db = {
         const completedLoans = loans?.filter((l: any) => l.status === 'Completed') || [];
         const totalCustomers = users?.filter((u: any) => u.role === 'customer').length || 0;
 
-        const { data: paidInsts, error: paidFetchErr } = await supabaseClient.from('installments').select('loan_id').eq('status', 'Paid');
-        if (paidFetchErr) throw paidFetchErr;
-        const paidInstsData = paidInsts || [];
-        const paidCounts: Record<string, number> = {};
-        paidInstsData.forEach((inst: any) => {
-          paidCounts[inst.loan_id] = (paidCounts[inst.loan_id] || 0) + 1;
-        });
+        const { paidCounts, paidInstsData } = await getSupabasePaidAndPendingCounts();
 
         const outstanding = activeLoans.reduce((sum: number, l: any) => {
           const count = paidCounts[l.id] || 0;
