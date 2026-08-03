@@ -140,10 +140,10 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
     fetchInstallments(loan.id);
   };
 
-  // Calculate correct remaining balance from total_repayment (or approved_amount) and paid installments count
+  // Calculate correct remaining balance from approved_amount (or total_repayment) and paid installments count
   const calcRemainingBalance = (loan: ActiveLoan, insts: Installment[]): number => {
     const paidCount = insts.filter(i => i.status === 'Paid').length;
-    const baseAmount = loan.total_repayment !== undefined ? loan.total_repayment : loan.approved_amount;
+    const baseAmount = loan.approved_amount || loan.total_repayment || 0;
     const remaining = baseAmount - (paidCount * loan.daily_installment);
     return Math.max(0, remaining);
   };
@@ -395,7 +395,7 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                   <p className="text-[10px] text-slate-400 mt-0.5 font-mono">Loan ID: DMF-{l.id.split('-')[0].toUpperCase()}</p>
                   <div className="flex gap-4 text-xs font-semibold text-slate-500 mt-2">
                     <span className="flex items-center gap-1"><Coins size={12} className="text-emerald-500" /> ₹{l.daily_installment}/day</span>
-                    <span>Bal: ₹{l.remaining_balance}</span>
+                    <span>Bal: ₹{selectedLoan?.id === l.id && installments ? calcRemainingBalance(l, installments) : l.remaining_balance}</span>
                   </div>
                 </div>
                 <ChevronRight size={16} className="text-slate-400" />
@@ -473,7 +473,7 @@ export default function PaymentTracking({ token }: PaymentTrackingProps) {
                           UTR: {pendingInsts[0].transaction_id} · {pendingInsts.length} installments pending
                         </p>
                         <p className="text-sm font-black text-red-800 mt-1">
-                          Total: ₹{selectedLoan.remaining_balance.toLocaleString('en-IN')}
+                          Total: ₹{calcRemainingBalance(selectedLoan, installments).toLocaleString('en-IN')}
                         </p>
                       </div>
                       {pendingInsts[0].proof_url && (

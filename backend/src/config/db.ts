@@ -529,7 +529,7 @@ export const db = {
           .eq('loan_id', data.id)
           .eq('status', 'Paid');
         if (!countErr && count !== null) {
-          const calcRemaining = Math.max(0, data.total_repayment - (count * data.daily_installment));
+          const calcRemaining = Math.max(0, (data.approved_amount || data.total_repayment) - (count * data.daily_installment));
           data.remaining_balance = data.status === 'Completed' ? 0 : calcRemaining;
         }
       }
@@ -539,7 +539,7 @@ export const db = {
       if (row) {
         const countRow = await getSqlAsync("SELECT COUNT(*) as cnt FROM installments WHERE loan_id = ? AND status = 'Paid'", [row.id]);
         const count = countRow ? countRow.cnt : 0;
-        const calcRemaining = Math.max(0, row.total_repayment - (count * row.daily_installment));
+        const calcRemaining = Math.max(0, (row.approved_amount || row.total_repayment) - (count * row.daily_installment));
         row.remaining_balance = row.status === 'Completed' ? 0 : calcRemaining;
       }
       return row;
@@ -557,7 +557,7 @@ export const db = {
           .eq('loan_id', id)
           .eq('status', 'Paid');
         if (!countErr && count !== null) {
-          const calcRemaining = Math.max(0, data.total_repayment - (count * data.daily_installment));
+          const calcRemaining = Math.max(0, (data.approved_amount || data.total_repayment) - (count * data.daily_installment));
           data.remaining_balance = data.status === 'Completed' ? 0 : calcRemaining;
         }
       }
@@ -567,7 +567,7 @@ export const db = {
       if (row) {
         const countRow = await getSqlAsync("SELECT COUNT(*) as cnt FROM installments WHERE loan_id = ? AND status = 'Paid'", [id]);
         const count = countRow ? countRow.cnt : 0;
-        const calcRemaining = Math.max(0, row.total_repayment - (count * row.daily_installment));
+        const calcRemaining = Math.max(0, (row.approved_amount || row.total_repayment) - (count * row.daily_installment));
         row.remaining_balance = row.status === 'Completed' ? 0 : calcRemaining;
       }
       return row;
@@ -593,7 +593,7 @@ export const db = {
           });
           data.forEach((l: any) => {
             const count = paidCounts[l.id] || 0;
-            const calcRemaining = Math.max(0, l.total_repayment - (count * l.daily_installment));
+            const calcRemaining = Math.max(0, (l.approved_amount || l.total_repayment) - (count * l.daily_installment));
             l.remaining_balance = l.status === 'Completed' ? 0 : calcRemaining;
           });
         }
@@ -609,7 +609,7 @@ export const db = {
         });
         rows.forEach((r: any) => {
           const count = paidCounts[r.id] || 0;
-          const calcRemaining = Math.max(0, r.total_repayment - (count * r.daily_installment));
+          const calcRemaining = Math.max(0, (r.approved_amount || r.total_repayment) - (count * r.daily_installment));
           r.remaining_balance = r.status === 'Completed' ? 0 : calcRemaining;
         });
       }
@@ -706,7 +706,7 @@ export const db = {
       }
       return result.map((l: any) => {
         const paidCount = paidCounts[l.id] || 0;
-        const calcRemaining = Math.max(0, l.total_repayment - (paidCount * l.daily_installment));
+        const calcRemaining = Math.max(0, (l.approved_amount || l.total_repayment) - (paidCount * l.daily_installment));
         return {
           ...l,
           remaining_balance: l.status === 'Completed' ? 0 : calcRemaining,
@@ -762,7 +762,7 @@ export const db = {
       const rows = await allSqlAsync(sql, params);
       return rows.map((r: any) => {
         const paidCount = paidCounts[r.id] || 0;
-        const calcRemaining = Math.max(0, r.total_repayment - (paidCount * r.daily_installment));
+        const calcRemaining = Math.max(0, (r.approved_amount || r.total_repayment) - (paidCount * r.daily_installment));
         return {
           ...r,
           remaining_balance: r.status === 'Completed' ? 0 : calcRemaining,
@@ -1174,7 +1174,7 @@ export const db = {
 
         const outstanding = activeLoans.reduce((sum: number, l: any) => {
           const count = paidCounts[l.id] || 0;
-          const calcRemaining = Math.max(0, (l.total_repayment || 0) - (count * (l.daily_installment || 0)));
+          const calcRemaining = Math.max(0, ((l.approved_amount || l.total_repayment) || 0) - (count * (l.daily_installment || 0)));
           return sum + calcRemaining;
         }, 0);
         const todayCollection = instToday.reduce((sum: number, inst: any) => sum + (inst.loan?.daily_installment || 0), 0);
@@ -1285,14 +1285,14 @@ export const db = {
     const completedLoansCount = (await getSqlAsync("SELECT COUNT(*) as cnt FROM loans WHERE status = 'Completed'")).cnt;
     const pendingLoansCount = (await getSqlAsync("SELECT COUNT(*) as cnt FROM loans WHERE status = 'Pending'")).cnt;
     const activeLoansDetails = await allSqlAsync(`
-      SELECT l.total_repayment, l.daily_installment, COUNT(i.id) as paid_count
+      SELECT l.approved_amount, l.total_repayment, l.daily_installment, COUNT(i.id) as paid_count
       FROM loans l
       LEFT JOIN installments i ON l.id = i.loan_id AND i.status = 'Paid'
       WHERE l.status = 'Active'
       GROUP BY l.id
     `);
     const outstandingAmount = activeLoansDetails.reduce((sum: number, l: any) => {
-      const calcRemaining = Math.max(0, (l.total_repayment || 0) - (l.paid_count * (l.daily_installment || 0)));
+      const calcRemaining = Math.max(0, ((l.approved_amount || l.total_repayment) || 0) - (l.paid_count * (l.daily_installment || 0)));
       return sum + calcRemaining;
     }, 0);
 
