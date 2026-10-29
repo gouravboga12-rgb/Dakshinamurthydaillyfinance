@@ -46,7 +46,9 @@
             "targetSdkVersion": 36
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-asset"
     ],
     "owner": "gouravboga64",
     "runtimeVersion": {
