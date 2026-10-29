@@ -117,3 +117,10 @@ VALUES (
     'approved', 
     '$2a$10$w09/z6t98xG9Q87Jd6bW1OQkC7z3XhXo3uW44X04Wc2WwLw/t7JzO' -- hashed 'admin123'
 );
+
+
+-- 9. Explicit Data API Grants (Required by Supabase as of October 30 policy)
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT ON public.settings TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;

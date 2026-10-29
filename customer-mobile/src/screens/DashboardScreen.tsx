@@ -12,6 +12,8 @@ import {
   TextInput,
   Alert,
   Image,
+  BackHandler,
+  ToastAndroid,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -69,6 +71,26 @@ export default function DashboardScreen({ navigation }: any) {
 
   // Apply Modal State is removed to comply with Google Play Policy
 
+  // Prevent accidental exit when pressing hardware back button on Dashboard
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    let backPressCount = 0;
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (backPressCount === 0) {
+        backPressCount++;
+        ToastAndroid.show('Press back again to exit', ToastAndroid.SHORT);
+        setTimeout(() => {
+          backPressCount = 0;
+        }, 2000);
+        return true; // prevent default back exit
+      }
+      return false; // let Android exit the app
+    });
+
+    return () => backHandler.remove();
+  }, []);
+
   const scheduleRepaymentReminders = async (summary: any) => {
     if (Platform.OS === 'web' || !summary) return;
 
@@ -94,7 +116,7 @@ export default function DashboardScreen({ navigation }: any) {
         try {
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: Platform.OS === 'web' ? '✅ Daily Finance Payment Successful' : '✅ Daily Ledger Payment Successful',
+              title: '✅ Daily Ledger Payment Successful',
               body: `Thank you! Your daily installment of ₹${loan.daily_installment} has been paid and recorded on ledger successfully. Keep it up!`,
               sound: true,
               priority: Notifications.AndroidNotificationPriority.HIGH,
@@ -125,8 +147,8 @@ export default function DashboardScreen({ navigation }: any) {
           try {
             const isOverdue = (summary.overdueCount || 0) > 0;
             const title = isOverdue
-              ? (Platform.OS === 'web' ? '🚨 Action Required: Late Payment Warning!' : '🚨 Action Required: Late Ledger Payment Warning!')
-              : (Platform.OS === 'web' ? '📅 Daily Finance Payment Due Today' : '📅 Daily Ledger Payment Due Today');
+              ? '🚨 Action Required: Late Ledger Payment Warning!'
+              : '📅 Daily Ledger Payment Due Today';
             const body = isOverdue
               ? `You have missed ${summary.overdueCount} installment(s). Please clear dues immediately to protect your ledger profile!`
               : `Your daily installment of ₹${summary.dueTodayAmount || loan.daily_installment} is due. Settle today to keep your ledger score healthy!`;
@@ -191,7 +213,7 @@ export default function DashboardScreen({ navigation }: any) {
           try {
             await Notifications.scheduleNotificationAsync({
               content: {
-                title: Platform.OS === 'web' ? '📅 Daily Finance Payment Due Today' : '📅 Daily Ledger Payment Due Today',
+                title: '📅 Daily Ledger Payment Due Today',
                 body: `Your daily installment of ₹${summary.dueTodayAmount} is due today. Settle today to keep your ledger score healthy!`,
                 sound: true,
                 priority: Notifications.AndroidNotificationPriority.DEFAULT,

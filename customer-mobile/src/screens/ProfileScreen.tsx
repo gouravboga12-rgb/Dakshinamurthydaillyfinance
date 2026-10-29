@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import * as DocumentPicker from 'expo-document-picker';
-import { RootState } from '../store';
-import { logout, updateProfile } from '../store/authSlice';
+import { RootState, AppDispatch } from '../store';
+import { logout, performLogout, updateProfile } from '../store/authSlice';
 import api, { getBaseUrl } from '../utils/api';
 import COLORS, { COMMON_STYLES } from '../utils/theme';
 import { fileUriToBase64 } from '../utils/file';
@@ -72,7 +72,7 @@ We aim to offer easy, direct transaction tracking and daily installment ledger f
 
 export default function ProfileScreen() {
   const user = useSelector((state: RootState) => state.auth.user);
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
 
   const [isEditing, setIsEditing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -116,7 +116,7 @@ export default function ProfileScreen() {
     if (Platform.OS === 'web') {
       const confirmed = window.confirm('Are you sure you want to sign out of your account?');
       if (confirmed) {
-        dispatch(logout());
+        dispatch(performLogout());
         setTimeout(() => {
           window.location.href = '/';
           window.location.reload();
@@ -132,7 +132,7 @@ export default function ProfileScreen() {
             text: 'Sign Out',
             style: 'destructive',
             onPress: () => {
-              dispatch(logout());
+              dispatch(performLogout());
             },
           },
         ]

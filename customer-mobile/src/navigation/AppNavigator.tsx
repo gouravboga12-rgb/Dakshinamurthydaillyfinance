@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '../store';
+import { loadStoredSession } from '../store/authSlice';
 
 // Import Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -18,7 +19,7 @@ import PaymentScreen from '../screens/PaymentScreen';
 import HowToRepayScreen from '../screens/HowToRepayScreen';
 
 // Custom tab icons mock since we don't install expo-vector-icons specifically, we can use simple Text or Styles!
-import { Text, View, StyleSheet, TouchableOpacity, Linking, Platform, Alert } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, Linking, Platform, Alert, ActivityIndicator } from 'react-native';
 import { COLORS } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -165,7 +166,21 @@ const FloatingWhatsApp = () => {
 };
 
 export default function AppNavigator() {
-  const token = useSelector((state: RootState) => state.auth.token);
+  const dispatch = useDispatch<AppDispatch>();
+  const { token, isRestoringSession } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    dispatch(loadStoredSession());
+  }, [dispatch]);
+
+  // Prevent UI flicker while reading AsyncStorage
+  if (isRestoringSession) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#FFC800" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.rootContainer}>
