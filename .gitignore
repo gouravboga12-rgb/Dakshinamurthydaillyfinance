@@ -74,3 +74,6 @@ admin-panel/vite.config.ts.timestamp*
 backend/scratch_*.js
 
 .vercel
+
+credentials.json
+customer-mobile/credentials.json
