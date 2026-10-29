@@ -47,14 +47,17 @@
         }
       ]
     ],
-    "owner": "daily_finance",
+    "owner": "gouravboga64",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "extra": {
       "eas": {
-        "projectId": "10f07f13-8c5a-47cc-86f7-31c16b02583f"
+        "projectId": "9729b1b3-ac0d-4f3c-8343-431a07fcae4b"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9729b1b3-ac0d-4f3c-8343-431a07fcae4b"
     }
   }
 }
