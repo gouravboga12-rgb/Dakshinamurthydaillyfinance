@@ -161,6 +161,7 @@ export default function DashboardScreen({ navigation }: any) {
                 priority: Notifications.AndroidNotificationPriority.HIGH,
               },
               trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.DATE,
                 date: triggerDate,
               },
             });
